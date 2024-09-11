@@ -211,48 +211,52 @@ int socket_connect(int sockfd, const char *ip, unsigned short port)
 	return 0;
 }
 
-int tun_if_forward(int tunfd, int sockfd)
+ssize_t send_udp(int sockfd, const void *buf, size_t len, struct sockaddr_in *addr)
 {
-	int res, rc;
-	char buffer[TUN_MTU_SIZE_MAX];
-	rc = recv(sockfd, buffer, sizeof(buffer), 0);
-	if (rc <= 0) {
-		perror("recv data failed");
-		return -1;
-	}
-#ifdef LOG_IP_PACKETS
-	print_ip_packet(buffer, rc);
-#endif
-	res = write(tunfd, buffer, rc);
-	if (res == -1) {
-		perror("write to tun failed");
-		return -1;
-	}
-	return 0;
+	ssize_t res;
+	socklen_t addrlen = addr ? sizeof(struct sockaddr_in) : 0;
+	int success;
+	do {
+		success = 1;
+		res = sendto(sockfd, buf, len, 0, (struct sockaddr *)addr, addrlen);
+		if (res == -1) {
+			if (errno == EAGAIN || errno == EWOULDBLOCK) {
+				wait_for_write(sockfd);
+				success = 0;
+			} else {
+				perror("sendto");
+				return -1;
+			}
+		}
+	} while (!success);
+	return res;
 }
 
-int sockfd_forward(int tunfd, int sockfd)
+ssize_t recv_udp(int sockfd, void *buf, size_t len, struct sockaddr_in *addr)
 {
-	int res, rc;
-	char buffer[TUN_MTU_SIZE_MAX];
-	rc = read(tunfd, buffer, sizeof(buffer));
-	if (rc <= 0) {
-		perror("read from tun failed");
+	socklen_t addrlen = sizeof(struct sockaddr_in);
+	ssize_t res;
+	res = recvfrom(sockfd, buf, len, 0,
+		(struct sockaddr *)addr, addr ? &addrlen : NULL);
+	if (res <= 0) {
+		perror("recvfrom");
 		return -1;
 	}
+	return res;
+}
 
-retry_send:
-	res = send(sockfd, buffer, rc, 0);
-	if (res == -1) {
-		if (errno == EAGAIN || errno == EWOULDBLOCK) {
-			wait_for_write(sockfd);
-			fprintf(stderr, "send retry\n");
-			goto retry_send;
-		}
-		perror("send data failed");
-		return -1;
-	}
-	return 0;
+uint32_t get_destination_ip(const void *buffer, size_t size)
+{
+	if (size < sizeof(struct iphdr))
+		return 0;
+	return ntohl(((struct iphdr *)buffer)->daddr);
+}
+
+uint32_t get_source_ip(const void *buffer, size_t size)
+{
+	if (size < sizeof(struct iphdr))
+		return 0;
+	return ntohl(((struct iphdr *)buffer)->saddr);
 }
 
 void print_ip_packet(const void *buffer, size_t size)

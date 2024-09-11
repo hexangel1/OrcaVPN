@@ -13,20 +13,82 @@
 #include <errno.h>
 
 #include "network.h"
+#include "encryption.h"
 #include "sigevent.h"
 #include "helper.h"
 
-static void event_loop(int tunfd, int sockfd)
+struct vpnclient {
+	int tunfd;
+	int sockfd;
+	unsigned short port;
+	char ip_addr[MAX_IPV4_ADDRLEN];
+	char tun_addr[MAX_IPV4_ADDRLEN];
+	char tun_netmask[MAX_IPV4_ADDRLEN];
+	char tun_name[IFNAMSIZ];
+	int tun_mtu;
+	unsigned short server_port;
+	char server_ip[MAX_IPV4_ADDRLEN];
+	void *cipher_key;
+	uint8_t point_id;
+};
+
+static int tun_if_forward(struct vpnclient *clnt)
+{
+	ssize_t res;
+	size_t length;
+	char buffer[TUN_MTU_SIZE_MAX];
+	res = recv_udp(clnt->sockfd, buffer, MAX_UDP_PAYLOAD, NULL);
+	if (res == -1) {
+		fprintf(stderr, "receiving packet failed\n");
+		return -1;
+	}
+	length = res;
+	decrypt_packet(buffer, &length, clnt->cipher_key);
+	if (!check_signature(buffer, length, NULL)) {
+		fprintf(stderr, "bad packet signature\n");
+		return -1;
+	}
+	res = write(clnt->tunfd, buffer, length);
+	if (res == -1) {
+		perror("write to tun failed");
+		return -1;
+	}
+	return 0;
+}
+
+static int sockfd_forward(struct vpnclient *clnt)
+{
+	ssize_t res;
+	size_t length;
+	char buffer[TUN_MTU_SIZE_MAX];
+	res = read(clnt->tunfd, buffer, TUN_MTU_SIZE);
+	if (res <= 0) {
+		perror("read from tun failed");
+		return -1;
+	}
+	length = res;
+	sign_packet(buffer, &length, NULL);
+	encrypt_packet(buffer, &length, clnt->cipher_key);
+	buffer[length++] = clnt->point_id;
+	res = send_udp(clnt->sockfd, buffer, length, NULL);
+	if (res == -1) {
+		fprintf(stderr, "sending packet failed\n");
+		return -1;
+	}
+	return 0;
+}
+
+static void vpn_client_handle(struct vpnclient *clnt)
 {
 	fd_set readfds;
 	sigset_t origmask;
-	int res, nfds = (tunfd > sockfd ? tunfd : sockfd) + 1;
+	int res, nfds = MAX(clnt->tunfd, clnt->sockfd) + 1;
 
 	setup_signal_events(&origmask);
 	for (;;) {
 		FD_ZERO(&readfds);
-		FD_SET(tunfd, &readfds);
-		FD_SET(sockfd, &readfds);
+		FD_SET(clnt->tunfd, &readfds);
+		FD_SET(clnt->sockfd, &readfds);
 		res = pselect(nfds, &readfds, NULL, NULL, NULL, &origmask);
 		if (res == -1) {
 			if (errno != EINTR) {
@@ -36,55 +98,87 @@ static void event_loop(int tunfd, int sockfd)
 			res = get_signal_event();
 			if (res == sigevent_shutdown)
 				break;
-			if (res == sigevent_restart)
-				fprintf(stderr, "RESTART!!!!!!!\n");
 			continue;
 		}
-		if (FD_ISSET(tunfd, &readfds))
-			sockfd_forward(tunfd, sockfd);
-		if (FD_ISSET(sockfd, &readfds))
-			tun_if_forward(tunfd, sockfd);
+		if (FD_ISSET(clnt->tunfd, &readfds))
+			sockfd_forward(clnt);
+		if (FD_ISSET(clnt->sockfd, &readfds))
+			tun_if_forward(clnt);
 	}
 }
 
-void service_log(const char *message, int write_syslog)
+static struct vpnclient *create_client(const char *config)
 {
-	if (write_syslog)
-		syslog(LOG_INFO, "%s", message);
-	fprintf(stderr, "%s\n", message);
+	struct vpnclient *clnt;
+	(void)config;
+	clnt = malloc(sizeof(struct vpnclient));
+	memset(clnt, 0, sizeof(struct vpnclient));
+	clnt->tunfd = -1;
+	clnt->sockfd = -1;
+	clnt->port = VPN_PORT;
+	strcpy(clnt->ip_addr, "192.168.1.9");
+	strcpy(clnt->tun_addr, "10.0.0.2");
+	strcpy(clnt->tun_netmask, TUN_IF_NETMASK);
+	strcpy(clnt->tun_name, TUN_IF_NAME);
+	clnt->tun_mtu = TUN_MTU_SIZE;
+	clnt->server_port = VPN_PORT;
+	strcpy(clnt->server_ip, "192.168.1.10");
+	clnt->point_id = 0;
+	init_encryption(16);
+	clnt->cipher_key = get_expanded_key("token12345678900");
+	return clnt;
+}
+
+static int vpn_client_up(struct vpnclient *clnt)
+{
+	int res;
+	res = create_udp_socket(clnt->ip_addr, clnt->port);
+	if (res == -1) {
+		fprintf(stderr, "Create socket failed\n");
+		return -1;
+	}
+	clnt->sockfd = res;
+	res = socket_connect(clnt->sockfd, clnt->server_ip, clnt->server_port);
+	if (res == -1) {
+		fprintf(stderr, "Connection failed\n");
+		return -1;
+	}
+	res = create_tun_if(clnt->tun_name);
+	if (res == -1) {
+		fprintf(stderr, "Allocating interface failed\n");
+		return -1;
+	}
+	clnt->tunfd = res;
+	fprintf(stderr, "created dev %s\n", clnt->tun_name);
+	res = setup_tun_if(clnt->tun_name, clnt->tun_addr, clnt->tun_netmask, clnt->tun_mtu);
+	if (res == -1) {
+		fprintf(stderr, "Setting up %s failed\n", clnt->tun_name);
+		return -1;
+	}
+	nonblock_io(clnt->sockfd);
+	nonblock_io(clnt->tunfd);
+	return 0;
+}
+
+static void vpn_client_down(struct vpnclient *clnt)
+{
+	close(clnt->sockfd);
+	close(clnt->tunfd);
+	free(clnt->cipher_key);
+	free(clnt);
 }
 
 int main()
 {
-	char tun_name[IFNAMSIZ] = TUN_IF_NAME;
-	int sockfd, tunfd, res;
-	sockfd = create_udp_socket("192.168.1.9", VPN_PORT);
-	if (sockfd == -1) {
-		fprintf(stderr, "Create socket failed\ns");
-		exit(1);
-	}
-	res = socket_connect(sockfd, "192.168.1.10", VPN_PORT);
+	struct vpnclient *clnt = create_client("vpn.conf");
+	int res = vpn_client_up(clnt);
 	if (res == -1) {
-		fprintf(stderr, "Connection failed\n");
+		fprintf(stderr, "Failed to bring client up\n");
 		exit(1);
 	}
-	tunfd = create_tun_if(tun_name);
-	if (tunfd == -1) {
-		fprintf(stderr, "Allocating interface\n");
-		exit(1);
-	}
-	fprintf(stderr, "created dev %s\n", tun_name);
-	res = setup_tun_if(tun_name, "10.0.0.2", TUN_IF_NETMASK, TUN_MTU_SIZE);
-	if (res == -1) {
-		fprintf(stderr, "Setting up %s failed\n", tun_name);
-		exit(1);
-	}
-	nonblock_io(sockfd);
-	nonblock_io(tunfd);
-	fprintf(stderr, "Running client\n");
-	event_loop(tunfd, sockfd);
+	fprintf(stderr, "Running client...\n");
+	vpn_client_handle(clnt);
+	vpn_client_down(clnt);
 	fprintf(stderr, "Gracefully finished\n");
-	close(tunfd);
-	close(sockfd);
 	return 0;
 }
