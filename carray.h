@@ -1,7 +1,7 @@
 #ifndef CARRAY_H_SENTRY
 #define CARRAY_H_SENTRY
 
-#include <stdlib.h>
+#include <stddef.h>
 
 typedef struct carray_s {
     size_t item_size;

@@ -1,6 +1,7 @@
 #ifndef SHA1_H_SENTRY
 #define SHA1_H_SENTRY
 
+#include <stddef.h>
 #include <stdint.h>
 
 #define SHA1_DIGEST_LENGTH 20

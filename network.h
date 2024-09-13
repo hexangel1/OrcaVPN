@@ -3,7 +3,6 @@
 
 #include <stddef.h>
 #include <stdint.h>
-#include <linux/if.h>
 
 #define TUN_IF_NAME "vpn-tun0"
 #define TUN_IF_ADDR "10.0.0.1"
@@ -11,7 +10,8 @@
 #define TUN_MTU_SIZE 1400
 #define TUN_MTU_SIZE_MAX 1500
 #define MAX_UDP_PAYLOAD 1432
-#define MAX_IPV4_ADDRLEN 16
+#define MAX_IPV4_ADDR_LEN 16
+#define MAX_IF_NAME_LEN 16
 #define VPN_PORT 778
 
 int create_udp_socket(const char *ip, unsigned short port);

@@ -30,10 +30,10 @@ struct vpnserver {
 	int tunfd;
 	int sockfd;
 	unsigned short port;
-	char ip_addr[MAX_IPV4_ADDRLEN];
-	char tun_addr[MAX_IPV4_ADDRLEN];
-	char tun_netmask[MAX_IPV4_ADDRLEN];
-	char tun_name[IFNAMSIZ];
+	char ip_addr[MAX_IPV4_ADDR_LEN];
+	char tun_addr[MAX_IPV4_ADDR_LEN];
+	char tun_netmask[MAX_IPV4_ADDR_LEN];
+	char tun_name[MAX_IF_NAME_LEN];
 	int tun_mtu;
 	carray_t *peers;
 };

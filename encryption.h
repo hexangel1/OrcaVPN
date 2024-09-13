@@ -1,8 +1,7 @@
 #ifndef ENCRYPTION_H_SENTRY
 #define ENCRYPTION_H_SENTRY
 
-#include <stdlib.h>
-#include <stdint.h>
+#include <stddef.h>
 
 void init_encryption(size_t key_size);
 void *get_expanded_key(const void *key);

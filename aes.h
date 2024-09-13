@@ -1,7 +1,7 @@
 #ifndef AES_H_SENTRY
 #define AES_H_SENTRY
 
-#include <stdlib.h>
+#include <stddef.h>
 #include <stdint.h>
 
 /* Initialize AES variables */

@@ -1,7 +1,7 @@
 #ifndef HELPER_H_SENTRY
 #define HELPER_H_SENTRY
 
-#include <stdlib.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
