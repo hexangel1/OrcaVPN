@@ -3,14 +3,14 @@ SERVER = vpnserver
 CLIENT = vpnclient
 SOURCES = $(wildcard *.c)
 HEADERS = $(filter-out $(SERVER).h $(CLIENT).h, $(SOURCES:.c=.h))
-SPECIAL = Makefile vpnserver-setup.sh
+SPECIAL = Makefile README.md LICENSE vpnserver-setup.sh
 
 SOURCES_SERVER = $(filter-out $(CLIENT).c, $(SOURCES))
 SOURCES_CLIENT = $(filter-out $(SERVER).c, $(SOURCES))
 OBJECTS_SERVER = $(SOURCES_SERVER:.c=.o)
 OBJECTS_CLIENT = $(SOURCES_CLIENT:.c=.o)
 
-CFLAGS = -Wall -Wextra -ansi -pedantic -g
+CFLAGS = -Wall -Wextra -ansi -pedantic -Ofast -g
 CC = gcc
 CTAGS = ctags
 
