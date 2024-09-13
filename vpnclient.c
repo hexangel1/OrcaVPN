@@ -10,6 +10,7 @@
 #include <sys/types.h>
 #include <sys/select.h>
 #include <sys/socket.h>
+#include <arpa/inet.h>
 #include <errno.h>
 
 #include "network.h"
@@ -29,6 +30,7 @@ struct vpnclient {
 	unsigned short server_port;
 	char server_ip[MAX_IPV4_ADDRLEN];
 	void *cipher_key;
+	uint32_t private_ip;
 	uint8_t point_id;
 };
 
@@ -67,6 +69,8 @@ static int sockfd_forward(struct vpnclient *clnt)
 		return -1;
 	}
 	length = res;
+	if (clnt->private_ip != get_source_ip(buffer, length))
+		return -1;
 	sign_packet(buffer, &length, NULL);
 	encrypt_packet(buffer, &length, clnt->cipher_key);
 	buffer[length++] = clnt->point_id;
@@ -124,6 +128,7 @@ static struct vpnclient *create_client(const char *config)
 	clnt->server_port = VPN_PORT;
 	strcpy(clnt->server_ip, "192.168.1.10");
 	clnt->point_id = 0;
+	clnt->private_ip = inet_network(clnt->tun_addr);
 	init_encryption(16);
 	clnt->cipher_key = get_expanded_key("token12345678900");
 	return clnt;

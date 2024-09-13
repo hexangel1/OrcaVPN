@@ -81,6 +81,10 @@ static int tun_if_forward(struct vpnserver *serv)
 		fprintf(stderr, "bad packet signature\n");
 		return -1;
 	}
+	if (peer->private_ip != get_source_ip(buffer, length)) {
+		fprintf(stderr, "wrong peer private ip address\n");
+		return -1;
+	}
 	peer->is_addr_valid = 1;
 	memcpy(&peer->addr, &addr, sizeof(struct sockaddr_in));
 	res = write(serv->tunfd, buffer, length);
