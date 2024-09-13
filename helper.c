@@ -16,10 +16,11 @@ void daemonize(const char *service)
 	for (fd = 0; fd < 1024; ++fd)
 		close(fd);
 	open("/dev/null", O_RDWR);
-	dup(0);
-	dup(0);
+	dup2(0, 1);
+	dup2(0, 2);
 	umask(0);
-	chdir("/");
+	if (chdir("/") < 0)
+		exit(1);
 	if (fork() > 0)
 		exit(0);
 	setsid();

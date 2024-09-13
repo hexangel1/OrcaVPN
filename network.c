@@ -54,7 +54,7 @@ static int tuntap_alloc(char *ifname, int flags)
 	ifr.ifr_flags = flags;
 
 	if (*ifname)
-		strncpy(ifr.ifr_name, ifname, IFNAMSIZ);
+		strncpy(ifr.ifr_name, ifname, IFNAMSIZ - 1);
 
 	if (ioctl(fd, TUNSETIFF, (void *)&ifr) < 0) {
 		perror("ioctl");
@@ -74,7 +74,7 @@ static int set_if_options(const char *ifname, struct ifreq *ifr, int op)
 		return -1;
 	}
 
-	strncpy(ifr->ifr_name, ifname, IFNAMSIZ);
+	strncpy(ifr->ifr_name, ifname, IFNAMSIZ - 1);
 
 	if (ioctl(sockfd, op, ifr) < 0) {
 		perror("ioctl");
