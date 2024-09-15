@@ -1,6 +1,6 @@
 #!/usr/bin/sh
 
-TUN_DEV='vpn-tun0'
+TUN_DEV='orca-gate'
 INET_DEV='wlp0s20f3'
 PRIVATE='10.0.0.0/24'
 
