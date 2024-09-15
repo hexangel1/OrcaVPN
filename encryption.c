@@ -52,16 +52,18 @@ void sign_packet(void *packet, size_t *len)
 	*len += SHA1_DIGEST_LENGTH;
 }
 
-int check_signature(const void *packet, size_t len)
+int check_signature(const void *packet, size_t *len)
 {
 	const uint8_t *data = packet;
-	size_t size = len - SHA1_DIGEST_LENGTH;
+	size_t size = *len;
 	uint8_t digest[SHA1_DIGEST_LENGTH];
 	struct sha1_ctxt ctxt;
-	if (size > len)
+	if (size <= SHA1_DIGEST_LENGTH)
 		return 0;
+	size -= SHA1_DIGEST_LENGTH;
 	sha1_init(&ctxt);
 	sha1_loop(&ctxt, data, size);
 	sha1_result(&ctxt, digest);
-	return !memcmp(data + size, digest, SHA1_DIGEST_LENGTH);
+	*len -= SHA1_DIGEST_LENGTH;
+	return !memcmp(data + size, digest, sizeof(digest));
 }

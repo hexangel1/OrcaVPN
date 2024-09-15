@@ -77,7 +77,7 @@ static int tun_if_forward(struct vpnserver *serv)
 		return -1;
 	}
 	decrypt_packet(buffer, &length, peer->cipher_key);
-	if (!check_signature(buffer, length)) {
+	if (!check_signature(buffer, &length)) {
 		fprintf(stderr, "bad packet signature\n");
 		return -1;
 	}

@@ -46,7 +46,7 @@ static int tun_if_forward(struct vpnclient *clnt)
 	}
 	length = res;
 	decrypt_packet(buffer, &length, clnt->cipher_key);
-	if (!check_signature(buffer, length)) {
+	if (!check_signature(buffer, &length)) {
 		fprintf(stderr, "bad packet signature\n");
 		return -1;
 	}
