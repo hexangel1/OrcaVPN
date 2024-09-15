@@ -30,13 +30,26 @@
 			sha1_step(ctxt); \
 	} while (0)
 
+#define TO_BIG_ENDIAN32(output, input, size) \
+	do { \
+		size_t i; \
+		for (i = 0; i < (size); i += 4) { \
+			uint8_t byte0 = input[i + 0]; \
+			uint8_t byte1 = input[i + 1]; \
+			output[i + 0] = input[i + 3]; \
+			output[i + 1] = input[i + 2]; \
+			output[i + 2] = byte1; \
+			output[i + 3] = byte0; \
+		} \
+	} while (0)
+
 static void sha1_step(struct sha1_ctxt *ctxt)
 {
 	uint32_t a, b, c, d, e, tmp;
 	size_t t, s;
 
 #ifndef WORDS_BIGENDIAN
-	to_big_endian32(ctxt->m.b8, 64, ctxt->m.b8);
+	TO_BIG_ENDIAN32(ctxt->m.b8, ctxt->m.b8, 64);
 #endif
 
 	a = H(0);
@@ -170,6 +183,6 @@ void sha1_result(struct sha1_ctxt *ctxt, uint8_t *digest)
 #ifdef WORDS_BIGENDIAN
 	memcpy(digest, ctxt->h.b8, 20);
 #else
-	to_big_endian32(ctxt->h.b8, 20, digest);
+	TO_BIG_ENDIAN32(digest, ctxt->h.b8, 20);
 #endif
 }
