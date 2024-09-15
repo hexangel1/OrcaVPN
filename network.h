@@ -4,6 +4,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 #define TUN_IF_NAME "vpn-tun0"
 #define TUN_IF_ADDR "10.0.0.1"
 #define TUN_IF_NETMASK "255.255.255.0"
@@ -30,8 +33,6 @@ int socket_connect(int sockfd, const char *ip, unsigned short port);
 
 void nonblock_io(int fd);
 void wait_for_write(int fd);
-
-struct sockaddr_in;
 
 ssize_t send_udp(int sockfd, const void *buf, size_t len, struct sockaddr_in *addr);
 ssize_t recv_udp(int sockfd, void *buf, size_t len, struct sockaddr_in *addr);

@@ -7,6 +7,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
+#include <sys/socket.h>
 #include <sys/select.h>
 #include <arpa/inet.h>
 #include <netinet/ip.h>
@@ -16,7 +17,6 @@
 #include <linux/if_ether.h>
 
 #include "network.h"
-#include "helper.h"
 
 static int create_socket(const char *ip, unsigned short port, int type)
 {
@@ -24,13 +24,13 @@ static int create_socket(const char *ip, unsigned short port, int type)
 	struct sockaddr_in addr;
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(port);
-	addr.sin_addr.s_addr = inet_addr(ip);
-	sockfd = socket(AF_INET, type, 0);
+	addr.sin_addr.s_addr = ip ? inet_addr(ip) : INADDR_ANY;
+	sockfd = socket(AF_INET, type, IPPROTO_IP);
 	if (sockfd == -1) {
 		perror("socket");
 		return -1;
 	}
-	res = bind(sockfd, (struct sockaddr*)&addr, sizeof(addr));
+	res = bind(sockfd, (struct sockaddr *)&addr, sizeof(addr));
 	if (res == -1) {
 		perror("bind");
 		return -1;
@@ -203,7 +203,7 @@ int socket_connect(int sockfd, const char *ip, unsigned short port)
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(port);
 	addr.sin_addr.s_addr = inet_addr(ip);
-	res = connect(sockfd, (struct sockaddr*)&addr, sizeof(addr));
+	res = connect(sockfd, (struct sockaddr *)&addr, sizeof(addr));
 	if (res == -1) {
 		perror("connect");
 		return -1;
