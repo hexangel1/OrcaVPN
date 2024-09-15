@@ -41,25 +41,23 @@ void decrypt_packet(void *packet, size_t *len, const void *key)
 	*len -= padding;
 }
 
-void sign_packet(void *packet, size_t *len, const void *salt)
+void sign_packet(void *packet, size_t *len)
 {
 	uint8_t *data = packet;
 	size_t size = *len;
 	struct sha1_ctxt ctxt;
-	(void)salt;
 	sha1_init(&ctxt);
 	sha1_loop(&ctxt, data, size);
 	sha1_result(&ctxt, data + size);
 	*len += SHA1_DIGEST_LENGTH;
 }
 
-int check_signature(const void *packet, size_t len, const void *salt)
+int check_signature(const void *packet, size_t len)
 {
 	const uint8_t *data = packet;
 	size_t size = len - SHA1_DIGEST_LENGTH;
 	uint8_t digest[SHA1_DIGEST_LENGTH];
 	struct sha1_ctxt ctxt;
-	(void)salt;
 	if (size > len)
 		return 0;
 	sha1_init(&ctxt);

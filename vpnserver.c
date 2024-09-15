@@ -77,7 +77,7 @@ static int tun_if_forward(struct vpnserver *serv)
 		return -1;
 	}
 	decrypt_packet(buffer, &length, peer->cipher_key);
-	if (!check_signature(buffer, length, NULL)) {
+	if (!check_signature(buffer, length)) {
 		fprintf(stderr, "bad packet signature\n");
 		return -1;
 	}
@@ -118,7 +118,7 @@ static int sockfd_forward(struct vpnserver *serv)
 		fprintf(stderr, "peer remote address not found\n");
 		return -1;
 	}
-	sign_packet(buffer, &length, NULL);
+	sign_packet(buffer, &length);
 	encrypt_packet(buffer, &length, peer->cipher_key);
 	res = send_udp(serv->sockfd, buffer, length, &peer->addr);
 	if (res == -1) {

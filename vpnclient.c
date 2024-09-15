@@ -46,7 +46,7 @@ static int tun_if_forward(struct vpnclient *clnt)
 	}
 	length = res;
 	decrypt_packet(buffer, &length, clnt->cipher_key);
-	if (!check_signature(buffer, length, NULL)) {
+	if (!check_signature(buffer, length)) {
 		fprintf(stderr, "bad packet signature\n");
 		return -1;
 	}
@@ -71,7 +71,7 @@ static int sockfd_forward(struct vpnclient *clnt)
 	length = res;
 	if (clnt->private_ip != get_source_ip(buffer, length))
 		return -1;
-	sign_packet(buffer, &length, NULL);
+	sign_packet(buffer, &length);
 	encrypt_packet(buffer, &length, clnt->cipher_key);
 	buffer[length++] = clnt->point_id;
 	res = send_udp(clnt->sockfd, buffer, length, NULL);
