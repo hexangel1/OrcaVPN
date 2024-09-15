@@ -63,7 +63,7 @@ static int tun_if_forward(struct vpnserver *serv)
 	uint8_t point_id;
 	struct vpn_peer *peer;
 	struct sockaddr_in addr;
-	char buffer[TUN_MTU_SIZE_MAX];
+	char buffer[PACKET_BUFFER_SIZE];
 	res = recv_udp(serv->sockfd, buffer, MAX_UDP_PAYLOAD, &addr);
 	if (res == -1) {
 		fprintf(stderr, "receiving packet failed\n");
@@ -101,7 +101,7 @@ static int sockfd_forward(struct vpnserver *serv)
 	size_t length;
 	uint32_t vpn_ip;
 	struct vpn_peer *peer;
-	char buffer[TUN_MTU_SIZE_MAX];
+	char buffer[PACKET_BUFFER_SIZE];
 	res = read(serv->tunfd, buffer, serv->tun_mtu);
 	if (res <= 0) {
 		perror("read from tun failed");
