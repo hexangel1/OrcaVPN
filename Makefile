@@ -3,13 +3,11 @@ SERVER = vpnserver
 CLIENT = vpnclient
 SOURCES = $(wildcard *.c)
 HEADERS = $(filter-out $(SERVER).h $(CLIENT).h, $(SOURCES:.c=.h))
-SPECIAL = Makefile README.md LICENSE scripts
-LIBFILES = encrypt/*.[ch] encrypt/Makefile
-
-SOURCES_SERVER = $(filter-out $(CLIENT).c, $(SOURCES))
-SOURCES_CLIENT = $(filter-out $(SERVER).c, $(SOURCES))
-OBJECTS_SERVER = $(SOURCES_SERVER:.c=.o)
-OBJECTS_CLIENT = $(SOURCES_CLIENT:.c=.o)
+OBJECTS = $(SOURCES:.c=.o)
+OBJECTS_SERVER = $(filter-out $(CLIENT).o, $(OBJECTS))
+OBJECTS_CLIENT = $(filter-out $(SERVER).o, $(OBJECTS))
+ARCHIEVE_FILES = $(SOURCES) $(HEADERS) Makefile README.md LICENSE \
+	scripts encrypt/*.[ch] encrypt/Makefile
 
 LIBDEPEND = encrypt/libencrypt.a
 LOCALLIBS = -lencrypt -Lencrypt
@@ -42,8 +40,8 @@ tags: $(SOURCES) $(HEADERS)
 
 tar: $(PROJECT).tar
 
-$(PROJECT).tar: $(SOURCES) $(HEADERS) $(SPECIAL) $(LIBFILES)
-	tar -cf $@ $(SOURCES) $(HEADERS) $(SPECIAL) $(LIBFILES)
+$(PROJECT).tar: $(ARCHIEVE_FILES)
+	tar -cf $@ $(ARCHIEVE_FILES)
 
 push:
 	rsync -rvza -e 'ssh -p 503' * $(HOST):$(REMOTE_PATH)
