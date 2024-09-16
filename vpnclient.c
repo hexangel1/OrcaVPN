@@ -9,7 +9,7 @@
 #include <errno.h>
 
 #include "network.h"
-#include "encryption.h"
+#include "encrypt/encryption.h"
 #include "sigevent.h"
 #include "helper.h"
 

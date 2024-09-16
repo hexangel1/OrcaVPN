@@ -2,7 +2,6 @@
 #include <stdint.h>
 #include <string.h>
 #include "sha1.h"
-#include "helper.h"
 
 #define K0 0x5a827999U
 #define K1 0x6ed9eba1U
