@@ -3,7 +3,8 @@ SERVER = vpnserver
 CLIENT = vpnclient
 SOURCES = $(wildcard *.c)
 HEADERS = $(filter-out $(SERVER).h $(CLIENT).h, $(SOURCES:.c=.h))
-SPECIAL = Makefile README.md LICENSE vpnserver-setup.sh
+SPECIAL = Makefile README.md LICENSE scripts
+LIBFILES = encrypt/*.[ch] encrypt/Makefile
 
 SOURCES_SERVER = $(filter-out $(CLIENT).c, $(SOURCES))
 SOURCES_CLIENT = $(filter-out $(SERVER).c, $(SOURCES))
@@ -41,8 +42,8 @@ tags: $(SOURCES) $(HEADERS)
 
 tar: $(PROJECT).tar
 
-$(PROJECT).tar: $(SOURCES) $(HEADERS) $(SPECIAL)
-	tar -cf $@ $(SOURCES) $(HEADERS) $(SPECIAL)
+$(PROJECT).tar: $(SOURCES) $(HEADERS) $(SPECIAL) $(LIBFILES)
+	tar -cf $@ $(SOURCES) $(HEADERS) $(SPECIAL) $(LIBFILES)
 
 push:
 	rsync -rvza -e 'ssh -p 503' * $(HOST):$(REMOTE_PATH)
@@ -54,7 +55,9 @@ clean:
 ifneq (clean, $(MAKECMDGOALS))
 ifneq (tags, $(MAKECMDGOALS))
 ifneq (tar, $(MAKECMDGOALS))
+ifneq (push, $(MAKECMDGOALS))
 -include deps.mk
+endif
 endif
 endif
 endif
