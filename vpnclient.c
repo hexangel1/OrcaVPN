@@ -11,6 +11,7 @@
 #include "network.h"
 #include "encrypt/encryption.h"
 #include "sigevent.h"
+#include "configparser.h"
 #include "helper.h"
 
 struct vpnclient {
@@ -106,26 +107,66 @@ static void vpn_client_handle(struct vpnclient *clnt)
 	}
 }
 
-static struct vpnclient *create_client(const char *config)
+#define CONFIG_ERROR(message) \
+	do { \
+		free_config(config); \
+		fputs(message "\n", stderr); \
+		return NULL; \
+	} while (0)
+
+static struct vpnclient *create_client(const char *file)
 {
 	struct vpnclient *clnt;
-	(void)config;
+	struct config_section *config;
+	uint8_t cipher_key[CIPHER_KEY_LEN];
+	int port, server_port;
+	const char *ip_addr, *server_ip, *hex_key;
+	const char *tun_addr, *tun_netmask, *tun_name;
+
+	config = read_config(file);
+	if (!config)
+		return NULL;
+
+	ip_addr = get_str_var(config, "ip_addr", MAX_IPV4_ADDR_LEN - 1);
+	if (!ip_addr)
+		CONFIG_ERROR("ip_addr var not set");
+	server_ip = get_str_var(config, "server_ip", MAX_IPV4_ADDR_LEN - 1);
+	if (!server_ip)
+		CONFIG_ERROR("server_ip var not set");
+	tun_addr = get_str_var(config, "tun_addr", MAX_IPV4_ADDR_LEN - 1);
+	if (!tun_addr)
+		CONFIG_ERROR("tun_addr var not set");
+	hex_key = get_str_var(config, "cipher_key", CIPHER_KEY_HEX_LEN);
+	if (!hex_key || strlen(hex_key) != CIPHER_KEY_HEX_LEN)
+		CONFIG_ERROR("password var not set");
+
+	if (!binarize(hex_key, CIPHER_KEY_HEX_LEN, cipher_key))
+		CONFIG_ERROR("invalid cipher key");
+
+	tun_netmask = get_str_var(config, "tun_netmask", MAX_IPV4_ADDR_LEN - 1);
+	tun_name = get_str_var(config, "tun_name", MAX_IF_NAME_LEN - 1);
+	port = get_int_var(config, "port");
+	server_port = get_int_var(config, "server_port");
+
 	clnt = malloc(sizeof(struct vpnclient));
 	memset(clnt, 0, sizeof(struct vpnclient));
 	clnt->tunfd = -1;
 	clnt->sockfd = -1;
-	clnt->port = VPN_PORT;
-	strcpy(clnt->ip_addr, "192.168.1.9");
-	strcpy(clnt->tun_addr, "10.0.0.2");
-	strcpy(clnt->tun_netmask, TUN_IF_NETMASK);
-	strcpy(clnt->tun_name, TUN_IF_NAME);
+
+	strcpy(clnt->ip_addr, ip_addr);
+	strcpy(clnt->server_ip, server_ip);
+	strcpy(clnt->tun_addr, tun_addr);
+	strcpy(clnt->tun_netmask, tun_netmask ? tun_netmask : TUN_IF_NETMASK);
+	strcpy(clnt->tun_name, tun_name ? tun_name : TUN_IF_NAME);
+
 	clnt->tun_mtu = TUN_MTU_SIZE;
-	clnt->server_port = VPN_PORT;
-	strcpy(clnt->server_ip, "192.168.1.10");
+	clnt->port = port ? port : VPN_PORT;
+	clnt->server_port = server_port ? server_port : VPN_PORT;
 	clnt->point_id = 0;
 	clnt->private_ip = inet_network(clnt->tun_addr);
-	init_encryption(16);
-	clnt->cipher_key = get_expanded_key("token12345678900");
+	clnt->cipher_key = get_expanded_key(cipher_key);
+
+	free_config(config);
 	return clnt;
 }
 
@@ -170,8 +211,15 @@ static void vpn_client_down(struct vpnclient *clnt)
 
 int main()
 {
-	struct vpnclient *clnt = create_client("vpn.conf");
-	int res = vpn_client_up(clnt);
+	int res;
+	struct vpnclient *clnt;
+	init_encryption(CIPHER_KEY_LEN);
+	clnt = create_client("config/client.conf");
+	if (!clnt) {
+		fprintf(stderr, "Failed to create init client\n");
+		exit(1);
+	}
+	res = vpn_client_up(clnt);
 	if (res == -1) {
 		fprintf(stderr, "Failed to bring client up\n");
 		exit(1);

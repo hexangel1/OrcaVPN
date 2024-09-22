@@ -11,6 +11,7 @@
 #include "network.h"
 #include "encrypt/encryption.h"
 #include "sigevent.h"
+#include "configparser.h"
 #include "helper.h"
 #include "carray.h"
 
@@ -44,11 +45,26 @@ static struct vpn_peer *get_peer_by_addr(struct vpnserver *serv, uint32_t vpn_ip
 	return NULL;
 }
 
-static void push_new_peer(struct vpnserver *serv, uint32_t vpn_ip, const void *key)
+static void push_new_peer(struct vpnserver *serv, const char *ip, const char *key)
 {
-	struct vpn_peer *peer = array_push(serv->peers);
+	uint8_t cipher_key[CIPHER_KEY_LEN];
+	struct vpn_peer *peer;
+	uint32_t vpn_ip = inet_network(ip);
+	if (vpn_ip == (uint32_t)-1) {
+		fprintf(stderr, "bad ip address: %s\n", ip);
+		return;
+	}
+	if (strlen(key) != CIPHER_KEY_HEX_LEN) {
+		fprintf(stderr, "invalid cipher key length\n");
+		return;
+	}
+	if (!binarize(key, CIPHER_KEY_HEX_LEN, cipher_key)) {
+		fprintf(stderr, "invalid cipher key format\n");
+		return;
+	}
+	peer = array_push(serv->peers);
 	peer->private_ip = vpn_ip;
-	peer->cipher_key = get_expanded_key(key);
+	peer->cipher_key = get_expanded_key(cipher_key);
 }
 
 static int tun_if_forward(struct vpnserver *serv)
@@ -152,23 +168,58 @@ static void vpn_server_handle(struct vpnserver *serv)
 	}
 }
 
-static struct vpnserver *create_server(const char *config)
+#define CONFIG_ERROR(message) \
+	do { \
+		free_config(config); \
+		fputs(message "\n", stderr); \
+		return NULL; \
+	} while (0)
+
+static struct vpnserver *create_server(const char *file)
 {
 	struct vpnserver *serv;
-	(void)config;
+	struct config_section *client, *config;
+	int port;
+	const char *ip_addr, *tun_addr, *tun_netmask, *tun_name;
+	const char *private_ip, *cipher_key;
+
+	config = read_config(file);
+	if (!config)
+		return NULL;
+
+	ip_addr = get_str_var(config, "ip_addr", MAX_IPV4_ADDR_LEN - 1);
+	if (!ip_addr)
+		CONFIG_ERROR("ip_addr var not set");
+
+	tun_addr = get_str_var(config, "tun_addr", MAX_IPV4_ADDR_LEN - 1);
+	tun_netmask = get_str_var(config, "tun_netmask", MAX_IPV4_ADDR_LEN - 1);
+	tun_name = get_str_var(config, "tun_name", MAX_IF_NAME_LEN - 1);
+	port = get_int_var(config, "port");
+
 	serv = malloc(sizeof(struct vpnserver));
 	memset(serv, 0, sizeof(struct vpnserver));
+
+	strcpy(serv->ip_addr, ip_addr);
+	strcpy(serv->tun_addr, tun_addr ? tun_addr : TUN_IF_ADDR);
+	strcpy(serv->tun_netmask, tun_netmask ? tun_netmask : TUN_IF_NETMASK);
+	strcpy(serv->tun_name, tun_name ? tun_name : TUN_IF_NAME);
+
 	serv->tunfd = -1;
 	serv->sockfd = -1;
-	serv->port = VPN_PORT;
-	strcpy(serv->ip_addr, "192.168.1.10");
-	strcpy(serv->tun_addr, TUN_IF_ADDR);
-	strcpy(serv->tun_netmask, TUN_IF_NETMASK);
-	strcpy(serv->tun_name, TUN_IF_NAME);
+	serv->port = port ? port : VPN_PORT;
 	serv->tun_mtu = TUN_MTU_SIZE;
 	serv->peers = create_array_of(struct vpn_peer);
-	init_encryption(16);
-	push_new_peer(serv, inet_network("10.0.0.2"), "token12345678900");
+
+	for (client = config->next; client; client = client->next) {
+		private_ip = get_str_var(client, "vpn_ip", MAX_IPV4_ADDR_LEN - 1);
+		cipher_key = get_str_var(client, "cipher_key", CIPHER_KEY_HEX_LEN);
+		if (private_ip && cipher_key)
+			push_new_peer(serv, private_ip, cipher_key);
+		else
+			fprintf(stderr, "check section [%s]! \n", client->section_name);
+	}
+
+	free_config(config);
 	return serv;
 }
 
@@ -212,8 +263,15 @@ static void vpn_server_down(struct vpnserver *serv)
 
 int main()
 {
-	struct vpnserver *serv = create_server("vpn.conf");
-	int res = vpn_server_up(serv);
+	int res;
+	struct vpnserver *serv;
+	init_encryption(CIPHER_KEY_LEN);
+	serv = create_server("config/server.conf");
+	if (!serv) {
+		fprintf(stderr, "Failed to create init server\n");
+		exit(1);
+	}
+	res = vpn_server_up(serv);
 	if (res == -1) {
 		fprintf(stderr, "Failed to bring server up\n");
 		exit(1);
