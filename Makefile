@@ -7,7 +7,7 @@ OBJECTS = $(SOURCES:.c=.o)
 OBJECTS_SERVER = $(filter-out $(CLIENT).o, $(OBJECTS))
 OBJECTS_CLIENT = $(filter-out $(SERVER).o, $(OBJECTS))
 ARCHIEVE_FILES = $(SOURCES) $(HEADERS) Makefile README.md LICENSE \
-	scripts encrypt/*.[ch] encrypt/Makefile
+	scripts config encrypt/*.[ch] encrypt/Makefile
 
 LIBDEPEND = encrypt/libencrypt.a
 LOCALLIBS = -lencrypt -Lencrypt
