@@ -53,8 +53,7 @@ dkms.conf
 
 # Custom rules
 *.mk
-vpnclient
-vpnserver
+orcavpn
 tmp
 .vscode
 tags

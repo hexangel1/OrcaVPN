@@ -8,6 +8,7 @@
 #include <sys/select.h>
 #include <errno.h>
 
+#include "vpnclient.h"
 #include "network.h"
 #include "encrypt/encryption.h"
 #include "sigevent.h"
@@ -209,24 +210,22 @@ static void vpn_client_down(struct vpnclient *clnt)
 	free(clnt);
 }
 
-int main()
+void run_vpnclient(const char *config)
 {
 	int res;
 	struct vpnclient *clnt;
-	init_encryption(CIPHER_KEY_LEN);
-	clnt = create_client("config/client.conf");
+	clnt = create_client(config);
 	if (!clnt) {
 		fprintf(stderr, "Failed to create init client\n");
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 	res = vpn_client_up(clnt);
 	if (res == -1) {
 		fprintf(stderr, "Failed to bring client up\n");
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 	fprintf(stderr, "Running client...\n");
 	vpn_client_handle(clnt);
 	vpn_client_down(clnt);
 	fprintf(stderr, "Gracefully finished\n");
-	return 0;
 }
