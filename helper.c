@@ -11,7 +11,26 @@
 
 #include "helper.h"
 
-void daemonize(const char *service)
+int snprintf(char *str, size_t size, const char *format, ...);
+
+static int create_pidfile(const char *pidfile)
+{
+	char pid_str[16];
+	int pid_fd, len, res;
+	if (!pidfile)
+		return 0;
+	pid_fd = creat(pidfile, S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);
+	if (pid_fd == -1)
+		return -1;
+	len = snprintf(pid_str, sizeof(pid_str), "%d\n", getpid());
+	res = write(pid_fd, pid_str, len);
+	close(pid_fd);
+	if (res != len)
+		return -1;
+	return 0;
+}
+
+void daemonize(const char *service, const char *pidfile)
 {
 	int fd;
 	for (fd = 0; fd < 1024; ++fd)
@@ -27,6 +46,7 @@ void daemonize(const char *service)
 	setsid();
 	if (fork() > 0)
 		exit(0);
+	create_pidfile(pidfile);
 	openlog(service, LOG_PID | LOG_CONS, LOG_DAEMON);
 	syslog(LOG_INFO, "Daemon started, pid == %d", getpid());
 	atexit(closelog);
