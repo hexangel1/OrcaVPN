@@ -58,7 +58,7 @@ static int get_command_line_options(int argc, char **argv)
 }
 
 static const char usage[] = "Usage: %s "
-	"[-d] [-c configfile] [-p pidfile]\n";
+	"[-d] [-m mode] [-c configfile] [-p pidfile]\n";
 
 int main(int argc, char **argv)
 {
