@@ -15,8 +15,6 @@
 #define MAX_UDP_PAYLOAD 1432
 #define MAX_IPV4_ADDR_LEN 16
 #define MAX_IF_NAME_LEN 16
-#define CIPHER_KEY_LEN 24
-#define CIPHER_KEY_HEX_LEN 2 * CIPHER_KEY_LEN
 #define VPN_PORT 778
 
 int create_udp_socket(const char *ip, unsigned short port);

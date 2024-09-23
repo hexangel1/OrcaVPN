@@ -3,6 +3,9 @@
 
 #include <stddef.h>
 
+#define CIPHER_KEY_LEN 24
+#define CIPHER_KEY_HEX_LEN 2 * CIPHER_KEY_LEN
+
 void init_encryption(size_t key_size);
 void *get_expanded_key(const void *key);
 

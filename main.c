@@ -6,7 +6,6 @@
 
 #include "vpnserver.h"
 #include "vpnclient.h"
-#include "network.h"
 #include "helper.h"
 #include "encrypt/encryption.h"
 
