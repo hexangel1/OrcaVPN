@@ -5,6 +5,7 @@
 #include <ctype.h>
 
 #include "configparser.h"
+#include "logger.h"
 
 static char *extract_str(const char *begin, const char *end)
 {
@@ -20,7 +21,7 @@ static char *extract_str(const char *begin, const char *end)
 		free_config(head); \
 		if (fp) \
 			fclose(fp); \
-		fputs("Read config failed: " message "\n", stderr); \
+		log_mesg(LOG_ERR, "Read config failed: " message); \
 		return NULL; \
 	} while (0)
 
@@ -32,7 +33,7 @@ struct config_section *read_config(const char *file)
 
 	FILE *fp = fopen(file, "r");
 	if (!fp) {
-		perror(file);
+		log_perror(file);
 		CONFIG_ERROR("file not opened");
 	}
 	while (fgets(buffer, sizeof(buffer), fp)) {

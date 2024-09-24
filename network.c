@@ -17,6 +17,7 @@
 #include <linux/if_ether.h>
 
 #include "network.h"
+#include "logger.h"
 
 static int create_socket(const char *ip, unsigned short port, int type)
 {
@@ -27,12 +28,12 @@ static int create_socket(const char *ip, unsigned short port, int type)
 	addr.sin_addr.s_addr = ip ? inet_addr(ip) : INADDR_ANY;
 	sockfd = socket(AF_INET, type, IPPROTO_IP);
 	if (sockfd == -1) {
-		perror("socket");
+		log_perror("socket");
 		return -1;
 	}
 	res = bind(sockfd, (struct sockaddr *)&addr, sizeof(addr));
 	if (res == -1) {
-		perror("bind");
+		log_perror("bind");
 		return -1;
 	}
 	return sockfd;
@@ -45,7 +46,7 @@ static int tuntap_alloc(char *ifname, int flags)
 
 	int fd = open(clonedev, O_RDWR);
 	if (fd == -1) {
-		perror(clonedev);
+		log_perror(clonedev);
 		return -1;
 	}
 
@@ -57,7 +58,7 @@ static int tuntap_alloc(char *ifname, int flags)
 		strncpy(ifr.ifr_name, ifname, IFNAMSIZ - 1);
 
 	if (ioctl(fd, TUNSETIFF, (void *)&ifr) < 0) {
-		perror("ioctl");
+		log_perror("ioctl");
 		close(fd);
 		return -1;
 	}
@@ -70,14 +71,14 @@ static int set_if_options(const char *ifname, struct ifreq *ifr, int op)
 {
 	int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
 	if (sockfd < 0) {
-		perror("socket");
+		log_perror("socket");
 		return -1;
 	}
 
 	strncpy(ifr->ifr_name, ifname, IFNAMSIZ - 1);
 
 	if (ioctl(sockfd, op, ifr) < 0) {
-		perror("ioctl");
+		log_perror("ioctl");
 		close(sockfd);
 		return -1;
 	}
@@ -133,7 +134,7 @@ int set_if_ipv4(const char *ifname, const char *ipv4)
 	addr->sin_family = AF_INET;
 	res = inet_pton(AF_INET, ipv4, &addr->sin_addr);
 	if (res <= 0) {
-		fprintf(stderr, "inet_pton: Invalid IPv4 address\n");
+		log_mesg(LOG_ERR, "inet_pton: Invalid IPv4 address");
 		return -1;
 	}
 	return set_if_options(ifname, &ifr, SIOCSIFADDR);
@@ -150,7 +151,7 @@ int set_if_netmask(const char *ifname, const char *mask)
 	addr->sin_family = AF_INET;
 	res = inet_pton(AF_INET, mask, &addr->sin_addr);
 	if (res <= 0) {
-		fprintf(stderr, "inet_pton: Invalid IPv4 subnet mask\n");
+		log_mesg(LOG_ERR, "inet_pton: Invalid IPv4 subnet mask");
 		return -1;
 	}
 	return set_if_options(ifname, &ifr, SIOCSIFNETMASK);
@@ -161,22 +162,22 @@ int setup_tun_if(const char *ifname, const char *ipv4, const char *mask, int mtu
 	int res;
 	res = set_if_up(ifname, IFF_NOARP);
 	if (res == -1) {
-		fprintf(stderr, "set_if_up failed\n");
+		log_mesg(LOG_ERR, "set_if_up failed");
 		return -1;
 	}
 	res = set_if_mtu(ifname, mtu);
 	if (res == -1) {
-		fprintf(stderr, "set_if_mtu failed\n");
+		log_mesg(LOG_ERR, "set_if_mtu failed");
 		return -1;
 	}
 	res = set_if_ipv4(ifname, ipv4);
 	if (res == -1) {
-		fprintf(stderr, "set_if_ipv4 failed\n");
+		log_mesg(LOG_ERR, "set_if_ipv4 failed");
 		return -1;
 	}
 	res = set_if_netmask(ifname, mask);
 	if (res == -1) {
-		fprintf(stderr, "set_if_netmask failed\n");
+		log_mesg(LOG_ERR, "set_if_netmask failed");
 		return -1;
 	}
 	return 0;
@@ -205,7 +206,7 @@ int socket_connect(int sockfd, const char *ip, unsigned short port)
 	addr.sin_addr.s_addr = inet_addr(ip);
 	res = connect(sockfd, (struct sockaddr *)&addr, sizeof(addr));
 	if (res == -1) {
-		perror("connect");
+		log_perror("connect");
 		return -1;
 	}
 	return 0;
@@ -224,7 +225,7 @@ ssize_t send_udp(int sockfd, const void *buf, size_t len, struct sockaddr_in *ad
 				wait_for_write(sockfd);
 				success = 0;
 			} else {
-				perror("sendto");
+				log_perror("sendto");
 				return -1;
 			}
 		}
@@ -239,7 +240,7 @@ ssize_t recv_udp(int sockfd, void *buf, size_t len, struct sockaddr_in *addr)
 	res = recvfrom(sockfd, buf, len, 0,
 		(struct sockaddr *)addr, addr ? &addrlen : NULL);
 	if (res <= 0) {
-		perror("recvfrom");
+		log_perror("recvfrom");
 		return -1;
 	}
 	return res;

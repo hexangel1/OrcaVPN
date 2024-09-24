@@ -13,6 +13,7 @@
 #include "encrypt/encryption.h"
 #include "sigevent.h"
 #include "configparser.h"
+#include "logger.h"
 #include "helper.h"
 
 struct vpnclient {
@@ -38,18 +39,18 @@ static int tun_if_forward(struct vpnclient *clnt)
 	char buffer[PACKET_BUFFER_SIZE];
 	res = recv_udp(clnt->sockfd, buffer, MAX_UDP_PAYLOAD, NULL);
 	if (res == -1) {
-		fprintf(stderr, "receiving packet failed\n");
+		log_mesg(LOG_ERR, "receiving packet failed");
 		return -1;
 	}
 	length = res;
 	decrypt_packet(buffer, &length, clnt->cipher_key);
 	if (!check_signature(buffer, &length)) {
-		fprintf(stderr, "bad packet signature\n");
+		log_mesg(LOG_ERR, "bad packet signature");
 		return -1;
 	}
 	res = write(clnt->tunfd, buffer, length);
 	if (res == -1) {
-		perror("write to tun failed");
+		log_perror("write to tun failed");
 		return -1;
 	}
 	return 0;
@@ -62,7 +63,7 @@ static int sockfd_forward(struct vpnclient *clnt)
 	char buffer[PACKET_BUFFER_SIZE];
 	res = read(clnt->tunfd, buffer, clnt->tun_mtu);
 	if (res <= 0) {
-		perror("read from tun failed");
+		log_perror("read from tun failed");
 		return -1;
 	}
 	length = res;
@@ -73,7 +74,7 @@ static int sockfd_forward(struct vpnclient *clnt)
 	buffer[length++] = clnt->point_id;
 	res = send_udp(clnt->sockfd, buffer, length, NULL);
 	if (res == -1) {
-		fprintf(stderr, "sending packet failed\n");
+		log_mesg(LOG_ERR, "sending packet failed");
 		return -1;
 	}
 	return 0;
@@ -93,7 +94,7 @@ static void vpn_client_handle(struct vpnclient *clnt)
 		res = pselect(nfds, &readfds, NULL, NULL, NULL, &origmask);
 		if (res == -1) {
 			if (errno != EINTR) {
-				perror("pselect");
+				log_perror("pselect");
 				break;
 			}
 			res = get_signal_event();
@@ -111,7 +112,7 @@ static void vpn_client_handle(struct vpnclient *clnt)
 #define CONFIG_ERROR(message) \
 	do { \
 		free_config(config); \
-		fputs(message "\n", stderr); \
+		log_mesg(LOG_ERR, message); \
 		return NULL; \
 	} while (0)
 
@@ -176,25 +177,25 @@ static int vpn_client_up(struct vpnclient *clnt)
 	int res;
 	res = create_udp_socket(clnt->ip_addr, clnt->port);
 	if (res == -1) {
-		fprintf(stderr, "Create socket failed\n");
+		log_mesg(LOG_ERR, "Create socket failed");
 		return -1;
 	}
 	clnt->sockfd = res;
 	res = socket_connect(clnt->sockfd, clnt->server_ip, clnt->server_port);
 	if (res == -1) {
-		fprintf(stderr, "Connection failed\n");
+		log_mesg(LOG_ERR, "Connection failed");
 		return -1;
 	}
 	res = create_tun_if(clnt->tun_name);
 	if (res == -1) {
-		fprintf(stderr, "Allocating interface failed\n");
+		log_mesg(LOG_ERR, "Allocating interface failed");
 		return -1;
 	}
 	clnt->tunfd = res;
-	fprintf(stderr, "created dev %s\n", clnt->tun_name);
+	log_mesg(LOG_INFO, "created dev %s", clnt->tun_name);
 	res = setup_tun_if(clnt->tun_name, clnt->tun_addr, clnt->tun_netmask, clnt->tun_mtu);
 	if (res == -1) {
-		fprintf(stderr, "Setting up %s failed\n", clnt->tun_name);
+		log_mesg(LOG_ERR, "Setting up %s failed", clnt->tun_name);
 		return -1;
 	}
 	nonblock_io(clnt->sockfd);
@@ -216,16 +217,16 @@ void run_vpnclient(const char *config)
 	struct vpnclient *clnt;
 	clnt = create_client(config);
 	if (!clnt) {
-		fprintf(stderr, "Failed to create init client\n");
+		log_mesg(LOG_ERR, "Failed to create init client");
 		exit(EXIT_FAILURE);
 	}
 	res = vpn_client_up(clnt);
 	if (res == -1) {
-		fprintf(stderr, "Failed to bring client up\n");
+		log_mesg(LOG_ERR, "Failed to bring client up");
 		exit(EXIT_FAILURE);
 	}
-	fprintf(stderr, "Running client...\n");
+	log_mesg(LOG_INFO, "Running client...");
 	vpn_client_handle(clnt);
 	vpn_client_down(clnt);
-	fprintf(stderr, "Gracefully finished\n");
+	log_mesg(LOG_INFO, "Gracefully finished");
 }

@@ -36,7 +36,7 @@ void init_logger(const char *service, const char *filename,
 		log_file = fopen(filename, "a");
 		if (!log_file) {
 			perror(filename);
-			exit(1);
+			exit(EXIT_FAILURE);
 		}
 		setbuf(log_file, NULL);
 		atexit(close_logfile);

@@ -13,6 +13,7 @@
 #include "encrypt/encryption.h"
 #include "sigevent.h"
 #include "configparser.h"
+#include "logger.h"
 #include "helper.h"
 #include "carray.h"
 
@@ -52,15 +53,15 @@ static void push_new_peer(struct vpnserver *serv, const char *ip, const char *ke
 	struct vpn_peer *peer;
 	uint32_t vpn_ip = inet_network(ip);
 	if (vpn_ip == (uint32_t)-1) {
-		fprintf(stderr, "bad ip address: %s\n", ip);
+		log_mesg(LOG_ERR, "bad ip address: %s", ip);
 		return;
 	}
 	if (strlen(key) != CIPHER_KEY_HEX_LEN) {
-		fprintf(stderr, "invalid cipher key length\n");
+		log_mesg(LOG_ERR, "invalid cipher key length");
 		return;
 	}
 	if (!binarize(key, CIPHER_KEY_HEX_LEN, cipher_key)) {
-		fprintf(stderr, "invalid cipher key format\n");
+		log_mesg(LOG_ERR, "invalid cipher key format");
 		return;
 	}
 	peer = array_push(serv->peers);
@@ -78,30 +79,30 @@ static int tun_if_forward(struct vpnserver *serv)
 	char buffer[PACKET_BUFFER_SIZE];
 	res = recv_udp(serv->sockfd, buffer, MAX_UDP_PAYLOAD, &addr);
 	if (res == -1) {
-		fprintf(stderr, "receiving packet failed\n");
+		log_mesg(LOG_ERR, "receiving packet failed");
 		return -1;
 	}
 	length = res;
 	point_id = buffer[--length];
 	peer = array_get(serv->peers, point_id);
 	if (!peer) {
-		fprintf(stderr, "peer %u not found\n", point_id);
+		log_mesg(LOG_ERR, "peer %u not found", point_id);
 		return -1;
 	}
 	decrypt_packet(buffer, &length, peer->cipher_key);
 	if (!check_signature(buffer, &length)) {
-		fprintf(stderr, "bad packet signature\n");
+		log_mesg(LOG_ERR, "bad packet signature");
 		return -1;
 	}
 	if (peer->private_ip != get_source_ip(buffer, length)) {
-		fprintf(stderr, "wrong peer private ip address\n");
+		log_mesg(LOG_ERR, "wrong peer private ip address");
 		return -1;
 	}
 	peer->is_addr_valid = 1;
 	memcpy(&peer->addr, &addr, sizeof(struct sockaddr_in));
 	res = write(serv->tunfd, buffer, length);
 	if (res == -1) {
-		perror("write to tun failed");
+		log_perror("write to tun failed");
 		return -1;
 	}
 	return 0;
@@ -116,25 +117,25 @@ static int sockfd_forward(struct vpnserver *serv)
 	char buffer[PACKET_BUFFER_SIZE];
 	res = read(serv->tunfd, buffer, serv->tun_mtu);
 	if (res <= 0) {
-		perror("read from tun failed");
+		log_perror("read from tun failed");
 		return -1;
 	}
 	length = res;
 	vpn_ip = get_destination_ip(buffer, length);
 	if (!vpn_ip) {
-		fprintf(stderr, "bad vpn ip address\n");
+		log_mesg(LOG_ERR, "bad vpn ip address");
 		return -1;
 	}
 	peer = get_peer_by_addr(serv, vpn_ip);
 	if (!peer || !peer->is_addr_valid) {
-		fprintf(stderr, "peer remote address not found\n");
+		log_mesg(LOG_ERR, "peer remote address not found");
 		return -1;
 	}
 	sign_packet(buffer, &length);
 	encrypt_packet(buffer, &length, peer->cipher_key);
 	res = send_udp(serv->sockfd, buffer, length, &peer->addr);
 	if (res == -1) {
-		fprintf(stderr, "sending packet failed\n");
+		log_mesg(LOG_ERR, "sending packet failed");
 		return -1;
 	}
 	return 0;
@@ -154,7 +155,7 @@ static void vpn_server_handle(struct vpnserver *serv)
 		res = pselect(nfds, &readfds, NULL, NULL, NULL, &origmask);
 		if (res == -1) {
 			if (errno != EINTR) {
-				perror("pselect");
+				log_perror("pselect");
 				break;
 			}
 			res = get_signal_event();
@@ -172,7 +173,7 @@ static void vpn_server_handle(struct vpnserver *serv)
 #define CONFIG_ERROR(message) \
 	do { \
 		free_config(config); \
-		fputs(message "\n", stderr); \
+		log_mesg(LOG_ERR, message); \
 		return NULL; \
 	} while (0)
 
@@ -217,7 +218,7 @@ static struct vpnserver *create_server(const char *file)
 		if (private_ip && cipher_key)
 			push_new_peer(serv, private_ip, cipher_key);
 		else
-			fprintf(stderr, "check section [%s]! \n", client->section_name);
+			log_mesg(LOG_WARNING, "check section [%s]!", client->section_name);
 	}
 
 	free_config(config);
@@ -229,20 +230,20 @@ static int vpn_server_up(struct vpnserver *serv)
 	int res;
 	res = create_udp_socket(serv->ip_addr, serv->port);
 	if (res == -1) {
-		fprintf(stderr, "Create socket failed\n");
+		log_mesg(LOG_ERR, "Create socket failed");
 		return -1;
 	}
 	serv->sockfd = res;
 	res = create_tun_if(serv->tun_name);
 	if (res == -1) {
-		fprintf(stderr, "Allocating interface failed\n");
+		log_mesg(LOG_ERR, "Allocating interface failed");
 		return -1;
 	}
 	serv->tunfd = res;
-	fprintf(stderr, "created dev %s\n", serv->tun_name);
+	log_mesg(LOG_INFO, "created dev %s", serv->tun_name);
 	res = setup_tun_if(serv->tun_name, serv->tun_addr, serv->tun_netmask, serv->tun_mtu);
 	if (res == -1) {
-		fprintf(stderr, "Setting up %s failed\n", serv->tun_name);
+		log_mesg(LOG_ERR, "Setting up %s failed", serv->tun_name);
 		return -1;
 	}
 	nonblock_io(serv->sockfd);
@@ -268,16 +269,16 @@ void run_vpnserver(const char *config)
 	struct vpnserver *serv;
 	serv = create_server(config);
 	if (!serv) {
-		fprintf(stderr, "Failed to create init server\n");
+		log_mesg(LOG_ERR, "Failed to create init server");
 		exit(EXIT_FAILURE);
 	}
 	res = vpn_server_up(serv);
 	if (res == -1) {
-		fprintf(stderr, "Failed to bring server up\n");
+		log_mesg(LOG_ERR, "Failed to bring server up");
 		exit(EXIT_FAILURE);
 	}
-	fprintf(stderr, "Running server...\n");
+	log_mesg(LOG_INFO, "Running server...");
 	vpn_server_handle(serv);
 	vpn_server_down(serv);
-	fprintf(stderr, "Gracefully finished\n");
+	log_mesg(LOG_INFO, "Gracefully finished");
 }

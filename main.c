@@ -76,7 +76,6 @@ int main(int argc, char **argv)
 		daemonize(pid_file);
 	init_logger("orcavpnd", log_file, daemon_state, log_file ? 2 : 0);
 	init_encryption(CIPHER_KEY_LEN);
-	log_mesg(LOG_INFO, "Test logger message %d %d %d...", 1, 2, 3);
 	switch (working_mode) {
 	case VPNSERVER_MODE:
 		if (!config_file)
@@ -89,7 +88,7 @@ int main(int argc, char **argv)
 		run_vpnclient(config_file);
 		break;
 	default:
-		fprintf(stderr, "Unknown working mode\n");
+		log_mesg(LOG_ERR, "Unknown working mode");
 		exit(EXIT_FAILURE);
 	}
 	return 0;
