@@ -7,6 +7,7 @@
 #include "vpnserver.h"
 #include "vpnclient.h"
 #include "helper.h"
+#include "logger.h"
 #include "encrypt/encryption.h"
 
 #define VPNSERVER_MODE 0
@@ -16,13 +17,14 @@ static int daemon_state = 0;
 static int working_mode = -1;
 static const char *config_file = NULL;
 static const char *pid_file = NULL;
+static const char *log_file = NULL;
 
 static int get_command_line_options(int argc, char **argv)
 {
 	int opt, retval = 0;
 	extern int optopt;
 	extern char *optarg;
-	while ((opt = getopt(argc, argv, ":hdm:c:p:")) != -1) {
+	while ((opt = getopt(argc, argv, ":hdm:c:p:l:")) != -1) {
 		switch (opt) {
 		case 'd':
 			daemon_state = 1;
@@ -41,6 +43,9 @@ static int get_command_line_options(int argc, char **argv)
 		case 'p':
 			pid_file = optarg;
 			break;
+		case 'l':
+			log_file = optarg;
+			break;
 		case 'h':
 			retval = -1;
 			break;
@@ -58,7 +63,7 @@ static int get_command_line_options(int argc, char **argv)
 }
 
 static const char usage[] = "Usage: %s "
-	"[-d] [-m mode] [-c configfile] [-p pidfile]\n";
+	"[-d] [-m mode] [-c configfile] [-p pidfile] [-l logfile]\n";
 
 int main(int argc, char **argv)
 {
@@ -69,7 +74,9 @@ int main(int argc, char **argv)
 	}
 	if (daemon_state)
 		daemonize(pid_file);
+	init_logger("orcavpnd", log_file, daemon_state, log_file ? 2 : 0);
 	init_encryption(CIPHER_KEY_LEN);
+	log_mesg(LOG_INFO, "Test logger message %d %d %d...", 1, 2, 3);
 	switch (working_mode) {
 	case VPNSERVER_MODE:
 		if (!config_file)
