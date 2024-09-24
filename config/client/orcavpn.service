@@ -7,10 +7,11 @@ Type=forking
 WorkingDirectory=/
 PIDFile=/run/orcavpnd.pid
 Environment=PIDFILE=/run/orcavpnd.pid
+Environment=LOGFILE=/var/log/orcavpn.log
 Environment=CONFIGFILE=/usr/local/etc/orcavpn.conf
 Environment=MODE=client
 
-ExecStart=/usr/local/bin/orcavpn -d -m $MODE -c $CONFIGFILE -p $PIDFILE
+ExecStart=/usr/local/bin/orcavpn -d -m $MODE -c $CONFIGFILE -p $PIDFILE -l $LOGFILE
 ExecStop=/bin/kill -s SIGTERM $MAINPID
 ExecReload=/bin/kill -s SIGHUP $MAINPID
 TimeoutSec=10
