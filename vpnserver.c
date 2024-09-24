@@ -86,16 +86,16 @@ static int tun_if_forward(struct vpnserver *serv)
 	point_id = buffer[--length];
 	peer = array_get(serv->peers, point_id);
 	if (!peer) {
-		log_mesg(LOG_ERR, "peer %u not found", point_id);
+		log_mesg(LOG_NOTICE, "peer %u not found", point_id);
 		return -1;
 	}
 	decrypt_packet(buffer, &length, peer->cipher_key);
 	if (!check_signature(buffer, &length)) {
-		log_mesg(LOG_ERR, "bad packet signature");
+		log_mesg(LOG_NOTICE, "bad packet signature");
 		return -1;
 	}
 	if (peer->private_ip != get_source_ip(buffer, length)) {
-		log_mesg(LOG_ERR, "wrong peer private ip address");
+		log_mesg(LOG_NOTICE, "wrong peer private ip address");
 		return -1;
 	}
 	peer->is_addr_valid = 1;
@@ -123,12 +123,12 @@ static int sockfd_forward(struct vpnserver *serv)
 	length = res;
 	vpn_ip = get_destination_ip(buffer, length);
 	if (!vpn_ip) {
-		log_mesg(LOG_ERR, "bad vpn ip address");
+		log_mesg(LOG_NOTICE, "bad vpn ip address");
 		return -1;
 	}
 	peer = get_peer_by_addr(serv, vpn_ip);
 	if (!peer || !peer->is_addr_valid) {
-		log_mesg(LOG_ERR, "peer remote address not found");
+		log_mesg(LOG_NOTICE, "peer remote address not found");
 		return -1;
 	}
 	sign_packet(buffer, &length);
