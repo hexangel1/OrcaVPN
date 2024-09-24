@@ -5,6 +5,8 @@
 #include <syslog.h>
 #include <errno.h>
 #include <time.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 
 #include "logger.h"
 
@@ -18,7 +20,7 @@ static const char *current_timestamp(int local)
 {
 	static char buffer[256];
 	time_t current = time(NULL);
-	struct tm *cur_tm = (local ? localtime : gmtime)(&current);
+	struct tm *cur_tm = local ? localtime(&current) : gmtime(&current);
 	strftime(buffer, sizeof(buffer), "%d %b %H:%M:%S ", cur_tm);
 	return buffer;
 }
@@ -27,6 +29,18 @@ static void close_logfile(void)
 {
 	fflush(log_file);
 	fclose(log_file);
+}
+
+static void limit_filesize(size_t max_size)
+{
+	struct rlimit rlim;
+	int res = getrlimit(RLIMIT_FSIZE, &rlim);
+	if (res == -1)
+		return;
+	if (rlim.rlim_max == RLIM_INFINITY || rlim.rlim_max > max_size) {
+		rlim.rlim_cur = max_size;
+		setrlimit(RLIMIT_FSIZE, &rlim);
+	}
 }
 
 void init_logger(const char *service, const char *filename,
@@ -40,12 +54,15 @@ void init_logger(const char *service, const char *filename,
 		}
 		setbuf(log_file, NULL);
 		atexit(close_logfile);
+		limit_filesize(LOG_FILE_SIZE_LIMIT);
 	} else {
 		log_file = stderr;
 	}
 	enable_syslog = syslog_on;
 	enable_time = time_on;
 	if (enable_syslog) {
+		unsigned int logmask = setlogmask(0);
+		setlogmask(logmask & ~LOG_MASK(LOG_NOTICE));
 		openlog(service, LOG_PID | LOG_CONS, LOG_DAEMON);
 		atexit(closelog);
 	}
