@@ -10,7 +10,7 @@
 	((c) >= 'a' && (c) <= 'f') ? ((c) - 'a' + 10) : \
 	((c) >= 'A' && (c) <= 'F') ? ((c) - 'A' + 10) : (-1))
 
-void daemonize(const char *service, const char *pidfile);
+void daemonize(const char *pidfile);
 
 char *hexlify(const void *data, size_t len, int upper, char *res);
 

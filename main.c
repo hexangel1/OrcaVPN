@@ -68,7 +68,7 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 	if (daemon_state)
-		daemonize("orcavpnd", pid_file);
+		daemonize(pid_file);
 	init_encryption(CIPHER_KEY_LEN);
 	switch (working_mode) {
 	case VPNSERVER_MODE:

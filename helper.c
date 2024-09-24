@@ -30,7 +30,7 @@ static int create_pidfile(const char *pidfile)
 	return 0;
 }
 
-void daemonize(const char *service, const char *pidfile)
+void daemonize(const char *pidfile)
 {
 	int fd;
 	for (fd = 0; fd < 1024; ++fd)
@@ -47,9 +47,6 @@ void daemonize(const char *service, const char *pidfile)
 	if (fork() > 0)
 		exit(0);
 	create_pidfile(pidfile);
-	openlog(service, LOG_PID | LOG_CONS, LOG_DAEMON);
-	syslog(LOG_INFO, "Daemon started, pid == %d", getpid());
-	atexit(closelog);
 }
 
 char *hexlify(const void *bin, size_t len, int upper, char *res)
