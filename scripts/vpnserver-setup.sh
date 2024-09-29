@@ -1,8 +1,20 @@
 #!/usr/bin/sh
 
+INET_DEV='eth0'
 TUN_DEV='orca-gate'
-INET_DEV='wlp0s20f3'
 PRIVATE='10.0.0.0/24'
+
+if [ $# -ge 1 ]; then
+    INET_DEV=$1
+fi
+
+if [ $# -ge 2 ]; then
+    TUN_DEV=$2
+fi
+
+if [ $# -ge 3 ]; then
+    PRIVATE=$3
+fi
 
 set -x
 sysctl net.ipv4.ip_forward=1
