@@ -11,6 +11,7 @@ Environment=LOGFILE=/var/log/orcavpn.log
 Environment=CONFIGFILE=/usr/local/etc/orcavpn.conf
 Environment=MODE=server
 
+ExecStartPre=/usr/local/bin/vpnserver-setup.sh
 ExecStart=/usr/local/bin/orcavpn -d -m $MODE -c $CONFIGFILE -p $PIDFILE -l $LOGFILE
 ExecStop=/bin/kill -s SIGTERM $MAINPID
 ExecReload=/bin/kill -s SIGHUP $MAINPID

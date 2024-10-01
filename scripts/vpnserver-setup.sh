@@ -16,8 +16,12 @@ if [ $# -ge 3 ]; then
     PRIVATE=$3
 fi
 
+RULE1="-i ${TUN_DEV} -o ${INET_DEV} -j ACCEPT"
+RULE2="-i ${INET_DEV} -o ${TUN_DEV} -j ACCEPT"
+RULE3="-t nat -s ${PRIVATE} -o ${INET_DEV} -j MASQUERADE"
+
 set -x
 sysctl net.ipv4.ip_forward=1
-iptables -A FORWARD -i $TUN_DEV -o $INET_DEV -j ACCEPT
-iptables -A FORWARD -i $INET_DEV -o $TUN_DEV -j ACCEPT
-iptables -t nat -I POSTROUTING -s $PRIVATE -o $INET_DEV -j MASQUERADE
+iptables -C FORWARD $RULE1 2>/dev/null || iptables -A FORWARD $RULE1
+iptables -C FORWARD $RULE2 2>/dev/null || iptables -A FORWARD $RULE2
+iptables -C POSTROUTING $RULE3 2>/dev/null || iptables -I POSTROUTING $RULE3
