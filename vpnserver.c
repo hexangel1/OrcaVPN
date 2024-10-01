@@ -15,9 +15,13 @@
 #include "configparser.h"
 #include "logger.h"
 #include "helper.h"
+#include "hashmap.h"
 #include "carray.h"
 
+typedef unsigned char point_id_t;
+
 struct vpn_peer {
+	point_id_t point_id;
 	uint32_t private_ip;
 	void *cipher_key;
 	int is_addr_valid;
@@ -33,21 +37,36 @@ struct vpnserver {
 	char tun_netmask[MAX_IPV4_ADDR_LEN];
 	char tun_name[MAX_IF_NAME_LEN];
 	int tun_mtu;
+	hashmap_t *vpn_ip_hash;
+	hashmap_t *ip_hash;
 	carray_t *peers;
 };
 
-static struct vpn_peer *get_peer_by_addr(struct vpnserver *serv, uint32_t vpn_ip)
+static void log_ip_address(hashmap_t *ip_hash, struct sockaddr_in *addr)
 {
-	struct vpn_peer *peers = serv->peers->items;
-	size_t i, npeers = serv->peers->nitems;
-	for (i = 0; i < npeers; i++) {
-		if (peers[i].private_ip == vpn_ip)
-			return &peers[i];
+	const char *ip_addr = ipv4_tostring(addr->sin_addr.s_addr, 0);
+	uint64_t counter = hashmap_get(ip_hash, ip_addr);
+	if (counter != HASHMAP_MISS) {
+		counter++;
+		hashmap_insert(ip_hash, ip_addr, counter);
+		if (counter % 10000 == 0)
+			log_mesg(LOG_INFO, "got %ld udp datagram from %s", counter, ip_addr);
+	} else {
+		hashmap_insert(ip_hash, ip_addr, 1);
+		log_mesg(LOG_INFO, "received udp datagram from %s", ip_addr);
 	}
-	return NULL;
 }
 
-static void push_new_peer(struct vpnserver *serv, const char *ip, const char *key)
+static struct vpn_peer *get_peer_by_addr(struct vpnserver *serv, uint32_t vpn_ip)
+{
+	uint64_t point_id = hashmap_get(serv->vpn_ip_hash, ipv4_tostring(vpn_ip, 1));
+	if (point_id == HASHMAP_MISS)
+		return NULL;
+	return array_get(serv->peers, point_id);
+}
+
+static void push_new_peer(struct vpnserver *serv, point_id_t point_id,
+	const char *ip, const char *key)
 {
 	uint8_t cipher_key[CIPHER_KEY_LEN];
 	struct vpn_peer *peer;
@@ -65,8 +84,10 @@ static void push_new_peer(struct vpnserver *serv, const char *ip, const char *ke
 		return;
 	}
 	peer = array_push(serv->peers);
+	peer->point_id = point_id;
 	peer->private_ip = vpn_ip;
 	peer->cipher_key = get_expanded_key(cipher_key);
+	hashmap_insert(serv->vpn_ip_hash, ip, point_id);
 }
 
 static int tun_if_forward(struct vpnserver *serv)
@@ -82,6 +103,7 @@ static int tun_if_forward(struct vpnserver *serv)
 		log_mesg(LOG_ERR, "receiving packet failed");
 		return -1;
 	}
+	log_ip_address(serv->ip_hash, &addr);
 	length = res;
 	point_id = buffer[--length];
 	peer = array_get(serv->peers, point_id);
@@ -182,6 +204,7 @@ static struct vpnserver *create_server(const char *file)
 	struct vpnserver *serv;
 	struct config_section *client, *config;
 	int port;
+	point_id_t point_id;
 	const char *ip_addr, *tun_addr, *tun_netmask, *tun_name;
 	const char *private_ip, *cipher_key;
 
@@ -210,13 +233,16 @@ static struct vpnserver *create_server(const char *file)
 	serv->sockfd = -1;
 	serv->port = port ? port : VPN_PORT;
 	serv->tun_mtu = TUN_MTU_SIZE;
+	serv->vpn_ip_hash = make_map();
+	serv->ip_hash = make_map();
 	serv->peers = create_array_of(struct vpn_peer);
 
 	for (client = config->next; client; client = client->next) {
+		point_id = get_int_var(client, "point_id");
 		private_ip = get_str_var(client, "vpn_ip", MAX_IPV4_ADDR_LEN - 1);
 		cipher_key = get_str_var(client, "cipher_key", CIPHER_KEY_HEX_LEN);
 		if (private_ip && cipher_key)
-			push_new_peer(serv, private_ip, cipher_key);
+			push_new_peer(serv, point_id, private_ip, cipher_key);
 		else
 			log_mesg(LOG_WARNING, "check section [%s]!", client->section_name);
 	}
@@ -257,6 +283,8 @@ static void vpn_server_down(struct vpnserver *serv)
 	struct vpn_peer *peers = serv->peers->items;
 	for (i = 0; i < npeers; i++)
 		free(peers[i].cipher_key);
+	delete_map(serv->vpn_ip_hash);
+	delete_map(serv->ip_hash);
 	array_destroy(serv->peers);
 	close(serv->sockfd);
 	close(serv->tunfd);
