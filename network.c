@@ -260,6 +260,13 @@ uint32_t get_source_ip(const void *buffer, size_t size)
 	return ntohl(((struct iphdr *)buffer)->saddr);
 }
 
+const char *ipv4_tostring(uint32_t ip, int host_order)
+{
+	struct in_addr addr;
+	addr.s_addr = host_order ? htonl(ip) : ip;
+	return inet_ntoa(addr);
+}
+
 void print_ip_packet(const void *buffer, size_t size)
 {
 	struct in_addr addr;

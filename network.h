@@ -40,6 +40,8 @@ ssize_t recv_udp(int sockfd, void *buf, size_t len, struct sockaddr_in *addr);
 uint32_t get_destination_ip(const void *buffer, size_t size);
 uint32_t get_source_ip(const void *buffer, size_t size);
 
+const char *ipv4_tostring(uint32_t ip, int host_order);
+
 void print_ip_packet(const void *buffer, size_t size);
 
 #endif /* NETWORK_H_SENTRY */
