@@ -63,7 +63,7 @@ void init_logger(const char *service, const char *filename,
 	if (enable_syslog) {
 		unsigned int logmask = setlogmask(0);
 		setlogmask(logmask & ~LOG_MASK(LOG_NOTICE));
-		openlog(service, LOG_PID | LOG_CONS, LOG_DAEMON);
+		openlog(service, LOG_PID | LOG_CONS | LOG_NDELAY, LOG_DAEMON);
 		atexit(closelog);
 	}
 }
