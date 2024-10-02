@@ -121,7 +121,7 @@ static struct vpnclient *create_client(const char *file)
 	struct vpnclient *clnt;
 	struct config_section *config;
 	uint8_t cipher_key[CIPHER_KEY_LEN];
-	int port, server_port;
+	int port, server_port, point_id;
 	const char *ip_addr, *server_ip, *hex_key;
 	const char *tun_addr, *tun_netmask, *tun_name;
 
@@ -149,6 +149,9 @@ static struct vpnclient *create_client(const char *file)
 	tun_name = get_str_var(config, "tun_name", MAX_IF_NAME_LEN - 1);
 	port = get_int_var(config, "port");
 	server_port = get_int_var(config, "server_port");
+	point_id = get_int_var(config, "point_id");
+	if (point_id > 0xFF || point_id < 0)
+		CONFIG_ERROR("invalid point_id");
 
 	clnt = malloc(sizeof(struct vpnclient));
 	memset(clnt, 0, sizeof(struct vpnclient));
@@ -164,7 +167,7 @@ static struct vpnclient *create_client(const char *file)
 	clnt->tun_mtu = TUN_MTU_SIZE;
 	clnt->port = port ? port : VPN_PORT;
 	clnt->server_port = server_port ? server_port : VPN_PORT;
-	clnt->point_id = 0;
+	clnt->point_id = point_id;
 	clnt->private_ip = inet_network(clnt->tun_addr);
 	clnt->cipher_key = get_expanded_key(cipher_key);
 

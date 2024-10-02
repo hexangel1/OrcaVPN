@@ -37,6 +37,7 @@ struct vpnserver {
 	char tun_netmask[MAX_IPV4_ADDR_LEN];
 	char tun_name[MAX_IF_NAME_LEN];
 	int tun_mtu;
+	uint8_t point_id_map[256];
 	hashmap_t *vpn_ip_hash;
 	hashmap_t *ip_hash;
 	carray_t *peers;
@@ -47,14 +48,21 @@ static void log_ip_address(hashmap_t *ip_hash, struct sockaddr_in *addr)
 	const char *ip_addr = ipv4_tostring(addr->sin_addr.s_addr, 0);
 	uint64_t counter = hashmap_get(ip_hash, ip_addr);
 	if (counter != HASHMAP_MISS) {
-		counter++;
-		hashmap_insert(ip_hash, ip_addr, counter);
-		if (counter % 10000 == 0)
-			log_mesg(LOG_INFO, "got %ld udp datagram from %s", counter, ip_addr);
+		hashmap_insert(ip_hash, ip_addr, ++counter);
+		if (counter % 100000 == 0)
+			log_mesg(LOG_NOTICE, "got %ld datagram from %s", counter, ip_addr);
 	} else {
 		hashmap_insert(ip_hash, ip_addr, 1);
-		log_mesg(LOG_INFO, "received udp datagram from %s", ip_addr);
+		log_mesg(LOG_INFO, "received datagram from new address %s", ip_addr);
 	}
+}
+
+static struct vpn_peer *get_peer_by_id(struct vpnserver *serv, point_id_t point_id)
+{
+	uint8_t idx = serv->point_id_map[point_id];
+	if (idx == 0xFF)
+		return NULL;
+	return array_get(serv->peers, idx);
 }
 
 static struct vpn_peer *get_peer_by_addr(struct vpnserver *serv, uint32_t vpn_ip)
@@ -62,7 +70,7 @@ static struct vpn_peer *get_peer_by_addr(struct vpnserver *serv, uint32_t vpn_ip
 	uint64_t point_id = hashmap_get(serv->vpn_ip_hash, ipv4_tostring(vpn_ip, 1));
 	if (point_id == HASHMAP_MISS)
 		return NULL;
-	return array_get(serv->peers, point_id);
+	return get_peer_by_id(serv, point_id);
 }
 
 static void push_new_peer(struct vpnserver *serv, point_id_t point_id,
@@ -88,13 +96,14 @@ static void push_new_peer(struct vpnserver *serv, point_id_t point_id,
 	peer->private_ip = vpn_ip;
 	peer->cipher_key = get_expanded_key(cipher_key);
 	hashmap_insert(serv->vpn_ip_hash, ip, point_id);
+	serv->point_id_map[point_id] = serv->peers->nitems - 1;
 }
 
 static int tun_if_forward(struct vpnserver *serv)
 {
 	ssize_t res;
 	size_t length;
-	uint8_t point_id;
+	point_id_t point_id;
 	struct vpn_peer *peer;
 	struct sockaddr_in addr;
 	char buffer[PACKET_BUFFER_SIZE];
@@ -106,7 +115,7 @@ static int tun_if_forward(struct vpnserver *serv)
 	log_ip_address(serv->ip_hash, &addr);
 	length = res;
 	point_id = buffer[--length];
-	peer = array_get(serv->peers, point_id);
+	peer = get_peer_by_id(serv, point_id);
 	if (!peer) {
 		log_mesg(LOG_NOTICE, "peer %u not found", point_id);
 		return -1;
@@ -236,6 +245,7 @@ static struct vpnserver *create_server(const char *file)
 	serv->vpn_ip_hash = make_map();
 	serv->ip_hash = make_map();
 	serv->peers = create_array_of(struct vpn_peer);
+	memset(serv->point_id_map, 0xFF, sizeof(serv->point_id_map));
 
 	for (client = config->next; client; client = client->next) {
 		point_id = get_int_var(client, "point_id");
