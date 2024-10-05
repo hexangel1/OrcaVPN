@@ -16,16 +16,17 @@
 #include "logger.h"
 #include "helper.h"
 #include "hashmap.h"
-#include "carray.h"
+
+#define PEERS_LIMIT 256
 
 typedef unsigned char point_id_t;
 
 struct vpn_peer {
-	point_id_t point_id;
 	uint32_t private_ip;
-	void *cipher_key;
-	int is_addr_valid;
+	point_id_t point_id;
+	char is_addr_valid;
 	struct sockaddr_in addr;
+	void *cipher_key;
 };
 
 struct vpnserver {
@@ -37,10 +38,11 @@ struct vpnserver {
 	char tun_netmask[MAX_IPV4_ADDR_LEN];
 	char tun_name[MAX_IF_NAME_LEN];
 	int tun_mtu;
-	uint8_t point_id_map[256];
+	struct vpn_peer peers[PEERS_LIMIT];
+	uint8_t point_id_map[PEERS_LIMIT];
+	uint8_t peers_count;
 	hashmap_t *vpn_ip_hash;
 	hashmap_t *ip_hash;
-	carray_t *peers;
 };
 
 static void log_ip_address(hashmap_t *ip_hash, struct sockaddr_in *addr)
@@ -67,9 +69,7 @@ static void log_ip_address(hashmap_t *ip_hash, struct sockaddr_in *addr)
 static struct vpn_peer *get_peer_by_id(struct vpnserver *serv, point_id_t point_id)
 {
 	uint8_t idx = serv->point_id_map[point_id];
-	if (idx == 0xFF)
-		return NULL;
-	return array_get(serv->peers, idx);
+	return idx < serv->peers_count ? &serv->peers[idx] : NULL;
 }
 
 static struct vpn_peer *get_peer_by_addr(struct vpnserver *serv, uint32_t vpn_ip)
@@ -104,14 +104,23 @@ static void push_new_peer(struct vpnserver *serv, point_id_t point_id,
 		log_mesg(LOG_ERR, "invalid cipher key format");
 		return;
 	}
-	peer = array_push(serv->peers);
-	peer->point_id = point_id;
+	if (serv->peers_count == PEERS_LIMIT - 1) {
+		log_mesg(LOG_ERR, "too many peers, ignoring peer %u", point_id);
+		return;
+	}
+	if (serv->point_id_map[point_id] != 0xFF) {
+		log_mesg(LOG_ERR, "peer with same id %u already exists", point_id);
+		return;
+	}
+	serv->point_id_map[point_id] = serv->peers_count;
+	peer = &serv->peers[serv->peers_count++];
 	peer->private_ip = vpn_ip;
+	peer->point_id = point_id;
+	peer->is_addr_valid = 0;
 	peer->cipher_key = get_expanded_key(cipher_key);
 	ip_key.data = (uint8_t *)&vpn_ip;
 	ip_key.len = 4;
 	hashmap_insert(serv->vpn_ip_hash, &ip_key, point_id);
-	serv->point_id_map[point_id] = serv->peers->nitems - 1;
 }
 
 static int tun_if_forward(struct vpnserver *serv)
@@ -259,7 +268,8 @@ static struct vpnserver *create_server(const char *file)
 	serv->tun_mtu = TUN_MTU_SIZE;
 	serv->vpn_ip_hash = make_map();
 	serv->ip_hash = make_map();
-	serv->peers = create_array_of(struct vpn_peer);
+	serv->peers_count = 0;
+	memset(serv->peers, 0, sizeof(serv->peers));
 	memset(serv->point_id_map, 0xFF, sizeof(serv->point_id_map));
 
 	for (client = config->next; client; client = client->next) {
@@ -304,13 +314,11 @@ static int vpn_server_up(struct vpnserver *serv)
 
 static void vpn_server_down(struct vpnserver *serv)
 {
-	size_t i, npeers = serv->peers->nitems;
-	struct vpn_peer *peers = serv->peers->items;
-	for (i = 0; i < npeers; i++)
-		free(peers[i].cipher_key);
+	uint8_t i;
+	for (i = 0; i < serv->peers_count; i++)
+		free(serv->peers[i].cipher_key);
 	delete_map(serv->vpn_ip_hash);
 	delete_map(serv->ip_hash);
-	array_destroy(serv->peers);
 	close(serv->sockfd);
 	close(serv->tunfd);
 	free(serv);
