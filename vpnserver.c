@@ -45,15 +45,22 @@ struct vpnserver {
 
 static void log_ip_address(hashmap_t *ip_hash, struct sockaddr_in *addr)
 {
-	const char *ip_addr = ipv4_tostring(addr->sin_addr.s_addr, 0);
-	uint64_t counter = hashmap_get(ip_hash, ip_addr);
+	uint32_t ip_addr = addr->sin_addr.s_addr;
+	uint64_t counter;
+	hashstring_t ip_key;
+
+	ip_key.data = (uint8_t *)&ip_addr;
+	ip_key.len = 4;
+	counter = hashmap_get(ip_hash, &ip_key);
 	if (counter != HASHMAP_MISS) {
-		hashmap_insert(ip_hash, ip_addr, ++counter);
+		hashmap_insert(ip_hash, &ip_key, ++counter);
 		if (counter % 100000 == 0)
-			log_mesg(LOG_NOTICE, "got %ld datagram from %s", counter, ip_addr);
+			log_mesg(LOG_NOTICE, "received %lu datagram from %s",
+				counter, ipv4_tostring(ip_addr, 0));
 	} else {
-		hashmap_insert(ip_hash, ip_addr, 1);
-		log_mesg(LOG_INFO, "received datagram from new address %s", ip_addr);
+		hashmap_insert(ip_hash, &ip_key, 1);
+		log_mesg(LOG_INFO, "received datagram from %s",
+			ipv4_tostring(ip_addr, 0));
 	}
 }
 
@@ -67,7 +74,12 @@ static struct vpn_peer *get_peer_by_id(struct vpnserver *serv, point_id_t point_
 
 static struct vpn_peer *get_peer_by_addr(struct vpnserver *serv, uint32_t vpn_ip)
 {
-	uint64_t point_id = hashmap_get(serv->vpn_ip_hash, ipv4_tostring(vpn_ip, 1));
+	uint64_t point_id;
+	hashstring_t ip_key;
+
+	ip_key.data = (uint8_t *)&vpn_ip;
+	ip_key.len = 4;
+	point_id = hashmap_get(serv->vpn_ip_hash, &ip_key);
 	if (point_id == HASHMAP_MISS)
 		return NULL;
 	return get_peer_by_id(serv, point_id);
@@ -77,6 +89,7 @@ static void push_new_peer(struct vpnserver *serv, point_id_t point_id,
 	const char *ip, const char *key)
 {
 	uint8_t cipher_key[CIPHER_KEY_LEN];
+	hashstring_t ip_key;
 	struct vpn_peer *peer;
 	uint32_t vpn_ip = inet_network(ip);
 	if (vpn_ip == (uint32_t)-1) {
@@ -95,7 +108,9 @@ static void push_new_peer(struct vpnserver *serv, point_id_t point_id,
 	peer->point_id = point_id;
 	peer->private_ip = vpn_ip;
 	peer->cipher_key = get_expanded_key(cipher_key);
-	hashmap_insert(serv->vpn_ip_hash, ip, point_id);
+	ip_key.data = (uint8_t *)&vpn_ip;
+	ip_key.len = 4;
+	hashmap_insert(serv->vpn_ip_hash, &ip_key, point_id);
 	serv->point_id_map[point_id] = serv->peers->nitems - 1;
 }
 
