@@ -8,7 +8,7 @@
 #include <arpa/inet.h>
 
 #define TUN_IF_NAME "orca-gate"
-#define TUN_IF_ADDR "10.0.0.1"
+#define TUN_IF_ADDR "10.80.80.1"
 #define TUN_IF_NETMASK "255.255.255.0"
 #define TUN_MTU_SIZE 1400
 #define PACKET_BUFFER_SIZE 2048

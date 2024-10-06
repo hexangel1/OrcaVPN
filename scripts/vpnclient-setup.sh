@@ -1,7 +1,7 @@
 #!/usr/bin/sh
 
 SERVER_IP=192.168.1.10
-SERVER_TUN_IP=10.0.0.1
+SERVER_TUN_IP=10.80.80.1
 DEFAULT_ROUTER=192.168.1.1
 
 if [ $# -ge 1 ]; then
@@ -18,4 +18,4 @@ fi
 
 set -x
 ip route add $SERVER_IP via $DEFAULT_ROUTER
-ip route add default via $SERVER_TUN_IP
+ip route add default via $SERVER_TUN_IP metric 80

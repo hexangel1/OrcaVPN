@@ -2,7 +2,7 @@
 
 INET_DEV='eth0'
 TUN_DEV='orca-gate'
-PRIVATE='10.0.0.0/24'
+PRIVATE='10.80.80.0/24'
 
 if [ $# -ge 1 ]; then
     INET_DEV=$1
