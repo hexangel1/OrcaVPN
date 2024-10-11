@@ -19,19 +19,58 @@
 #include "network.h"
 #include "logger.h"
 
-static int create_socket(const char *ip, unsigned short port, int type)
+#define ADDR_LEN(af) ((socklen_t)(af == AF_INET ? \
+	sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6)))
+
+static struct sockaddr *get_addr_af(int af, const char *ip, uint16_t port)
+{
+	static union {
+		struct sockaddr  address;
+		struct sockaddr_in  ipv4;
+		struct sockaddr_in6 ipv6;
+	} addr;
+
+	memset(&addr, 0, sizeof(addr));
+	if (af == AF_INET) {
+		addr.ipv4.sin_family = af;
+		addr.ipv4.sin_port = htons(port);
+		if (ip && *ip) {
+			int res = inet_pton(af, ip, &addr.ipv4.sin_addr);
+			if (res <= 0)
+				return NULL;
+		} else {
+			addr.ipv4.sin_addr.s_addr = INADDR_ANY;
+		}
+	} else if (af == AF_INET6) {
+		addr.ipv6.sin6_family = af;
+		addr.ipv6.sin6_port = htons(port);
+		if (ip && *ip) {
+			int res = inet_pton(af, ip, &addr.ipv6.sin6_addr);
+			if (res <= 0)
+				return NULL;
+		} else {
+			memcpy(&addr.ipv6.sin6_addr, &in6addr_any, sizeof(in6addr_any));
+		}
+	} else {
+		return NULL;
+	}
+	return &addr.address;
+}
+
+static int create_socket_af(int af, int type, const char *ip, uint16_t port)
 {
 	int sockfd, res;
-	struct sockaddr_in addr;
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(port);
-	addr.sin_addr.s_addr = ip ? inet_addr(ip) : INADDR_ANY;
-	sockfd = socket(AF_INET, type, IPPROTO_IP);
+	struct sockaddr *addr = get_addr_af(af, ip, port);
+	if (!addr) {
+		log_mesg(LOG_ERR, "get_addr_af: invalid ip address");
+		return -1;
+	}
+	sockfd = socket(af, type, IPPROTO_IP);
 	if (sockfd == -1) {
 		log_perror("socket");
 		return -1;
 	}
-	res = bind(sockfd, (struct sockaddr *)&addr, sizeof(addr));
+	res = bind(sockfd, addr, ADDR_LEN(af));
 	if (res == -1) {
 		log_perror("bind");
 		return -1;
@@ -89,12 +128,22 @@ static int set_if_options(const char *ifname, struct ifreq *ifr, int op)
 
 int create_udp_socket(const char *ip, unsigned short port)
 {
-	return create_socket(ip, port, SOCK_DGRAM);
+	return create_socket_af(AF_INET, SOCK_DGRAM, ip, port);
 }
 
 int create_tcp_socket(const char *ip, unsigned short port)
 {
-	return create_socket(ip, port, SOCK_STREAM);
+	return create_socket_af(AF_INET, SOCK_STREAM, ip, port);
+}
+
+int create_udp6_socket(const char *ip, unsigned short port)
+{
+	return create_socket_af(AF_INET6, SOCK_DGRAM, ip, port);
+}
+
+int create_tcp6_socket(const char *ip, unsigned short port)
+{
+	return create_socket_af(AF_INET6, SOCK_STREAM, ip, port);
 }
 
 int create_tun_if(char *tun_name)
@@ -157,7 +206,8 @@ int set_if_netmask(const char *ifname, const char *mask)
 	return set_if_options(ifname, &ifr, SIOCSIFNETMASK);
 }
 
-int setup_tun_if(const char *ifname, const char *ipv4, const char *mask, int mtu)
+int
+setup_tun_if(const char *ifname, const char *ipv4, const char *mask, int mtu)
 {
 	int res;
 	res = set_if_up(ifname, IFF_NOARP);
@@ -197,14 +247,15 @@ void wait_for_write(int fd)
 	select(fd + 1, NULL, &writefds, NULL, NULL);
 }
 
-int socket_connect(int sockfd, const char *ip, unsigned short port)
+static int socket_connect_af(int af, int sockfd, const char *ip, uint16_t port)
 {
 	int res;
-	struct sockaddr_in addr;
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(port);
-	addr.sin_addr.s_addr = inet_addr(ip);
-	res = connect(sockfd, (struct sockaddr *)&addr, sizeof(addr));
+	struct sockaddr *addr = get_addr_af(af, ip, port);
+	if (!addr) {
+		log_mesg(LOG_ERR, "get_addr_af: invalid ip address");
+		return -1;
+	}
+	res = connect(sockfd, addr, ADDR_LEN(af));
 	if (res == -1) {
 		log_perror("connect");
 		return -1;
@@ -212,14 +263,26 @@ int socket_connect(int sockfd, const char *ip, unsigned short port)
 	return 0;
 }
 
-ssize_t send_udp(int sockfd, const void *buf, size_t len, struct sockaddr_in *addr)
+int socket_connect(int sockfd, const char *ip, unsigned short port)
+{
+	return socket_connect_af(AF_INET, sockfd, ip, port);
+}
+
+int socket_connect6(int sockfd, const char *ip, unsigned short port)
+{
+	return socket_connect_af(AF_INET6, sockfd, ip, port);
+}
+
+static ssize_t
+send_udp_af(int af, int sockfd, const void *buf, size_t len,
+	struct sockaddr *addr)
 {
 	ssize_t res;
-	socklen_t addrlen = addr ? sizeof(struct sockaddr_in) : 0;
+	socklen_t addrlen = addr ? ADDR_LEN(af) : 0;
 	int success;
 	do {
 		success = 1;
-		res = sendto(sockfd, buf, len, 0, (struct sockaddr *)addr, addrlen);
+		res = sendto(sockfd, buf, len, 0, addr, addrlen);
 		if (res == -1) {
 			if (errno == EAGAIN || errno == EWOULDBLOCK) {
 				wait_for_write(sockfd);
@@ -233,17 +296,41 @@ ssize_t send_udp(int sockfd, const void *buf, size_t len, struct sockaddr_in *ad
 	return res;
 }
 
-ssize_t recv_udp(int sockfd, void *buf, size_t len, struct sockaddr_in *addr)
+static ssize_t
+recv_udp_af(int af, int sockfd, void *buf, size_t len, struct sockaddr *addr)
 {
-	socklen_t addrlen = sizeof(struct sockaddr_in);
+	socklen_t addrlen = ADDR_LEN(af);
 	ssize_t res;
-	res = recvfrom(sockfd, buf, len, 0,
-		(struct sockaddr *)addr, addr ? &addrlen : NULL);
+	res = recvfrom(sockfd, buf, len, 0, addr, addr ? &addrlen : NULL);
 	if (res <= 0) {
 		log_perror("recvfrom");
 		return -1;
 	}
 	return res;
+}
+
+ssize_t
+send_udp(int sockfd, const void *buf, size_t len, struct sockaddr_in *addr)
+{
+	return send_udp_af(AF_INET, sockfd, buf, len, (struct sockaddr *)addr);
+}
+
+ssize_t
+send_udp6(int sockfd, const void *buf, size_t len, struct sockaddr_in6 *addr)
+{
+	return send_udp_af(AF_INET6, sockfd, buf, len, (struct sockaddr *)addr);
+}
+
+ssize_t
+recv_udp(int sockfd, void *buf, size_t len, struct sockaddr_in *addr)
+{
+	return recv_udp_af(AF_INET, sockfd, buf, len, (struct sockaddr *)addr);
+}
+
+ssize_t
+recv_udp6(int sockfd, void *buf, size_t len, struct sockaddr_in6 *addr)
+{
+	return recv_udp_af(AF_INET6, sockfd, buf, len, (struct sockaddr *)addr);
 }
 
 uint32_t get_destination_ip(const void *buffer, size_t size)

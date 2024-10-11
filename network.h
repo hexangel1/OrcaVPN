@@ -20,6 +20,9 @@
 int create_udp_socket(const char *ip, unsigned short port);
 int create_tcp_socket(const char *ip, unsigned short port);
 
+int create_udp6_socket(const char *ip, unsigned short port);
+int create_tcp6_socket(const char *ip, unsigned short port);
+
 int create_tun_if(char *tun_name);
 int create_tap_if(char *tap_name);
 
@@ -30,12 +33,22 @@ int set_if_netmask(const char *ifname, const char *mask);
 int setup_tun_if(const char *ifname, const char *ipv4, const char *mask, int mtu);
 
 int socket_connect(int sockfd, const char *ip, unsigned short port);
+int socket_connect6(int sockfd, const char *ip, unsigned short port);
 
 void nonblock_io(int fd);
 void wait_for_write(int fd);
 
-ssize_t send_udp(int sockfd, const void *buf, size_t len, struct sockaddr_in *addr);
-ssize_t recv_udp(int sockfd, void *buf, size_t len, struct sockaddr_in *addr);
+ssize_t
+send_udp(int sockfd, const void *buf, size_t len, struct sockaddr_in *addr);
+
+ssize_t
+send_udp6(int sockfd, const void *buf, size_t len, struct sockaddr_in6 *addr);
+
+ssize_t
+recv_udp(int sockfd, void *buf, size_t len, struct sockaddr_in *addr);
+
+ssize_t
+recv_udp6(int sockfd, void *buf, size_t len, struct sockaddr_in6 *addr);
 
 uint32_t get_destination_ip(const void *buffer, size_t size);
 uint32_t get_source_ip(const void *buffer, size_t size);
