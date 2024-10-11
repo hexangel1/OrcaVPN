@@ -59,7 +59,7 @@ static struct sockaddr *get_addr_af(int af, const char *ip, uint16_t port)
 
 static int create_socket_af(int af, int type, const char *ip, uint16_t port)
 {
-	int sockfd, res;
+	int sockfd, res, opt = 1;
 	struct sockaddr *addr = get_addr_af(af, ip, port);
 	if (!addr) {
 		log_mesg(LOG_ERR, "get_addr_af: invalid ip address");
@@ -68,6 +68,11 @@ static int create_socket_af(int af, int type, const char *ip, uint16_t port)
 	sockfd = socket(af, type, IPPROTO_IP);
 	if (sockfd == -1) {
 		log_perror("socket");
+		return -1;
+	}
+	res = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+	if (res == -1) {
+		log_perror("setsockopt");
 		return -1;
 	}
 	res = bind(sockfd, addr, ADDR_LEN(af));
