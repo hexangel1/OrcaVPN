@@ -72,6 +72,10 @@ int main(int argc, char **argv)
 		fprintf(stderr, usage, argv[0]);
 		exit(EXIT_FAILURE);
 	}
+	if (geteuid() != 0) {
+		fprintf(stderr, "Required root privileges\n");
+		exit(EXIT_FAILURE);
+	}
 	if (daemon_state)
 		daemonize(pid_file);
 	init_logger("orcavpnd", log_file, daemon_state, log_file ? 2 : 0);
