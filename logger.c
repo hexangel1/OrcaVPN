@@ -19,9 +19,9 @@ int vsnprintf(char *str, size_t size, const char *format, va_list ap);
 static const char *current_timestamp(int local)
 {
 	static char buffer[256];
-	time_t current = time(NULL);
-	struct tm *cur_tm = local ? localtime(&current) : gmtime(&current);
-	strftime(buffer, sizeof(buffer), "%d %b %H:%M:%S ", cur_tm);
+	time_t now = time(NULL);
+	struct tm *now_tm = local ? localtime(&now) : gmtime(&now);
+	strftime(buffer, sizeof(buffer), "%d %b %H:%M:%S ", now_tm);
 	return buffer;
 }
 
@@ -70,9 +70,9 @@ void init_logger(const char *service, const char *filename,
 
 void log_mesg(int level, const char *mesg, ...)
 {
-	static const char *str_levels[] = {
-		"emerg", "alert", "crit", "err",
-		"warn", "notice", "info", "debug",
+	static const char *const str_levels[] = {
+		"emerg", "alert",  "crit", "err",
+		"warn",  "notice", "info", "debug",
 	};
 	const char *timestamp = "";
 	char buffer[1024];

@@ -12,8 +12,8 @@
 void init_logger(const char *service, const char *filename,
 	int syslog_on, int time_on);
 
-void log_mesg(int level, const char *msg, ...);
+void log_mesg(int level, const char *mesg, ...);
 
-void log_perror(const char *msg);
+void log_perror(const char *mesg);
 
 #endif /* LOGGER_H_SENTRY */
