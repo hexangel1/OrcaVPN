@@ -131,7 +131,7 @@ static struct vpnclient *create_client(const char *file)
 
 	ip_addr = get_str_var(config, "ip_addr", MAX_IPV4_ADDR_LEN - 1);
 	if (!ip_addr)
-		CONFIG_ERROR("ip_addr var not set");
+		ip_addr = "";
 	server_ip = get_str_var(config, "server_ip", MAX_IPV4_ADDR_LEN - 1);
 	if (!server_ip)
 		CONFIG_ERROR("server_ip var not set");
