@@ -11,9 +11,6 @@ CFLAGS = -Wall -Wextra -ansi -pedantic -Ofast -g
 CC = gcc
 CTAGS = ctags
 
-HOST = artamonovgi@192.168.1.10
-REMOTE_PATH = /home/artamonovgi/my/OrcaVPN
-
 default: $(PROJECT)
 
 $(PROJECT): $(OBJECTS) $(LIBDEPEND)
@@ -36,9 +33,6 @@ tar: $(PROJECT).tar
 $(PROJECT).tar: $(ARCHIEVE_FILES)
 	tar -cf $@ $(ARCHIEVE_FILES)
 
-push:
-	rsync -rvza -e 'ssh -p 503' * $(HOST):$(REMOTE_PATH)
-
 clean:
 	rm -f $(PROJECT) *.o *.a *.bin deps.mk tags
 	cd encrypt && $(MAKE) clean
@@ -46,9 +40,7 @@ clean:
 ifneq (clean, $(MAKECMDGOALS))
 ifneq (tags, $(MAKECMDGOALS))
 ifneq (tar, $(MAKECMDGOALS))
-ifneq (push, $(MAKECMDGOALS))
 -include deps.mk
-endif
 endif
 endif
 endif
