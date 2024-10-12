@@ -1,10 +1,28 @@
+#include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
+#include <time.h>
 #include "encryption.h"
 #include "aes.h"
 #include "sha1.h"
 
+static int generate_rand(int min, int max)
+{
+	return min + (int)((double)rand() / (RAND_MAX + 1.0) * (max - min + 1));
+}
+
+static void read_random(void *buf, size_t n)
+{
+	uint8_t *dst = buf;
+	size_t i;
+	for (i = 0; i < n; i++)
+		dst[i] = generate_rand(0, 255);
+}
+
 void init_encryption(size_t key_size)
 {
+	unsigned int seed = time(NULL);
+	srand(seed);
 	aes_init(key_size);
 }
 
@@ -19,7 +37,7 @@ void encrypt_packet(void *packet, size_t *len, const void *key)
 	size_t size = *len;
 	size_t offs, padded_size = ((size / 16) + 1) * 16;
 	uint8_t padding = padded_size - size;
-	memset(data + size, 0, padding);
+	read_random(data + size, padding);
 	data[padded_size - 1] = padding;
 	for (offs = 0; offs < padded_size / 16; offs += 16)
 		aes_cipher(data + offs, data + offs, key);
