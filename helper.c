@@ -38,7 +38,7 @@ void daemonize(const char *pidfile)
 	open("/dev/null", O_RDWR);
 	dup2(0, 1);
 	dup2(0, 2);
-	umask(0);
+	umask(022);
 	if (chdir("/") < 0)
 		exit(1);
 	if (fork() > 0)
