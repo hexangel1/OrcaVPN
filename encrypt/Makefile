@@ -7,7 +7,7 @@ OBJECTS = $(SOURCES:.c=.o)
 
 ARFLAGS = crs
 AR = ar
-CFLAGS = -Wall -Wextra -ansi -pedantic -Ofast -g
+CFLAGS = -Wall -Wextra -ansi -pedantic -O2 -flto -g
 CC = gcc
 CTAGS = ctags
 

@@ -7,7 +7,7 @@ ARCHIEVE_FILES = $(SOURCES) $(HEADERS) Makefile README.md LICENSE \
 
 LIBDEPEND = encrypt/libencrypt.a
 LOCALLIBS = -lencrypt -Lencrypt
-CFLAGS = -Wall -Wextra -ansi -pedantic -Ofast -g
+CFLAGS = -Wall -Wextra -ansi -pedantic -O2 -flto -g
 CC = gcc
 CTAGS = ctags
 
