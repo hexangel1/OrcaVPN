@@ -11,8 +11,6 @@ CFLAGS = -Wall -Wextra -ansi -pedantic -O2 -flto -g
 CC = gcc
 CTAGS = ctags
 
-default: $(LIBFILE)
-
 $(LIBFILE): $(OBJECTS)
 	$(AR) $(ARFLAGS) $@ $^
 
