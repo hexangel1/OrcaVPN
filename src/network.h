@@ -26,10 +26,6 @@ int create_tcp6_socket(const char *ip, unsigned short port);
 int create_tun_if(char *tun_name);
 int create_tap_if(char *tap_name);
 
-int set_if_up(const char *ifname, int flags);
-int set_if_mtu(const char *ifname, int mtu);
-int set_if_ipv4(const char *ifname, const char *ipv4);
-int set_if_netmask(const char *ifname, const char *mask);
 int setup_tun_if(const char *ifname, const char *ipv4, const char *mask);
 
 int socket_connect(int sockfd, const char *ip, unsigned short port);

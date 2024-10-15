@@ -161,7 +161,7 @@ int create_tap_if(char *tap_name)
 	return tuntap_alloc(tap_name, IFF_TAP | IFF_NO_PI);
 }
 
-int set_if_up(const char *ifname, int flags)
+static int set_if_up(const char *ifname, int flags)
 {
 	struct ifreq ifr;
 	memset(&ifr, 0, sizeof(ifr));
@@ -169,7 +169,7 @@ int set_if_up(const char *ifname, int flags)
 	return set_if_options(ifname, &ifr, SIOCSIFFLAGS);
 }
 
-int set_if_mtu(const char *ifname, int mtu)
+static int set_if_mtu(const char *ifname, int mtu)
 {
 	struct ifreq ifr;
 	memset(&ifr, 0, sizeof(ifr));
@@ -177,7 +177,7 @@ int set_if_mtu(const char *ifname, int mtu)
 	return set_if_options(ifname, &ifr, SIOCSIFMTU);
 }
 
-int set_if_ipv4(const char *ifname, const char *ipv4)
+static int set_if_ipv4(const char *ifname, const char *ipv4)
 {
 	struct ifreq ifr;
 	struct sockaddr_in *addr;
@@ -194,7 +194,7 @@ int set_if_ipv4(const char *ifname, const char *ipv4)
 	return set_if_options(ifname, &ifr, SIOCSIFADDR);
 }
 
-int set_if_netmask(const char *ifname, const char *mask)
+static int set_if_netmask(const char *ifname, const char *mask)
 {
 	struct ifreq ifr;
 	struct sockaddr_in *addr;
