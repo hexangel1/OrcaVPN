@@ -15,7 +15,7 @@ fi
 
 set -x
 make
-install orcavpn $DIR_PREFIX/bin/
+install src/orcavpn $DIR_PREFIX/bin/
 install scripts/vpnserver-setup.sh $DIR_PREFIX/bin/
 install config/$MODE/orcavpn.conf $DIR_PREFIX/etc/ --mode=644
 install config/$MODE/orcavpn.service /etc/systemd/system/ --mode=644
