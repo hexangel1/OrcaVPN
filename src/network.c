@@ -211,8 +211,7 @@ int set_if_netmask(const char *ifname, const char *mask)
 	return set_if_options(ifname, &ifr, SIOCSIFNETMASK);
 }
 
-int
-setup_tun_if(const char *ifname, const char *ipv4, const char *mask, int mtu)
+int setup_tun_if(const char *ifname, const char *ipv4, const char *mask)
 {
 	int res;
 	res = set_if_up(ifname, IFF_NOARP);
@@ -220,7 +219,7 @@ setup_tun_if(const char *ifname, const char *ipv4, const char *mask, int mtu)
 		log_mesg(LOG_ERR, "set_if_up failed");
 		return -1;
 	}
-	res = set_if_mtu(ifname, mtu);
+	res = set_if_mtu(ifname, TUN_MTU_SIZE);
 	if (res == -1) {
 		log_mesg(LOG_ERR, "set_if_mtu failed");
 		return -1;

@@ -24,7 +24,6 @@ struct vpnclient {
 	char tun_addr[MAX_IPV4_ADDR_LEN];
 	char tun_netmask[MAX_IPV4_ADDR_LEN];
 	char tun_name[MAX_IF_NAME_LEN];
-	int tun_mtu;
 	unsigned short server_port;
 	char server_ip[MAX_IPV4_ADDR_LEN];
 	void *cipher_key;
@@ -61,7 +60,7 @@ static int sockfd_forward(struct vpnclient *clnt)
 	ssize_t res;
 	size_t length;
 	char buffer[PACKET_BUFFER_SIZE];
-	res = read(clnt->tunfd, buffer, clnt->tun_mtu);
+	res = read(clnt->tunfd, buffer, TUN_MTU_SIZE);
 	if (res <= 0) {
 		log_perror("read from tun failed");
 		return -1;
@@ -164,7 +163,6 @@ static struct vpnclient *create_client(const char *file)
 	strcpy(clnt->tun_netmask, tun_netmask ? tun_netmask : TUN_IF_NETMASK);
 	strcpy(clnt->tun_name, tun_name ? tun_name : TUN_IF_NAME);
 
-	clnt->tun_mtu = TUN_MTU_SIZE;
 	clnt->port = port ? port : VPN_PORT;
 	clnt->server_port = server_port ? server_port : VPN_PORT;
 	clnt->point_id = point_id;
@@ -196,7 +194,7 @@ static int vpn_client_up(struct vpnclient *clnt)
 	}
 	clnt->tunfd = res;
 	log_mesg(LOG_INFO, "created dev %s", clnt->tun_name);
-	res = setup_tun_if(clnt->tun_name, clnt->tun_addr, clnt->tun_netmask, clnt->tun_mtu);
+	res = setup_tun_if(clnt->tun_name, clnt->tun_addr, clnt->tun_netmask);
 	if (res == -1) {
 		log_mesg(LOG_ERR, "Setting up %s failed", clnt->tun_name);
 		return -1;

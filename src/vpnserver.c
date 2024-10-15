@@ -37,7 +37,6 @@ struct vpnserver {
 	char tun_addr[MAX_IPV4_ADDR_LEN];
 	char tun_netmask[MAX_IPV4_ADDR_LEN];
 	char tun_name[MAX_IF_NAME_LEN];
-	int tun_mtu;
 	struct vpn_peer peers[PEERS_LIMIT];
 	uint8_t point_id_map[PEERS_LIMIT];
 	uint8_t peers_count;
@@ -170,7 +169,7 @@ static int sockfd_forward(struct vpnserver *serv)
 	uint32_t vpn_ip;
 	struct vpn_peer *peer;
 	char buffer[PACKET_BUFFER_SIZE];
-	res = read(serv->tunfd, buffer, serv->tun_mtu);
+	res = read(serv->tunfd, buffer, TUN_MTU_SIZE);
 	if (res <= 0) {
 		log_perror("read from tun failed");
 		return -1;
@@ -265,7 +264,6 @@ static struct vpnserver *create_server(const char *file)
 	serv->tunfd = -1;
 	serv->sockfd = -1;
 	serv->port = port ? port : VPN_PORT;
-	serv->tun_mtu = TUN_MTU_SIZE;
 	serv->vpn_ip_hash = make_map();
 	serv->ip_hash = make_map();
 	serv->peers_count = 0;
@@ -302,7 +300,7 @@ static int vpn_server_up(struct vpnserver *serv)
 	}
 	serv->tunfd = res;
 	log_mesg(LOG_INFO, "created dev %s", serv->tun_name);
-	res = setup_tun_if(serv->tun_name, serv->tun_addr, serv->tun_netmask, serv->tun_mtu);
+	res = setup_tun_if(serv->tun_name, serv->tun_addr, serv->tun_netmask);
 	if (res == -1) {
 		log_mesg(LOG_ERR, "Setting up %s failed", serv->tun_name);
 		return -1;

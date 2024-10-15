@@ -30,7 +30,7 @@ int set_if_up(const char *ifname, int flags);
 int set_if_mtu(const char *ifname, int mtu);
 int set_if_ipv4(const char *ifname, const char *ipv4);
 int set_if_netmask(const char *ifname, const char *mask);
-int setup_tun_if(const char *ifname, const char *ipv4, const char *mask, int mtu);
+int setup_tun_if(const char *ifname, const char *ipv4, const char *mask);
 
 int socket_connect(int sockfd, const char *ip, unsigned short port);
 int socket_connect6(int sockfd, const char *ip, unsigned short port);
