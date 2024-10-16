@@ -185,6 +185,14 @@ static int set_if_mtu(const char *ifname, int mtu)
 	return set_if_option(ifname, &ifr, SIOCSIFMTU);
 }
 
+static int set_if_qlen(const char *ifname, int qlen)
+{
+	struct ifreq ifr;
+	memset(&ifr, 0, sizeof(ifr));
+	ifr.ifr_qlen = qlen;
+	return set_if_option(ifname, &ifr, SIOCSIFTXQLEN);
+}
+
 static int set_if_address(const char *ifname, const char *address)
 {
 	int res;
@@ -286,22 +294,27 @@ int setup_tun_if(const char *ifname, const char *addr, const char *mask)
 	int res;
 	res = set_if_up(ifname, IFF_NOARP);
 	if (res == -1) {
-		log_mesg(LOG_ERR, "set_if_up failed");
+		log_mesg(LOG_ERR, "set dev %s up failed", ifname);
 		return -1;
 	}
 	res = set_if_mtu(ifname, TUN_IF_MTU);
 	if (res == -1) {
-		log_mesg(LOG_ERR, "set_if_mtu failed");
+		log_mesg(LOG_ERR, "set dev %s mtu failed", ifname);
+		return -1;
+	}
+	res = set_if_qlen(ifname, TUN_IF_QLEN);
+	if (res == -1) {
+		log_mesg(LOG_ERR, "set dev %s qlen failed", ifname);
 		return -1;
 	}
 	res = set_if_address(ifname, addr);
 	if (res == -1) {
-		log_mesg(LOG_ERR, "set_if_address failed");
+		log_mesg(LOG_ERR, "set dev %s address failed", ifname);
 		return -1;
 	}
 	res = set_if_netmask(ifname, mask);
 	if (res == -1) {
-		log_mesg(LOG_ERR, "set_if_netmask failed");
+		log_mesg(LOG_ERR, "set dev %s netmask failed", ifname);
 		return -1;
 	}
 	return 0;
