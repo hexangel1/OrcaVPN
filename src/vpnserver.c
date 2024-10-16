@@ -169,7 +169,7 @@ static int sockfd_forward(struct vpnserver *serv)
 	uint32_t vpn_ip;
 	struct vpn_peer *peer;
 	char buffer[PACKET_BUFFER_SIZE];
-	res = read(serv->tunfd, buffer, TUN_MTU_SIZE);
+	res = read(serv->tunfd, buffer, TUN_IF_MTU);
 	if (res <= 0) {
 		log_perror("read from tun failed");
 		return -1;
@@ -305,8 +305,8 @@ static int vpn_server_up(struct vpnserver *serv)
 		log_mesg(LOG_ERR, "Setting up %s failed", serv->tun_name);
 		return -1;
 	}
-	nonblock_io(serv->sockfd);
-	nonblock_io(serv->tunfd);
+	set_nonblock_io(serv->sockfd);
+	set_nonblock_io(serv->tunfd);
 	return 0;
 }
 

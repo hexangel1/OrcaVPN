@@ -60,7 +60,7 @@ static int sockfd_forward(struct vpnclient *clnt)
 	ssize_t res;
 	size_t length;
 	char buffer[PACKET_BUFFER_SIZE];
-	res = read(clnt->tunfd, buffer, TUN_MTU_SIZE);
+	res = read(clnt->tunfd, buffer, TUN_IF_MTU);
 	if (res <= 0) {
 		log_perror("read from tun failed");
 		return -1;
@@ -182,7 +182,7 @@ static int vpn_client_up(struct vpnclient *clnt)
 		return -1;
 	}
 	clnt->sockfd = res;
-	res = socket_connect(clnt->sockfd, clnt->server_ip, clnt->server_port);
+	res = connect_socket(clnt->sockfd, clnt->server_ip, clnt->server_port);
 	if (res == -1) {
 		log_mesg(LOG_ERR, "Connection failed");
 		return -1;
@@ -199,8 +199,8 @@ static int vpn_client_up(struct vpnclient *clnt)
 		log_mesg(LOG_ERR, "Setting up %s failed", clnt->tun_name);
 		return -1;
 	}
-	nonblock_io(clnt->sockfd);
-	nonblock_io(clnt->tunfd);
+	set_nonblock_io(clnt->sockfd);
+	set_nonblock_io(clnt->tunfd);
 	return 0;
 }
 
