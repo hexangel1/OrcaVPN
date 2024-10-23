@@ -18,20 +18,23 @@
 #include "hashmap.h"
 
 #define PEERS_LIMIT 256
+#define PEER_ADDR_EXPIRE 600
 
 typedef unsigned char point_id_t;
 
 struct vpn_peer {
 	uint32_t private_ip;
 	point_id_t point_id;
-	char is_addr_valid;
 	struct sockaddr_in addr;
+	time_t last_update;
 	void *cipher_key;
 };
 
 struct vpnserver {
 	int tunfd;
 	int sockfd;
+	uint32_t private_ip;
+	uint32_t private_mask;
 	unsigned short port;
 	char ip_addr[MAX_IPV4_ADDR_LEN];
 	char tun_addr[MAX_IPV4_ADDR_LEN];
@@ -57,11 +60,10 @@ static void log_ip_address(hashmap_t *ip_hash, struct sockaddr_in *addr)
 		hashmap_insert(ip_hash, &ip_key, ++counter);
 		if (counter % 100000 == 0)
 			log_mesg(LOG_NOTICE, "received %lu datagram from %s",
-				counter, ipv4_tostring(ip_addr, 0));
+				counter, ipv4tos(ip_addr, 0));
 	} else {
 		hashmap_insert(ip_hash, &ip_key, 1);
-		log_mesg(LOG_INFO, "received datagram from %s",
-			ipv4_tostring(ip_addr, 0));
+		log_mesg(LOG_INFO, "received datagram from %s", ipv4tos(ip_addr, 0));
 	}
 }
 
@@ -115,14 +117,53 @@ static void push_new_peer(struct vpnserver *serv, point_id_t point_id,
 	peer = &serv->peers[serv->peers_count++];
 	peer->private_ip = vpn_ip;
 	peer->point_id = point_id;
-	peer->is_addr_valid = 0;
+	peer->last_update = 0;
 	peer->cipher_key = get_expanded_key(cipher_key);
 	ip_key.data = (uint8_t *)&vpn_ip;
 	ip_key.len = 4;
 	hashmap_insert(serv->vpn_ip_hash, &ip_key, point_id);
 }
 
-static int tun_if_forward(struct vpnserver *serv)
+static int is_private_peer(struct vpnserver *serv, uint32_t ip)
+{
+	uint32_t private_net = serv->private_ip & serv->private_mask;
+	if (ip == serv->private_ip || ip == private_net)
+		return 0;
+	return ip_in_network(ip, private_net, serv->private_mask);
+}
+
+static int proxy_packet(struct vpnserver *serv, void *buf, size_t len)
+{
+	ssize_t res;
+	uint32_t ip = get_destination_ip(buf, len);
+	if (is_private_peer(serv, ip)) {
+		struct vpn_peer *peer = get_peer_by_addr(serv, ip);
+		if (!peer || !peer->last_update) {
+			log_mesg(LOG_NOTICE, "peer %s not found", ipv4tos(ip, 1));
+			return -1;
+		}
+		if (get_unix_time() > peer->last_update + PEER_ADDR_EXPIRE) {
+			log_mesg(LOG_NOTICE, "peer %s address expired", ipv4tos(ip, 1));
+			return -1;
+		}
+		len += PACKET_SIGNATURE_LEN;
+		encrypt_packet(buf, &len, peer->cipher_key);
+		res = send_udp(serv->sockfd, buf, len, &peer->addr);
+		if (res == -1) {
+			log_mesg(LOG_ERR, "sending packet failed");
+			return -1;
+		}
+	} else {
+		res = write(serv->tunfd, buf, len);
+		if (res == -1) {
+			log_perror("write to tun failed");
+			return -1;
+		}
+	}
+	return 0;
+}
+
+static int socket_handler(struct vpnserver *serv)
 {
 	ssize_t res;
 	size_t length;
@@ -152,17 +193,12 @@ static int tun_if_forward(struct vpnserver *serv)
 		log_mesg(LOG_NOTICE, "wrong peer private ip address");
 		return -1;
 	}
-	peer->is_addr_valid = 1;
+	peer->last_update = get_unix_time();
 	memcpy(&peer->addr, &addr, sizeof(struct sockaddr_in));
-	res = write(serv->tunfd, buffer, length);
-	if (res == -1) {
-		log_perror("write to tun failed");
-		return -1;
-	}
-	return 0;
+	return proxy_packet(serv, buffer, length);
 }
 
-static int sockfd_forward(struct vpnserver *serv)
+static int tun_if_handler(struct vpnserver *serv)
 {
 	ssize_t res;
 	size_t length;
@@ -181,8 +217,12 @@ static int sockfd_forward(struct vpnserver *serv)
 		return -1;
 	}
 	peer = get_peer_by_addr(serv, vpn_ip);
-	if (!peer || !peer->is_addr_valid) {
-		log_mesg(LOG_NOTICE, "peer remote address not found");
+	if (!peer || !peer->last_update) {
+		log_mesg(LOG_NOTICE, "peer %s not found", ipv4tos(vpn_ip, 1));
+		return -1;
+	}
+	if (get_unix_time() > peer->last_update + PEER_ADDR_EXPIRE) {
+		log_mesg(LOG_NOTICE, "peer %s address expired", ipv4tos(vpn_ip, 1));
 		return -1;
 	}
 	sign_packet(buffer, &length);
@@ -218,9 +258,9 @@ static void vpn_server_handle(struct vpnserver *serv)
 			continue;
 		}
 		if (FD_ISSET(serv->tunfd, &readfds))
-			sockfd_forward(serv);
+			tun_if_handler(serv);
 		if (FD_ISSET(serv->sockfd, &readfds))
-			tun_if_forward(serv);
+			socket_handler(serv);
 	}
 }
 
@@ -263,6 +303,8 @@ static struct vpnserver *create_server(const char *file)
 
 	serv->tunfd = -1;
 	serv->sockfd = -1;
+	serv->private_ip = inet_network(serv->tun_addr);
+	serv->private_mask = inet_network(serv->tun_netmask);
 	serv->port = port ? port : VPN_PORT;
 	serv->vpn_ip_hash = make_map();
 	serv->ip_hash = make_map();

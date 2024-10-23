@@ -348,11 +348,16 @@ uint32_t get_source_ip(const void *buf, size_t len)
 	return ntohl(((struct iphdr *)buf)->saddr);
 }
 
-const char *ipv4_tostring(uint32_t ip, int host_order)
+const char *ipv4tos(uint32_t ip, int host_order)
 {
 	struct in_addr addr;
 	addr.s_addr = host_order ? htonl(ip) : ip;
 	return inet_ntoa(addr);
+}
+
+int ip_in_network(uint32_t ip, uint32_t network, uint32_t mask)
+{
+	return (ip & mask) == (network & mask);
 }
 
 void print_ip_packet(const void *buf, size_t len)
@@ -365,11 +370,12 @@ void print_ip_packet(const void *buf, size_t len)
 	fprintf(stderr, "protocol = %u\n", ip->protocol);
 	fprintf(stderr, "ihl = %u\n", ip->ihl);
 	fprintf(stderr, "version = %u\n", ip->version);
+	fprintf(stderr, "tos = %u\n", ip->tos);
 	fprintf(stderr, "total len = %u\n", ntohs(ip->tot_len));
 	fprintf(stderr, "id = %u\n", ntohs(ip->id));
 	fprintf(stderr, "ttl = %u\n", ip->ttl);
 	fprintf(stderr, "frag off = %u\n", ntohs(ip->frag_off));
 	fprintf(stderr, "check = %u\n", ntohs(ip->check));
-	fprintf(stderr, "ip src = %s\n", ipv4_tostring(ip->saddr, 0));
-	fprintf(stderr, "ip dst = %s\n", ipv4_tostring(ip->daddr, 0));
+	fprintf(stderr, "ip src = %s\n", ipv4tos(ip->saddr, 0));
+	fprintf(stderr, "ip dst = %s\n", ipv4tos(ip->daddr, 0));
 }

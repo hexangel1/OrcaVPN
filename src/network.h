@@ -48,10 +48,12 @@ int setup_tun_if(const char *ifname, const char *addr, const char *mask);
 void set_nonblock_io(int fd);
 void block_for_write(int fd);
 
+int ip_in_network(uint32_t ip, uint32_t network, uint32_t mask);
+
 uint32_t get_destination_ip(const void *buf, size_t len);
 uint32_t get_source_ip(const void *buf, size_t len);
 
-const char *ipv4_tostring(uint32_t ip, int host_order);
+const char *ipv4tos(uint32_t ip, int host_order);
 
 void print_ip_packet(const void *buf, size_t len);
 
