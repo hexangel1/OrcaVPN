@@ -11,7 +11,7 @@ static int generate_rand(int min, int max)
 	return min + (int)((double)rand() / (RAND_MAX + 1.0) * (max - min + 1));
 }
 
-static void read_random(void *buf, size_t n)
+void read_random(void *buf, size_t n)
 {
 	uint8_t *dst = buf;
 	size_t i;
