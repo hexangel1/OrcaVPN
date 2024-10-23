@@ -2,6 +2,7 @@
 #define HELPER_H_SENTRY
 
 #include <stddef.h>
+#include <time.h>
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
@@ -11,6 +12,8 @@
 	((c) >= 'A' && (c) <= 'F') ? ((c) - 'A' + 10) : (-1))
 
 void daemonize(const char *pidfile);
+
+time_t get_unix_time(void);
 
 char *hexlify(const void *data, size_t len, int upper, char *res);
 

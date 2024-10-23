@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 199309L
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -8,6 +9,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <ctype.h>
+#include <time.h>
 
 #include "helper.h"
 
@@ -47,6 +49,13 @@ void daemonize(const char *pidfile)
 	if (fork() > 0)
 		exit(0);
 	create_pidfile(pidfile);
+}
+
+time_t get_unix_time(void)
+{
+	struct timespec ts;
+	clock_gettime(CLOCK_REALTIME, &ts);
+	return ts.tv_sec;
 }
 
 char *hexlify(const void *bin, size_t len, int upper, char *res)
