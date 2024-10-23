@@ -16,6 +16,8 @@
 #include "logger.h"
 #include "helper.h"
 
+#define IDLE_TIMEOUT 60
+
 struct vpnclient {
 	int tunfd;
 	int sockfd;
@@ -27,11 +29,42 @@ struct vpnclient {
 	unsigned short server_port;
 	char server_ip[MAX_IPV4_ADDR_LEN];
 	void *cipher_key;
+	uint32_t router_ip;
 	uint32_t private_ip;
 	uint8_t point_id;
+	uint16_t sequance_id;
+	uint16_t sequance_no;
 };
 
-static int tun_if_forward(struct vpnclient *clnt)
+static int ping_vpn_router(struct vpnclient *clnt)
+{
+	ssize_t res;
+	size_t length;
+	char buffer[PACKET_BUFFER_SIZE];
+	struct icmp_echo_param icmp_echo;
+	icmp_echo.src_ip = clnt->private_ip;
+	icmp_echo.dst_ip = clnt->router_ip;
+	icmp_echo.seq_id = clnt->sequance_id;
+	icmp_echo.seq_no = clnt->sequance_no++;
+	read_random(icmp_echo.data, PING_DATA_LEN);
+	length = write_icmp_echo(buffer, &icmp_echo);
+	sign_packet(buffer, &length);
+	encrypt_packet(buffer, &length, clnt->cipher_key);
+	buffer[length++] = clnt->point_id;
+	res = send_udp(clnt->sockfd, buffer, length, NULL);
+	if (res == -1) {
+		log_mesg(LOG_ERR, "sending ping packet failed");
+		return -1;
+	}
+	return 0;
+}
+
+static int timeout_handler(struct vpnclient *clnt)
+{
+	return ping_vpn_router(clnt);
+}
+
+static int socket_handler(struct vpnclient *clnt)
 {
 	ssize_t res;
 	size_t length;
@@ -55,7 +88,7 @@ static int tun_if_forward(struct vpnclient *clnt)
 	return 0;
 }
 
-static int sockfd_forward(struct vpnclient *clnt)
+static int tun_if_handler(struct vpnclient *clnt)
 {
 	ssize_t res;
 	size_t length;
@@ -83,6 +116,7 @@ static void vpn_client_handle(struct vpnclient *clnt)
 {
 	fd_set readfds;
 	sigset_t origmask;
+	struct timespec timeout = {IDLE_TIMEOUT, 0};
 	int res, nfds = MAX(clnt->tunfd, clnt->sockfd) + 1;
 
 	setup_signal_events(&origmask);
@@ -90,7 +124,7 @@ static void vpn_client_handle(struct vpnclient *clnt)
 		FD_ZERO(&readfds);
 		FD_SET(clnt->tunfd, &readfds);
 		FD_SET(clnt->sockfd, &readfds);
-		res = pselect(nfds, &readfds, NULL, NULL, NULL, &origmask);
+		res = pselect(nfds, &readfds, NULL, NULL, &timeout, &origmask);
 		if (res == -1) {
 			if (errno != EINTR) {
 				log_perror("pselect");
@@ -101,10 +135,14 @@ static void vpn_client_handle(struct vpnclient *clnt)
 				break;
 			continue;
 		}
+		if (res == 0) {
+			timeout_handler(clnt);
+			continue;
+		}
 		if (FD_ISSET(clnt->tunfd, &readfds))
-			sockfd_forward(clnt);
+			tun_if_handler(clnt);
 		if (FD_ISSET(clnt->sockfd, &readfds))
-			tun_if_forward(clnt);
+			socket_handler(clnt);
 	}
 }
 
@@ -121,7 +159,7 @@ static struct vpnclient *create_client(const char *file)
 	struct config_section *config;
 	uint8_t cipher_key[CIPHER_KEY_LEN];
 	int port, server_port, point_id;
-	const char *ip_addr, *server_ip, *hex_key;
+	const char *ip_addr, *server_ip, *router_ip, *hex_key;
 	const char *tun_addr, *tun_netmask, *tun_name;
 
 	config = read_config(file);
@@ -131,6 +169,9 @@ static struct vpnclient *create_client(const char *file)
 	ip_addr = get_str_var(config, "ip_addr", MAX_IPV4_ADDR_LEN - 1);
 	if (!ip_addr)
 		ip_addr = "";
+	router_ip = get_str_var(config, "router_ip", MAX_IPV4_ADDR_LEN - 1);
+	if (!router_ip)
+		router_ip = TUN_IF_ADDR;
 	server_ip = get_str_var(config, "server_ip", MAX_IPV4_ADDR_LEN - 1);
 	if (!server_ip)
 		CONFIG_ERROR("server_ip var not set");
@@ -166,8 +207,11 @@ static struct vpnclient *create_client(const char *file)
 	clnt->port = port ? port : VPN_PORT;
 	clnt->server_port = server_port ? server_port : VPN_PORT;
 	clnt->point_id = point_id;
+	clnt->router_ip = inet_network(router_ip);
 	clnt->private_ip = inet_network(clnt->tun_addr);
 	clnt->cipher_key = get_expanded_key(cipher_key);
+	clnt->sequance_id = (0xffff & getpid());
+	clnt->sequance_no = 0;
 
 	free_config(config);
 	return clnt;

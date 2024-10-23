@@ -15,6 +15,7 @@
 #include <linux/if.h>
 #include <linux/if_tun.h>
 #include <linux/if_ether.h>
+#include <linux/icmp.h>
 
 #include "network.h"
 #include "logger.h"
@@ -332,6 +333,64 @@ void block_for_write(int fd)
 	FD_ZERO(&writefds);
 	FD_SET(fd, &writefds);
 	select(fd + 1, NULL, &writefds, NULL, NULL);
+}
+
+uint16_t ip_checksum(uint16_t *addr, unsigned int count)
+{
+	register unsigned long sum = 0;
+
+	while (count > 1)  {
+		sum += *addr++;
+		count -= 2;
+	}
+	if (count > 0)
+		sum += *(unsigned char *)addr;
+
+	while (sum >> 16)
+		sum = (sum & 0xffff) + (sum >> 16);
+
+	sum = ~sum;
+	return sum;
+}
+
+size_t write_icmp_echo(void *buf, const struct icmp_echo_param *param)
+{
+	struct iphdr *ip_header;
+	struct icmphdr *icmp_header;
+	uint8_t *echo_data;
+	uint16_t total_len;
+
+	ip_header = (void *)buf;
+	icmp_header = (void *)((char *)ip_header + sizeof(struct iphdr));
+	echo_data = (void *)((char *)icmp_header + sizeof(struct icmphdr));
+	total_len = sizeof(struct iphdr) + sizeof(struct icmphdr) + PING_DATA_LEN;
+
+	ip_header->ihl = 5;
+	ip_header->version = 4;
+	ip_header->tos = 0;
+	ip_header->tot_len = htons(total_len);
+	ip_header->id = htons(0xffff & rand());
+	ip_header->frag_off = htons(0x4000);
+	ip_header->ttl = 64;
+	ip_header->protocol = IPPROTO_ICMP;
+	ip_header->check = 0;
+	ip_header->saddr = htonl(param->src_ip);
+	ip_header->daddr = htonl(param->dst_ip);
+
+	icmp_header->type = ICMP_ECHO;
+	icmp_header->code = 0;
+	icmp_header->checksum = 0;
+	icmp_header->un.echo.id = htons(param->seq_id);
+	icmp_header->un.echo.sequence = htons(param->seq_no);
+
+	memcpy(echo_data, param->data, PING_DATA_LEN);
+
+	ip_header->check = ip_checksum((uint16_t *)ip_header,
+		sizeof(struct iphdr));
+	icmp_header->checksum = ip_checksum((uint16_t *)icmp_header,
+		sizeof(struct icmphdr) + PING_DATA_LEN);
+
+	return total_len;
 }
 
 uint32_t get_destination_ip(const void *buf, size_t len)
