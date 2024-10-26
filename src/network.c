@@ -58,23 +58,27 @@ static struct sockaddr *get_sockaddr(int af, const char *ip, uint16_t port)
 static int create_socket_af(int af, int type, const char *ip, uint16_t port)
 {
 	int sockfd, res, opt = 1;
-	struct sockaddr *addr = get_sockaddr(af, ip, port);
+	struct sockaddr *addr;
+
+	addr = get_sockaddr(af, ip, port);
 	if (!addr) {
 		log_mesg(LOG_ERR, "get_sockaddr: invalid ip address");
 		return -1;
 	}
-	sockfd = socket(af, type, IPPROTO_IP);
-	if (sockfd == -1) {
+	res = socket(af, type, IPPROTO_IP);
+	if (res < 0) {
 		log_perror("socket");
 		return -1;
 	}
+	sockfd = res;
+
 	res = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-	if (res == -1) {
+	if (res < 0) {
 		log_perror("setsockopt");
 		return -1;
 	}
 	res = bind(sockfd, addr, AF_SOCKLEN(af));
-	if (res == -1) {
+	if (res < 0) {
 		log_perror("bind");
 		return -1;
 	}
@@ -84,13 +88,15 @@ static int create_socket_af(int af, int type, const char *ip, uint16_t port)
 static int connect_socket_af(int af, int sockfd, const char *ip, uint16_t port)
 {
 	int res;
-	struct sockaddr *addr = get_sockaddr(af, ip, port);
+	struct sockaddr *addr;
+
+	addr = get_sockaddr(af, ip, port);
 	if (!addr) {
 		log_mesg(LOG_ERR, "get_sockaddr: invalid ip address");
 		return -1;
 	}
 	res = connect(sockfd, addr, AF_SOCKLEN(af));
-	if (res == -1) {
+	if (res < 0) {
 		log_perror("connect");
 		return -1;
 	}
@@ -102,10 +108,11 @@ static ssize_t send_udp_af(int af, int sockfd, const void *buf, size_t len,
 {
 	ssize_t res;
 	int success;
+
 	do {
 		success = 1;
 		res = sendto(sockfd, buf, len, 0, addr, addr ? AF_SOCKLEN(af) : 0);
-		if (res == -1) {
+		if (res < 0) {
 			if (errno == EAGAIN || errno == EWOULDBLOCK) {
 				block_for_write(sockfd);
 				success = 0;
@@ -123,6 +130,7 @@ static ssize_t recv_udp_af(int af, int sockfd, void *buf, size_t len,
 {
 	ssize_t res;
 	socklen_t addrlen = AF_SOCKLEN(af);
+
 	res = recvfrom(sockfd, buf, len, 0, addr, addr ? &addrlen : NULL);
 	if (res <= 0) {
 		log_perror("recvfrom");
@@ -135,8 +143,10 @@ static int tuntap_alloc(char *ifname, int flags)
 {
 	const char *clonedev = "/dev/net/tun";
 	struct ifreq ifr;
-	int fd = open(clonedev, O_RDWR);
-	if (fd == -1) {
+	int fd;
+
+	fd = open(clonedev, O_RDWR);
+	if (fd < 0) {
 		log_perror(clonedev);
 		return -1;
 	}
@@ -144,6 +154,7 @@ static int tuntap_alloc(char *ifname, int flags)
 	ifr.ifr_flags = flags;
 	if (*ifname)
 		strncpy(ifr.ifr_name, ifname, IFNAMSIZ - 1);
+
 	if (ioctl(fd, TUNSETIFF, (void *)&ifr) < 0) {
 		log_perror("ioctl");
 		close(fd);
@@ -161,7 +172,7 @@ static int set_if_option(const char *ifname, struct ifreq *ifr, int opt)
 		return -1;
 	}
 	strncpy(ifr->ifr_name, ifname, IFNAMSIZ - 1);
-	if (ioctl(sockfd, opt, ifr) < 0) {
+	if (ioctl(sockfd, opt, (void *)ifr) < 0) {
 		log_perror("ioctl");
 		close(sockfd);
 		return -1;
@@ -199,6 +210,7 @@ static int set_if_address(const char *ifname, const char *address)
 	int res;
 	struct sockaddr_in *addr;
 	struct ifreq ifr;
+
 	memset(&ifr, 0, sizeof(ifr));
 	addr = (struct sockaddr_in *)&ifr.ifr_addr;
 	addr->sin_family = AF_INET;
@@ -215,6 +227,7 @@ static int set_if_netmask(const char *ifname, const char *netmask)
 	int res;
 	struct sockaddr_in *addr;
 	struct ifreq ifr;
+
 	memset(&ifr, 0, sizeof(ifr));
 	addr = (struct sockaddr_in *)&ifr.ifr_netmask;
 	addr->sin_family = AF_INET;
@@ -294,27 +307,27 @@ int setup_tun_if(const char *ifname, const char *addr, const char *mask)
 {
 	int res;
 	res = set_if_up(ifname, IFF_NOARP);
-	if (res == -1) {
+	if (res < 0) {
 		log_mesg(LOG_ERR, "set dev %s up failed", ifname);
 		return -1;
 	}
 	res = set_if_mtu(ifname, TUN_IF_MTU);
-	if (res == -1) {
+	if (res < 0) {
 		log_mesg(LOG_ERR, "set dev %s mtu failed", ifname);
 		return -1;
 	}
 	res = set_if_qlen(ifname, TUN_IF_QLEN);
-	if (res == -1) {
+	if (res < 0) {
 		log_mesg(LOG_ERR, "set dev %s qlen failed", ifname);
 		return -1;
 	}
 	res = set_if_address(ifname, addr);
-	if (res == -1) {
+	if (res < 0) {
 		log_mesg(LOG_ERR, "set dev %s address failed", ifname);
 		return -1;
 	}
 	res = set_if_netmask(ifname, mask);
-	if (res == -1) {
+	if (res < 0) {
 		log_mesg(LOG_ERR, "set dev %s netmask failed", ifname);
 		return -1;
 	}

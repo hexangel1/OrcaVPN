@@ -1,5 +1,7 @@
-#define _POSIX_C_SOURCE 199309L
+#define _POSIX_C_SOURCE 200112L
+#define _XOPEN_SOURCE 500
 #include <stdio.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <unistd.h>
@@ -13,16 +15,15 @@
 
 #include "helper.h"
 
-int snprintf(char *str, size_t size, const char *format, ...);
-
 static int create_pidfile(const char *pidfile)
 {
 	char pid_str[16];
 	int pid_fd, len, res;
+
 	if (!pidfile)
 		return 0;
 	pid_fd = creat(pidfile, S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);
-	if (pid_fd == -1)
+	if (pid_fd < 0)
 		return -1;
 	len = snprintf(pid_str, sizeof(pid_str), "%d\n", getpid());
 	res = write(pid_fd, pid_str, len);
@@ -63,6 +64,7 @@ char *hexlify(const void *bin, size_t len, int upper, char *res)
 	const char *hex_digits = upper ? "0123456789ABCDEF" : "0123456789abcdef";
 	const unsigned char *bytes = bin;
 	size_t i;
+
 	for (i = 0; i < len; ++i) {
 		res[i * 2]     = hex_digits[bytes[i] >> 4];
 		res[i * 2 + 1] = hex_digits[bytes[i] & 0x0F];
@@ -72,8 +74,9 @@ char *hexlify(const void *bin, size_t len, int upper, char *res)
 
 void *binarize(const char *hex, size_t len, void *res)
 {
-	size_t i;
 	unsigned char *bytes = res;
+	size_t i;
+
 	for (i = 0; i < len / 2; ++i) {
 		if (!isxdigit(hex[2 * i]) || !isxdigit(hex[2 * i + 1]))
 			return NULL;

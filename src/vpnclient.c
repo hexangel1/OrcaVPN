@@ -42,6 +42,7 @@ static int ping_vpn_router(struct vpnclient *clnt)
 	size_t length;
 	char buffer[PACKET_BUFFER_SIZE];
 	struct icmp_echo_param icmp_echo;
+
 	icmp_echo.src_ip = clnt->private_ip;
 	icmp_echo.dst_ip = clnt->router_ip;
 	icmp_echo.seq_id = clnt->sequance_id;
@@ -52,7 +53,7 @@ static int ping_vpn_router(struct vpnclient *clnt)
 	encrypt_packet(buffer, &length, clnt->cipher_key);
 	buffer[length++] = clnt->point_id;
 	res = send_udp(clnt->sockfd, buffer, length, NULL);
-	if (res == -1) {
+	if (res < 0) {
 		log_mesg(LOG_ERR, "sending ping packet failed");
 		return -1;
 	}
@@ -69,8 +70,9 @@ static int socket_handler(struct vpnclient *clnt)
 	ssize_t res;
 	size_t length;
 	char buffer[PACKET_BUFFER_SIZE];
+
 	res = recv_udp(clnt->sockfd, buffer, MAX_UDP_PAYLOAD, NULL);
-	if (res == -1) {
+	if (res < 0) {
 		log_mesg(LOG_ERR, "receiving packet failed");
 		return -1;
 	}
@@ -81,7 +83,7 @@ static int socket_handler(struct vpnclient *clnt)
 		return -1;
 	}
 	res = write(clnt->tunfd, buffer, length);
-	if (res == -1) {
+	if (res < 0) {
 		log_perror("write to tun failed");
 		return -1;
 	}
@@ -105,7 +107,7 @@ static int tun_if_handler(struct vpnclient *clnt)
 	encrypt_packet(buffer, &length, clnt->cipher_key);
 	buffer[length++] = clnt->point_id;
 	res = send_udp(clnt->sockfd, buffer, length, NULL);
-	if (res == -1) {
+	if (res < 0) {
 		log_mesg(LOG_ERR, "sending packet failed");
 		return -1;
 	}
@@ -125,7 +127,7 @@ static void vpn_client_handle(struct vpnclient *clnt)
 		FD_SET(clnt->tunfd, &readfds);
 		FD_SET(clnt->sockfd, &readfds);
 		res = pselect(nfds, &readfds, NULL, NULL, &timeout, &origmask);
-		if (res == -1) {
+		if (res < 0) {
 			if (errno != EINTR) {
 				log_perror("pselect");
 				break;
@@ -221,25 +223,25 @@ static int vpn_client_up(struct vpnclient *clnt)
 {
 	int res;
 	res = create_udp_socket(clnt->ip_addr, clnt->port);
-	if (res == -1) {
+	if (res < 0) {
 		log_mesg(LOG_ERR, "Create socket failed");
 		return -1;
 	}
 	clnt->sockfd = res;
 	res = connect_socket(clnt->sockfd, clnt->server_ip, clnt->server_port);
-	if (res == -1) {
+	if (res < 0) {
 		log_mesg(LOG_ERR, "Connection failed");
 		return -1;
 	}
 	res = create_tun_if(clnt->tun_name);
-	if (res == -1) {
+	if (res < 0) {
 		log_mesg(LOG_ERR, "Allocating interface failed");
 		return -1;
 	}
 	clnt->tunfd = res;
 	log_mesg(LOG_INFO, "created dev %s", clnt->tun_name);
 	res = setup_tun_if(clnt->tun_name, clnt->tun_addr, clnt->tun_netmask);
-	if (res == -1) {
+	if (res < 0) {
 		log_mesg(LOG_ERR, "Setting up %s failed", clnt->tun_name);
 		return -1;
 	}
@@ -258,15 +260,16 @@ static void vpn_client_down(struct vpnclient *clnt)
 
 void run_vpnclient(const char *config)
 {
-	int res;
 	struct vpnclient *clnt;
+	int res;
+
 	clnt = create_client(config);
 	if (!clnt) {
 		log_mesg(LOG_ERR, "Failed to create init client");
 		exit(EXIT_FAILURE);
 	}
 	res = vpn_client_up(clnt);
-	if (res == -1) {
+	if (res < 0) {
 		log_mesg(LOG_ERR, "Failed to bring client up");
 		exit(EXIT_FAILURE);
 	}

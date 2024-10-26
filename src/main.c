@@ -24,6 +24,7 @@ static int get_command_line_options(int argc, char **argv)
 	int opt, retval = 0;
 	extern int optopt;
 	extern char *optarg;
+
 	while ((opt = getopt(argc, argv, ":hdm:c:p:l:")) != -1) {
 		switch (opt) {
 		case 'd':
@@ -68,7 +69,7 @@ static const char usage[] = "Usage: %s "
 int main(int argc, char **argv)
 {
 	int res = get_command_line_options(argc, argv);
-	if (res == -1) {
+	if (res < 0) {
 		fprintf(stderr, usage, argv[0]);
 		exit(EXIT_FAILURE);
 	}

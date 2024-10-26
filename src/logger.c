@@ -1,4 +1,7 @@
+#define _POSIX_C_SOURCE 200112L
+#define _XOPEN_SOURCE 500
 #include <stdio.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
@@ -14,13 +17,14 @@ static FILE *log_file = NULL;
 static int enable_syslog = 0;
 static int enable_time = 0;
 
-int vsnprintf(char *str, size_t size, const char *format, va_list ap);
-
 static const char *current_timestamp(int local)
 {
 	static char buffer[256];
-	time_t now = time(NULL);
-	struct tm *now_tm = local ? localtime(&now) : gmtime(&now);
+	struct tm *now_tm;
+	time_t now;
+
+	now = time(NULL);
+	now_tm = local ? localtime(&now) : gmtime(&now);
 	strftime(buffer, sizeof(buffer), "%d %b %H:%M:%S ", now_tm);
 	return buffer;
 }
@@ -34,8 +38,7 @@ static void close_logfile(void)
 static void limit_filesize(size_t max_size)
 {
 	struct rlimit rlim;
-	int res = getrlimit(RLIMIT_FSIZE, &rlim);
-	if (res == -1)
+	if (getrlimit(RLIMIT_FSIZE, &rlim) < 0)
 		return;
 	if (rlim.rlim_max == RLIM_INFINITY || rlim.rlim_max > max_size) {
 		rlim.rlim_cur = max_size;
@@ -82,7 +85,7 @@ void log_mesg(int level, const char *mesg, ...)
 	va_start(args, mesg);
 	len = vsnprintf(buffer, sizeof(buffer), mesg, args);
 	va_end(args);
-	if (len < 0 || (size_t)len > sizeof(buffer) - 1)
+	if (len < 0 || (size_t)len > sizeof(buffer)-1)
 		return;
 	if (enable_time != LOG_NO_DATETIME)
 		timestamp = current_timestamp(enable_time == LOG_LOCAL_DATETIME);

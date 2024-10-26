@@ -92,7 +92,9 @@ static void push_new_peer(struct vpnserver *serv, point_id_t point_id,
 	uint8_t cipher_key[CIPHER_KEY_LEN];
 	hashstring_t ip_key;
 	struct vpn_peer *peer;
-	uint32_t vpn_ip = inet_network(ip);
+	uint32_t vpn_ip;
+
+	vpn_ip = inet_network(ip);
 	if (vpn_ip == (uint32_t)-1) {
 		log_mesg(LOG_ERR, "bad ip address: %s", ip);
 		return;
@@ -132,10 +134,12 @@ static int is_private_peer(struct vpnserver *serv, uint32_t ip)
 	return ip_in_network(ip, private_net, serv->private_mask);
 }
 
-static int proxy_packet(struct vpnserver *serv, void *buf, size_t len)
+static int route_packet(struct vpnserver *serv, void *buf, size_t len)
 {
 	ssize_t res;
-	uint32_t ip = get_destination_ip(buf, len);
+	uint32_t ip;
+
+	ip = get_destination_ip(buf, len);
 	if (is_private_peer(serv, ip)) {
 		struct vpn_peer *peer = get_peer_by_addr(serv, ip);
 		if (!peer || !peer->last_update) {
@@ -149,13 +153,13 @@ static int proxy_packet(struct vpnserver *serv, void *buf, size_t len)
 		len += PACKET_SIGNATURE_LEN;
 		encrypt_packet(buf, &len, peer->cipher_key);
 		res = send_udp(serv->sockfd, buf, len, &peer->addr);
-		if (res == -1) {
+		if (res < 0) {
 			log_mesg(LOG_ERR, "sending packet failed");
 			return -1;
 		}
 	} else {
 		res = write(serv->tunfd, buf, len);
-		if (res == -1) {
+		if (res < 0) {
 			log_perror("write to tun failed");
 			return -1;
 		}
@@ -171,8 +175,9 @@ static int socket_handler(struct vpnserver *serv)
 	struct vpn_peer *peer;
 	struct sockaddr_in addr;
 	char buffer[PACKET_BUFFER_SIZE];
+
 	res = recv_udp(serv->sockfd, buffer, MAX_UDP_PAYLOAD, &addr);
-	if (res == -1) {
+	if (res < 0) {
 		log_mesg(LOG_ERR, "receiving packet failed");
 		return -1;
 	}
@@ -195,7 +200,7 @@ static int socket_handler(struct vpnserver *serv)
 	}
 	peer->last_update = get_unix_time();
 	memcpy(&peer->addr, &addr, sizeof(struct sockaddr_in));
-	return proxy_packet(serv, buffer, length);
+	return route_packet(serv, buffer, length);
 }
 
 static int tun_if_handler(struct vpnserver *serv)
@@ -205,6 +210,7 @@ static int tun_if_handler(struct vpnserver *serv)
 	uint32_t vpn_ip;
 	struct vpn_peer *peer;
 	char buffer[PACKET_BUFFER_SIZE];
+
 	res = read(serv->tunfd, buffer, TUN_IF_MTU);
 	if (res <= 0) {
 		log_perror("read from tun failed");
@@ -228,7 +234,7 @@ static int tun_if_handler(struct vpnserver *serv)
 	sign_packet(buffer, &length);
 	encrypt_packet(buffer, &length, peer->cipher_key);
 	res = send_udp(serv->sockfd, buffer, length, &peer->addr);
-	if (res == -1) {
+	if (res < 0) {
 		log_mesg(LOG_ERR, "sending packet failed");
 		return -1;
 	}
@@ -247,7 +253,7 @@ static void vpn_server_handle(struct vpnserver *serv)
 		FD_SET(serv->tunfd, &readfds);
 		FD_SET(serv->sockfd, &readfds);
 		res = pselect(nfds, &readfds, NULL, NULL, NULL, &origmask);
-		if (res == -1) {
+		if (res < 0) {
 			if (errno != EINTR) {
 				log_perror("pselect");
 				break;
@@ -330,20 +336,20 @@ static int vpn_server_up(struct vpnserver *serv)
 {
 	int res;
 	res = create_udp_socket(serv->ip_addr, serv->port);
-	if (res == -1) {
+	if (res < 0) {
 		log_mesg(LOG_ERR, "Create socket failed");
 		return -1;
 	}
 	serv->sockfd = res;
 	res = create_tun_if(serv->tun_name);
-	if (res == -1) {
+	if (res < 0) {
 		log_mesg(LOG_ERR, "Allocating interface failed");
 		return -1;
 	}
 	serv->tunfd = res;
 	log_mesg(LOG_INFO, "created dev %s", serv->tun_name);
 	res = setup_tun_if(serv->tun_name, serv->tun_addr, serv->tun_netmask);
-	if (res == -1) {
+	if (res < 0) {
 		log_mesg(LOG_ERR, "Setting up %s failed", serv->tun_name);
 		return -1;
 	}
@@ -366,15 +372,16 @@ static void vpn_server_down(struct vpnserver *serv)
 
 void run_vpnserver(const char *config)
 {
-	int res;
 	struct vpnserver *serv;
+	int res;
+
 	serv = create_server(config);
 	if (!serv) {
 		log_mesg(LOG_ERR, "Failed to create init server");
 		exit(EXIT_FAILURE);
 	}
 	res = vpn_server_up(serv);
-	if (res == -1) {
+	if (res < 0) {
 		log_mesg(LOG_ERR, "Failed to bring server up");
 		exit(EXIT_FAILURE);
 	}

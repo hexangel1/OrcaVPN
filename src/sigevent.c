@@ -1,7 +1,6 @@
 #define _POSIX_C_SOURCE 200112L
-#include <stdlib.h>
-#include <string.h>
 #include <signal.h>
+#include <string.h>
 
 #include "sigevent.h"
 
