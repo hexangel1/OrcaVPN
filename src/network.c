@@ -395,16 +395,18 @@ size_t write_icmp_echo(void *buf, const struct icmp_echo_param *param)
 
 uint32_t get_destination_ip(const void *buf, size_t len)
 {
-	if (len < sizeof(struct iphdr))
+	const struct iphdr *ip_header = buf;
+	if (len < sizeof(struct iphdr) || ip_header->version != 4)
 		return 0;
-	return ntohl(((struct iphdr *)buf)->daddr);
+	return ntohl(ip_header->daddr);
 }
 
 uint32_t get_source_ip(const void *buf, size_t len)
 {
-	if (len < sizeof(struct iphdr))
+	const struct iphdr *ip_header = buf;
+	if (len < sizeof(struct iphdr) || ip_header->version != 4)
 		return 0;
-	return ntohl(((struct iphdr *)buf)->saddr);
+	return ntohl(ip_header->saddr);
 }
 
 const char *ipv4tos(uint32_t ip, int host_order)
