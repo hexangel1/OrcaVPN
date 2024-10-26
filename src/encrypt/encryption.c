@@ -39,7 +39,7 @@ void encrypt_packet(void *packet, size_t *len, const void *key)
 	uint8_t padding = padded_size - size;
 	read_random(data + size, padding);
 	data[padded_size - 1] = padding;
-	for (offs = 0; offs < padded_size / 16; offs += 16)
+	for (offs = 0; offs < padded_size; offs += 16)
 		aes_cipher(data + offs, data + offs, key);
 	*len += padding;
 }
@@ -53,10 +53,13 @@ void decrypt_packet(void *packet, size_t *len, const void *key)
 		*len = 0;
 		return;
 	}
-	padding = data[padded_size - 1];
-	for (offs = 0; offs < padded_size / 16; offs += 16)
+	for (offs = 0; offs < padded_size; offs += 16)
 		aes_inv_cipher(data + offs, data + offs, key);
-	*len -= padding;
+	padding = data[padded_size - 1];
+	if (!padding || padding > 16)
+		*len = 0;
+	else
+		*len -= padding;
 }
 
 void sign_packet(void *packet, size_t *len)
