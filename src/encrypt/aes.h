@@ -4,6 +4,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#define AES_BLOCK_SIZE 16
+
 /* Initialize AES variables */
 void aes_init(size_t key_size);
 /* Performs AES round keys generation */

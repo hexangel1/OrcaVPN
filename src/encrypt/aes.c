@@ -93,8 +93,7 @@ static uint8_t *sub_word(uint8_t w[])
 
 static uint8_t *rot_word(uint8_t w[])
 {
-	uint8_t i;
-	uint8_t tmp = w[0];
+	uint8_t i, tmp = w[0];
 	for (i = 0; i < 3; i++)
 		w[i] = w[i + 1];
 	w[3] = tmp;
@@ -217,8 +216,9 @@ void aes_init(size_t key_size)
 
 uint8_t *aes_key_expansion(const uint8_t *key, uint8_t *w)
 {
-	uint8_t i;
+	uint8_t i, tmp[4];
 	size_t len = Nb * (Nr + 1);
+
 	if (!w)
 		w = malloc(4 * len);
 
@@ -230,7 +230,6 @@ uint8_t *aes_key_expansion(const uint8_t *key, uint8_t *w)
 	}
 
 	for (i = Nk; i < len; i++) {
-		uint8_t tmp[4];
 		tmp[0] = w[4 * (i - 1) + 0];
 		tmp[1] = w[4 * (i - 1) + 1];
 		tmp[2] = w[4 * (i - 1) + 2];
