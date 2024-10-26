@@ -4,7 +4,7 @@ HEADERS = $(filter-out main.h, $(SOURCES:.c=.h))
 OBJECTS = $(SOURCES:.c=.o)
 
 LIBDEPEND = encrypt/libencrypt.a
-LOCALLIBS = -lencrypt -Lencrypt
+LOCALLIBS = -lencrypt -Lencrypt -lrt
 CFLAGS = -Wall -Wextra -ansi -pedantic -O3 -flto -g
 CC = gcc
 CTAGS = ctags
