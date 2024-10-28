@@ -5,7 +5,7 @@ OBJECTS = $(SOURCES:.c=.o)
 
 LIBDEPEND = encrypt/libencrypt.a
 LOCALLIBS = -lencrypt -Lencrypt -lrt
-CFLAGS = -Wall -Wextra -ansi -pedantic -O3 -flto -g
+CFLAGS = -Wall -Wextra -ansi -pedantic -O2 -g
 CC = gcc
 CTAGS = ctags
 
