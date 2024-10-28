@@ -3,8 +3,8 @@
 
 #include <stdint.h>
 
-extern const uint8_t gfmult_aes[];
+extern const uint8_t gfmult_aes[65536];
 
-#define gfmult(a, b) (gfmult_aes[256*(a) + (b)])
+#define gfmult(a, b) (gfmult_aes[((a) << 8) | (b)])
 
 #endif /* GFMULT_H_SENTRY */
