@@ -46,8 +46,7 @@ void encrypt_packet(void *packet, size_t *len, const void *key)
 	uint8_t padding = padded_size - size, *iv = data + padded_size;
 
 	read_random(iv, AES_BLOCK_SIZE);
-	read_random(data + size, padding);
-	data[padded_size - 1] = padding;
+	memset(data + size, padding, padding);
 	for (offs = 0; offs < padded_size; offs += AES_BLOCK_SIZE) {
 		memxor(data + offs, iv, AES_BLOCK_SIZE);
 		aes_cipher(data + offs, data + offs, key);
