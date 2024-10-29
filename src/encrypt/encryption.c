@@ -6,6 +6,12 @@
 #include "aes.h"
 #include "sha1.h"
 
+#define memxor(a, b, len) do { \
+	size_t i; \
+	for (i = 0; i < (len); i++) \
+		(a)[i] ^= (b)[i]; \
+} while (0)
+
 static int generate_rand(int min, int max)
 {
 	return min + (int)((double)rand() / (RAND_MAX + 1.0) * (max - min + 1));
@@ -35,34 +41,43 @@ void *get_expanded_key(const void *key)
 void encrypt_packet(void *packet, size_t *len, const void *key)
 {
 	uint8_t *data = packet;
-	size_t size = *len;
-	size_t offs, padded_size = ((size / AES_BLOCK_SIZE) + 1) * AES_BLOCK_SIZE;
-	uint8_t padding = padded_size - size;
+	size_t offs, size = *len;
+	size_t padded_size = ((size / AES_BLOCK_SIZE) + 1) * AES_BLOCK_SIZE;
+	uint8_t padding = padded_size - size, *iv = data + padded_size;
 
+	read_random(iv, AES_BLOCK_SIZE);
 	read_random(data + size, padding);
 	data[padded_size - 1] = padding;
-	for (offs = 0; offs < padded_size; offs += AES_BLOCK_SIZE)
+	for (offs = 0; offs < padded_size; offs += AES_BLOCK_SIZE) {
+		memxor(data + offs, iv, AES_BLOCK_SIZE);
 		aes_cipher(data + offs, data + offs, key);
-	*len += padding;
+		iv = data + offs;
+	}
+	*len += padding + AES_BLOCK_SIZE;
 }
 
 void decrypt_packet(void *packet, size_t *len, const void *key)
 {
 	uint8_t *data = packet;
-	size_t offs, padded_size = *len;
-	uint8_t padding;
+	size_t endoffs, offs, padded_size = *len;
+	uint8_t padding, *iv;
 
-	if (!padded_size || padded_size % AES_BLOCK_SIZE != 0) {
+	if (padded_size % AES_BLOCK_SIZE || padded_size / AES_BLOCK_SIZE < 2) {
 		*len = 0;
 		return;
 	}
-	for (offs = 0; offs < padded_size; offs += AES_BLOCK_SIZE)
+	padded_size -= AES_BLOCK_SIZE;
+	for (endoffs = padded_size; endoffs > 0; endoffs -= AES_BLOCK_SIZE) {
+		offs = endoffs - AES_BLOCK_SIZE;
+		iv = offs > 0 ? data + offs - AES_BLOCK_SIZE : data + padded_size;
 		aes_inv_cipher(data + offs, data + offs, key);
+		memxor(data + offs, iv, AES_BLOCK_SIZE);
+	}
 	padding = data[padded_size - 1];
 	if (!padding || padding > AES_BLOCK_SIZE)
 		*len = 0;
 	else
-		*len -= padding;
+		*len -= padding + AES_BLOCK_SIZE;
 }
 
 void sign_packet(void *packet, size_t *len)

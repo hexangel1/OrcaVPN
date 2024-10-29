@@ -10,7 +10,7 @@
 #define TUN_IF_NAME "orca-gate"
 #define TUN_IF_ADDR "10.80.80.1"
 #define TUN_IF_NETMASK "255.255.255.0"
-#define TUN_IF_MTU 1400
+#define TUN_IF_MTU 1387
 #define TUN_IF_QLEN 1000
 #define PACKET_BUFFER_SIZE 2048
 #define MAX_UDP_PAYLOAD 1432
