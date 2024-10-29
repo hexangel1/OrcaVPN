@@ -7,9 +7,9 @@
 #define CIPHER_KEY_HEX_LEN 2 * CIPHER_KEY_LEN
 #define PACKET_SIGNATURE_LEN 20
 
-void read_random(void *buf, size_t n);
-
 void init_encryption(size_t key_size);
+
+void read_random(void *buf, size_t n);
 void *get_expanded_key(const void *key);
 
 void encrypt_packet(void *packet, size_t *len, const void *key);

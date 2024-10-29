@@ -1,7 +1,12 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/time.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
 #include <time.h>
+#include <sys/types.h>
+
 #include "encryption.h"
 #include "aes.h"
 #include "sha1.h"
@@ -12,18 +17,46 @@
 		(a)[i] ^= (b)[i]; \
 } while (0)
 
-static int generate_rand(int min, int max)
+#define URANDOM_BUFFER_SIZE 262144
+
+static int urandom_fd = -1;
+static size_t urandom_avail = 0;
+static uint8_t *urandom_buffer = NULL;
+
+static void fill_urandom_buffer(void)
 {
-	return min + (int)((double)rand() / (RAND_MAX + 1.0) * (max - min + 1));
+	ssize_t res;
+	size_t rc = 0;
+
+	urandom_avail = URANDOM_BUFFER_SIZE;
+	while (rc < URANDOM_BUFFER_SIZE) {
+		res = read(urandom_fd, urandom_buffer + rc, URANDOM_BUFFER_SIZE - rc);
+		if (res < 0) {
+			if (errno == EINTR)
+				continue;
+			perror("fill_urandom_buffer");
+			return;
+		}
+		rc += res;
+	}
 }
 
-void read_random(void *buf, size_t n)
+static void init_urandom_buffer(void)
 {
-	uint8_t *dst = buf;
-	size_t i;
+	urandom_fd = open("/dev/urandom", O_RDONLY);
+	if (urandom_fd == -1) {
+		perror("init_urandom_buffer");
+		exit(EXIT_FAILURE);
+	}
+	urandom_buffer = malloc(URANDOM_BUFFER_SIZE);
+	memset(urandom_buffer, 0, URANDOM_BUFFER_SIZE);
+	fill_urandom_buffer();
+}
 
-	for (i = 0; i < n; i++)
-		dst[i] = generate_rand(0, 255);
+static void free_urandom_buffer(void)
+{
+	close(urandom_fd);
+	free(urandom_buffer);
 }
 
 void init_encryption(size_t key_size)
@@ -31,6 +64,20 @@ void init_encryption(size_t key_size)
 	unsigned int seed = time(NULL);
 	srand(seed);
 	aes_init(key_size);
+	init_urandom_buffer();
+	atexit(free_urandom_buffer);
+}
+
+void read_random(void *buf, size_t n)
+{
+	size_t urandom_used, len, rc;
+	for (rc = 0; rc < n; rc += len, urandom_avail -= len) {
+		if (!urandom_avail)
+			fill_urandom_buffer();
+		urandom_used = URANDOM_BUFFER_SIZE - urandom_avail;
+		len = n - rc < urandom_avail ? n - rc : urandom_avail;
+		memcpy((uint8_t *)buf + rc, urandom_buffer + urandom_used, len);
+	}
 }
 
 void *get_expanded_key(const void *key)
