@@ -79,8 +79,8 @@ int main(int argc, char **argv)
 	}
 	if (daemon_state)
 		daemonize(pid_file);
-	init_logger("orcavpnd", log_file, daemon_state, log_file ? 2 : 0);
 	init_encryption(CIPHER_KEY_LEN);
+	init_logger("orcavpnd", log_file, daemon_state, log_file ? 2 : 0);
 	switch (working_mode) {
 	case VPNSERVER_MODE:
 		if (!config_file)
