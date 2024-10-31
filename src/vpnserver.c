@@ -129,9 +129,9 @@ static void push_new_peer(struct vpnserver *serv, point_id_t point_id,
 static int is_private_peer(struct vpnserver *serv, uint32_t ip)
 {
 	uint32_t private_net = serv->private_ip & serv->private_mask;
-	if (ip == serv->private_ip || ip == private_net)
-		return 0;
-	return ip_in_network(ip, private_net, serv->private_mask);
+	if (ip != serv->private_ip && ip != private_net)
+		return ip_in_network(ip, private_net, serv->private_mask);
+	return 0;
 }
 
 static int route_packet(struct vpnserver *serv, void *buf, size_t len)
@@ -169,12 +169,12 @@ static int route_packet(struct vpnserver *serv, void *buf, size_t len)
 
 static int socket_handler(struct vpnserver *serv)
 {
+	char buffer[PACKET_BUFFER_SIZE];
+	struct sockaddr_in addr;
+	struct vpn_peer *peer;
 	ssize_t res;
 	size_t length;
 	point_id_t point_id;
-	struct vpn_peer *peer;
-	struct sockaddr_in addr;
-	char buffer[PACKET_BUFFER_SIZE];
 
 	res = recv_udp(serv->sockfd, buffer, MAX_UDP_PAYLOAD, &addr);
 	if (res < 0) {
@@ -205,11 +205,11 @@ static int socket_handler(struct vpnserver *serv)
 
 static int tun_if_handler(struct vpnserver *serv)
 {
+	char buffer[PACKET_BUFFER_SIZE];
+	struct vpn_peer *peer;
 	ssize_t res;
 	size_t length;
-	uint32_t vpn_ip;
-	struct vpn_peer *peer;
-	char buffer[PACKET_BUFFER_SIZE];
+	uint32_t dest_ip;
 
 	res = read(serv->tunfd, buffer, TUN_IF_MTU);
 	if (res <= 0) {
@@ -217,18 +217,18 @@ static int tun_if_handler(struct vpnserver *serv)
 		return -1;
 	}
 	length = res;
-	vpn_ip = get_destination_ip(buffer, length);
-	if (!vpn_ip) {
+	dest_ip = get_destination_ip(buffer, length);
+	if (!dest_ip) {
 		log_mesg(LOG_NOTICE, "bad vpn ip address");
 		return -1;
 	}
-	peer = get_peer_by_addr(serv, vpn_ip);
+	peer = get_peer_by_addr(serv, dest_ip);
 	if (!peer || !peer->last_update) {
-		log_mesg(LOG_NOTICE, "peer %s not found", ipv4tos(vpn_ip, 1));
+		log_mesg(LOG_NOTICE, "peer %s not found", ipv4tos(dest_ip, 1));
 		return -1;
 	}
 	if (get_unix_time() > peer->last_update + PEER_ADDR_EXPIRE) {
-		log_mesg(LOG_NOTICE, "peer %s address expired", ipv4tos(vpn_ip, 1));
+		log_mesg(LOG_NOTICE, "peer %s address expired", ipv4tos(dest_ip, 1));
 		return -1;
 	}
 	sign_packet(buffer, &length);

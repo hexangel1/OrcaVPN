@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+
 #include "sha1.h"
 
 #define K0 0x5a827999U

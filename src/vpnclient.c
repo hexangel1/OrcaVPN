@@ -38,10 +38,10 @@ struct vpnclient {
 
 static int ping_vpn_router(struct vpnclient *clnt)
 {
-	ssize_t res;
-	size_t length;
 	char buffer[PACKET_BUFFER_SIZE];
 	struct icmp_echo_param icmp_echo;
+	ssize_t res;
+	size_t length;
 
 	icmp_echo.src_ip = clnt->private_ip;
 	icmp_echo.dst_ip = clnt->router_ip;
@@ -67,9 +67,9 @@ static int timeout_handler(struct vpnclient *clnt)
 
 static int socket_handler(struct vpnclient *clnt)
 {
+	char buffer[PACKET_BUFFER_SIZE];
 	ssize_t res;
 	size_t length;
-	char buffer[PACKET_BUFFER_SIZE];
 
 	res = recv_udp(clnt->sockfd, buffer, MAX_UDP_PAYLOAD, NULL);
 	if (res < 0) {
@@ -92,9 +92,10 @@ static int socket_handler(struct vpnclient *clnt)
 
 static int tun_if_handler(struct vpnclient *clnt)
 {
+	char buffer[PACKET_BUFFER_SIZE];
 	ssize_t res;
 	size_t length;
-	char buffer[PACKET_BUFFER_SIZE];
+
 	res = read(clnt->tunfd, buffer, TUN_IF_MTU);
 	if (res <= 0) {
 		log_perror("read from tun failed");

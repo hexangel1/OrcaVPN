@@ -1,4 +1,5 @@
 #include <string.h>
+
 #include "hashmap.h"
 
 static const uint8_t DELETED;
