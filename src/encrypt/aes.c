@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+
 #include "aes.h"
 #include "gfmult.h"
 
@@ -84,24 +85,23 @@ static void coef_add(const uint8_t a[], const uint8_t b[], uint8_t c[])
 
 static uint8_t *sub_word(uint8_t w[])
 {
-	uint8_t i;
-	for (i = 0; i < 4; i++)
-		w[i] = s_box[w[i]];
+	w[0] = s_box[w[0]]; w[1] = s_box[w[1]];
+	w[2] = s_box[w[2]]; w[3] = s_box[w[3]];
 	return w;
 }
 
 static uint8_t *rot_word(uint8_t w[])
 {
-	uint8_t i, tmp = w[0];
-	for (i = 0; i < 3; i++)
-		w[i] = w[i + 1];
-	w[3] = tmp;
+	uint8_t tmp = w[0];
+	w[0] = w[1]; w[1] = w[2];
+	w[2] = w[3]; w[3] = tmp;
 	return w;
 }
 
 static void add_round_key(uint8_t *state, const uint8_t *w, uint8_t r)
 {
 	register uint8_t j;
+
 	for (j = 0; j < Nb; j++) {
 		state[Nb * 0 + j] ^= w[4 * Nb * r + 4 * j + 0];
 		state[Nb * 1 + j] ^= w[4 * Nb * r + 4 * j + 1];
@@ -114,16 +114,20 @@ static void mix_columns(uint8_t *state)
 {
 	const uint8_t a[] = {0x02, 0x01, 0x01, 0x03};
 	uint8_t col[4], res[4];
-	register uint8_t i, j;
+	register uint8_t j;
 
 	for (j = 0; j < Nb; j++) {
-		for (i = 0; i < 4; i++)
-			col[i] = state[Nb * i + j];
+		col[0] = state[Nb * 0 + j];
+		col[1] = state[Nb * 1 + j];
+		col[2] = state[Nb * 2 + j];
+		col[3] = state[Nb * 3 + j];
 
 		coef_mult(a, col, res);
 
-		for (i = 0; i < 4; i++)
-			state[Nb * i + j] = res[i];
+		state[Nb * 0 + j] = res[0];
+		state[Nb * 1 + j] = res[1];
+		state[Nb * 2 + j] = res[2];
+		state[Nb * 3 + j] = res[3];
 	}
 }
 
@@ -131,49 +135,67 @@ static void inv_mix_columns(uint8_t *state)
 {
 	const uint8_t a[] = {0x0e, 0x09, 0x0d, 0x0b};
 	uint8_t col[4], res[4];
-	register uint8_t i, j;
+	register uint8_t j;
 
 	for (j = 0; j < Nb; j++) {
-		for (i = 0; i < 4; i++)
-			col[i] = state[Nb * i + j];
+		col[0] = state[Nb * 0 + j];
+		col[1] = state[Nb * 1 + j];
+		col[2] = state[Nb * 2 + j];
+		col[3] = state[Nb * 3 + j];
 
 		coef_mult(a, col, res);
 
-		for (i = 0; i < 4; i++)
-			state[Nb * i + j] = res[i];
+		state[Nb * 0 + j] = res[0];
+		state[Nb * 1 + j] = res[1];
+		state[Nb * 2 + j] = res[2];
+		state[Nb * 3 + j] = res[3];
 	}
 }
 
 static void shift_rows(uint8_t *state)
 {
-	register uint8_t i, j, s, tmp;
+	register uint8_t tmp;
+	tmp = state[Nb + 0];
+	state[Nb + 0] = state[Nb + 1];
+	state[Nb + 1] = state[Nb + 2];
+	state[Nb + 2] = state[Nb + 3];
+	state[Nb + 3] = tmp;
 
-	for (i = 1; i < 4; i++) {
-		for (s = 0; s < i; s++) {
-			tmp = state[Nb * i];
+	tmp = state[2 * Nb + 0];
+	state[2 * Nb + 0] = state[2 * Nb + 2];
+	state[2 * Nb + 2] = tmp;
+	tmp = state[2 * Nb + 1];
+	state[2 * Nb + 1] = state[2 * Nb + 3];
+	state[2 * Nb + 3] = tmp;
 
-			for (j = 1; j < Nb; j++)
-				state[Nb * i + j - 1] = state[Nb * i + j];
-
-			state[Nb * i + Nb - 1] = tmp;
-		}
-	}
+	tmp = state[3 * Nb + 3];
+	state[3 * Nb + 3] = state[3 * Nb + 2];
+	state[3 * Nb + 2] = state[3 * Nb + 1];
+	state[3 * Nb + 1] = state[3 * Nb + 0];
+	state[3 * Nb + 0] = tmp;
 }
 
 static void inv_shift_rows(uint8_t *state)
 {
-	register uint8_t i, j, s, tmp;
+	register uint8_t tmp;
+	tmp = state[Nb + 3];
+	state[Nb + 3] = state[Nb + 2];
+	state[Nb + 2] = state[Nb + 1];
+	state[Nb + 1] = state[Nb + 0];
+	state[Nb + 0] = tmp;
 
-	for (i = 1; i < 4; i++) {
-		for (s = 0; s < i; s++) {
-			tmp = state[Nb * i + Nb - 1];
+	tmp = state[2 * Nb + 0];
+	state[2 * Nb + 0] = state[2 * Nb + 2];
+	state[2 * Nb + 2] = tmp;
+	tmp = state[2 * Nb + 1];
+	state[2 * Nb + 1] = state[2 * Nb + 3];
+	state[2 * Nb + 3] = tmp;
 
-			for (j = Nb - 1; j > 0; j--)
-				state[Nb * i + j] = state[Nb * i + j - 1];
-
-			state[Nb * i] = tmp;
-		}
-	}
+	tmp = state[3 * Nb + 0];
+	state[3 * Nb + 0] = state[3 * Nb + 1];
+	state[3 * Nb + 1] = state[3 * Nb + 2];
+	state[3 * Nb + 2] = state[3 * Nb + 3];
+	state[3 * Nb + 3] = tmp;
 }
 
 static void sub_bytes(uint8_t *state)
