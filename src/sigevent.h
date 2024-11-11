@@ -11,6 +11,8 @@ typedef enum sigevent_status {
 
 void setup_signal_events(sigset_t *origmask);
 
+void restore_signal_mask(const sigset_t *origmask);
+
 sigevent_status_t get_signal_event(void);
 
 #endif /* SIGEVENT_H_SENTRY */

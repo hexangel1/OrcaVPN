@@ -28,7 +28,7 @@ static void register_sigactions(void)
 	sigaction(SIGUSR2, &sa, NULL);
 }
 
-static void block_signals(sigset_t *origmask)
+static void set_signal_mask(sigset_t *origmask)
 {
 	sigset_t mask;
 	sigemptyset(&mask);
@@ -42,7 +42,12 @@ static void block_signals(sigset_t *origmask)
 void setup_signal_events(sigset_t *origmask)
 {
 	register_sigactions();
-	block_signals(origmask);
+	set_signal_mask(origmask);
+}
+
+void restore_signal_mask(const sigset_t *origmask)
+{
+	sigprocmask(SIG_SETMASK, origmask, NULL);
 }
 
 sigevent_status_t get_signal_event(void)
