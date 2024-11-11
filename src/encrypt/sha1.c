@@ -19,14 +19,12 @@
 #define H(n) (ctxt->h.b32[(n)])
 #define W(n) (ctxt->m.b32[(n)])
 
-#define COUNT (ctxt->count)
-
 #define PUTPAD(x) \
 	do { \
-		ctxt->m.b8[COUNT % 64] = (x); \
-		COUNT++; \
-		COUNT %= 64; \
-		if (COUNT == 0) \
+		ctxt->m.b8[ctxt->count % 64] = (x); \
+		ctxt->count++; \
+		ctxt->count %= 64; \
+		if (ctxt->count == 0) \
 			sha1_step(ctxt); \
 	} while (0)
 
@@ -115,19 +113,19 @@ static void sha1_pad(struct sha1_ctxt *ctxt)
 
 	PUTPAD(0x80);
 
-	padstart = COUNT % 64;
+	padstart = ctxt->count % 64;
 	padlen = 64 - padstart;
 	if (padlen < 8) {
 		memset(&ctxt->m.b8[padstart], 0, padlen);
-		COUNT += padlen;
-		COUNT %= 64;
+		ctxt->count += padlen;
+		ctxt->count %= 64;
 		sha1_step(ctxt);
 		padstart = 0;
 		padlen = 64;
 	}
 	memset(&ctxt->m.b8[padstart], 0, padlen - 8);
-	COUNT += (padlen - 8);
-	COUNT %= 64;
+	ctxt->count += (padlen - 8);
+	ctxt->count %= 64;
 #ifdef WORDS_BIGENDIAN
 	PUTPAD(ctxt->c.b8[0]);
 	PUTPAD(ctxt->c.b8[1]);
@@ -164,15 +162,15 @@ void sha1_loop(struct sha1_ctxt *ctxt, const uint8_t *input, size_t len)
 	size_t gapstart, gaplen, off, written;
 
 	for (off = 0; off < len; off += written) {
-		gapstart = COUNT % 64;
+		gapstart = ctxt->count % 64;
 		gaplen = 64 - gapstart;
 
 		written = (gaplen < len - off) ? gaplen : len - off;
 		memcpy(&ctxt->m.b8[gapstart], &input[off], written);
 		ctxt->c.b64 += written * 8;
-		COUNT += written;
-		COUNT %= 64;
-		if (COUNT == 0)
+		ctxt->count += written;
+		ctxt->count %= 64;
+		if (ctxt->count == 0)
 			sha1_step(ctxt);
 	}
 }
