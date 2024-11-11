@@ -10,7 +10,9 @@
 static char *extract_str(const char *begin, const char *end)
 {
 	size_t length = end - begin + 1;
-	char *str = malloc(length + 1);
+	char *str;
+
+	str = malloc(length + 1);
 	memcpy(str, begin, length);
 	str[length] = 0;
 	return str;
@@ -85,6 +87,7 @@ void free_config(struct config_section *cfg)
 {
 	size_t i;
 	struct config_section *tmp;
+
 	while (cfg) {
 		tmp = cfg;
 		cfg = cfg->next;
@@ -103,6 +106,7 @@ void debug_config(struct config_section *cfg)
 {
 	size_t i;
 	struct config_section *tmp;
+
 	for (tmp = cfg; tmp; tmp = tmp->next) {
 		fprintf(stderr, "[%s]\n", tmp->section_name);
 		for (i = 0; i < tmp->vars_count; i++) {
