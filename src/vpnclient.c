@@ -21,6 +21,7 @@
 struct vpnclient {
 	int tunfd;
 	int sockfd;
+	int reload_flag;
 	unsigned short port;
 	char ip_addr[MAX_IPV4_ADDR_LEN];
 	char tun_addr[MAX_IPV4_ADDR_LEN];
@@ -115,26 +116,41 @@ static int tun_if_handler(struct vpnclient *clnt)
 	return 0;
 }
 
+static int sigevent_handler(struct vpnclient *clnt, const sigset_t *sigmask)
+{
+	switch (get_signal_event()) {
+	case sigevent_restart:
+		clnt->reload_flag = 1;
+		restore_signal_mask(sigmask);
+		/* fallthrough */
+	case sigevent_shutdown:
+		return -1;
+	case sigevent_absent:
+		;
+	}
+	return 0;
+}
+
 static void vpn_client_handle(struct vpnclient *clnt)
 {
 	fd_set readfds;
-	sigset_t origmask;
+	sigset_t sigmask;
 	struct timespec timeout = {IDLE_TIMEOUT, 0};
 	int res, nfds = MAX(clnt->tunfd, clnt->sockfd) + 1;
 
-	setup_signal_events(&origmask);
+	setup_signal_events(&sigmask);
 	for (;;) {
 		FD_ZERO(&readfds);
 		FD_SET(clnt->tunfd, &readfds);
 		FD_SET(clnt->sockfd, &readfds);
-		res = pselect(nfds, &readfds, NULL, NULL, &timeout, &origmask);
+		res = pselect(nfds, &readfds, NULL, NULL, &timeout, &sigmask);
 		if (res < 0) {
 			if (errno != EINTR) {
 				log_perror("pselect");
 				break;
 			}
-			res = get_signal_event();
-			if (res == sigevent_shutdown)
+			res = sigevent_handler(clnt, &sigmask);
+			if (res < 0)
 				break;
 			continue;
 		}
@@ -200,6 +216,7 @@ static struct vpnclient *create_client(const char *file)
 	memset(clnt, 0, sizeof(struct vpnclient));
 	clnt->tunfd = -1;
 	clnt->sockfd = -1;
+	clnt->reload_flag = 0;
 
 	strcpy(clnt->ip_addr, ip_addr);
 	strcpy(clnt->server_ip, server_ip);
@@ -262,8 +279,9 @@ static void vpn_client_down(struct vpnclient *clnt)
 void run_vpnclient(const char *config)
 {
 	struct vpnclient *clnt;
-	int res;
+	int res, reload;
 
+reload_client:
 	clnt = create_client(config);
 	if (!clnt) {
 		log_mesg(LOG_ERR, "Failed to create init client");
@@ -274,8 +292,14 @@ void run_vpnclient(const char *config)
 		log_mesg(LOG_ERR, "Failed to bring client up");
 		exit(EXIT_FAILURE);
 	}
+
 	log_mesg(LOG_INFO, "Running client...");
 	vpn_client_handle(clnt);
+	reload = clnt->reload_flag;
 	vpn_client_down(clnt);
+	if (reload) {
+		log_mesg(LOG_INFO, "Reloading client...");
+		goto reload_client;
+	}
 	log_mesg(LOG_INFO, "Gracefully finished");
 }

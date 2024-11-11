@@ -33,6 +33,7 @@ struct vpn_peer {
 struct vpnserver {
 	int tunfd;
 	int sockfd;
+	int reload_flag;
 	uint32_t private_ip;
 	uint32_t private_mask;
 	unsigned short port;
@@ -241,25 +242,40 @@ static int tun_if_handler(struct vpnserver *serv)
 	return 0;
 }
 
+static int sigevent_handler(struct vpnserver *serv, const sigset_t *sigmask)
+{
+	switch (get_signal_event()) {
+	case sigevent_restart:
+		serv->reload_flag = 1;
+		restore_signal_mask(sigmask);
+		/* fallthrough */
+	case sigevent_shutdown:
+		return -1;
+	case sigevent_absent:
+		;
+	}
+	return 0;
+}
+
 static void vpn_server_handle(struct vpnserver *serv)
 {
 	fd_set readfds;
-	sigset_t origmask;
+	sigset_t sigmask;
 	int res, nfds = MAX(serv->tunfd, serv->sockfd) + 1;
 
-	setup_signal_events(&origmask);
+	setup_signal_events(&sigmask);
 	for (;;) {
 		FD_ZERO(&readfds);
 		FD_SET(serv->tunfd, &readfds);
 		FD_SET(serv->sockfd, &readfds);
-		res = pselect(nfds, &readfds, NULL, NULL, NULL, &origmask);
+		res = pselect(nfds, &readfds, NULL, NULL, NULL, &sigmask);
 		if (res < 0) {
 			if (errno != EINTR) {
 				log_perror("pselect");
 				break;
 			}
-			res = get_signal_event();
-			if (res == sigevent_shutdown)
+			res = sigevent_handler(serv, &sigmask);
+			if (res < 0)
 				break;
 			continue;
 		}
@@ -309,6 +325,7 @@ static struct vpnserver *create_server(const char *file)
 
 	serv->tunfd = -1;
 	serv->sockfd = -1;
+	serv->reload_flag = 0;
 	serv->private_ip = inet_network(serv->tun_addr);
 	serv->private_mask = inet_network(serv->tun_netmask);
 	serv->port = port ? port : VPN_PORT;
@@ -373,8 +390,9 @@ static void vpn_server_down(struct vpnserver *serv)
 void run_vpnserver(const char *config)
 {
 	struct vpnserver *serv;
-	int res;
+	int res, reload;
 
+reload_server:
 	serv = create_server(config);
 	if (!serv) {
 		log_mesg(LOG_ERR, "Failed to create init server");
@@ -385,8 +403,14 @@ void run_vpnserver(const char *config)
 		log_mesg(LOG_ERR, "Failed to bring server up");
 		exit(EXIT_FAILURE);
 	}
+
 	log_mesg(LOG_INFO, "Running server...");
 	vpn_server_handle(serv);
+	reload = serv->reload_flag;
 	vpn_server_down(serv);
+	if (reload) {
+		log_mesg(LOG_INFO, "Reloading server...");
+		goto reload_server;
+	}
 	log_mesg(LOG_INFO, "Gracefully finished");
 }
