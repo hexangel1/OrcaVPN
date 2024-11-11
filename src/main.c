@@ -93,7 +93,7 @@ int main(int argc, char **argv)
 		run_vpnclient(config_file);
 		break;
 	default:
-		log_mesg(LOG_ERR, "Unknown working mode");
+		log_mesg(LOG_EMERG, "Unknown working mode");
 		exit(EXIT_FAILURE);
 	}
 	return 0;

@@ -247,25 +247,25 @@ static int vpn_client_up(struct vpnclient *clnt)
 	int res;
 	res = create_udp_socket(clnt->ip_addr, clnt->port);
 	if (res < 0) {
-		log_mesg(LOG_ERR, "Create socket failed");
+		log_mesg(LOG_EMERG, "Create socket failed");
 		return -1;
 	}
 	clnt->sockfd = res;
 	res = connect_socket(clnt->sockfd, clnt->server_ip, clnt->server_port);
 	if (res < 0) {
-		log_mesg(LOG_ERR, "Connection failed");
+		log_mesg(LOG_EMERG, "Connection failed");
 		return -1;
 	}
 	res = create_tun_if(clnt->tun_name);
 	if (res < 0) {
-		log_mesg(LOG_ERR, "Allocating interface failed");
+		log_mesg(LOG_EMERG, "Allocating interface failed");
 		return -1;
 	}
 	clnt->tunfd = res;
 	log_mesg(LOG_INFO, "created dev %s", clnt->tun_name);
 	res = setup_tun_if(clnt->tun_name, clnt->tun_addr, clnt->tun_netmask);
 	if (res < 0) {
-		log_mesg(LOG_ERR, "Setting up %s failed", clnt->tun_name);
+		log_mesg(LOG_EMERG, "Setting up %s failed", clnt->tun_name);
 		return -1;
 	}
 	set_nonblock_io(clnt->sockfd);
@@ -289,12 +289,12 @@ void run_vpnclient(const char *config)
 reload_client:
 	clnt = create_client(config);
 	if (!clnt) {
-		log_mesg(LOG_ERR, "Failed to create init client");
+		log_mesg(LOG_EMERG, "Failed to create client configuration");
 		exit(EXIT_FAILURE);
 	}
 	res = vpn_client_up(clnt);
 	if (res < 0) {
-		log_mesg(LOG_ERR, "Failed to bring client up");
+		log_mesg(LOG_EMERG, "Failed to bring client up");
 		exit(EXIT_FAILURE);
 	}
 

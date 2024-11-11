@@ -359,20 +359,20 @@ static int vpn_server_up(struct vpnserver *serv)
 	int res;
 	res = create_udp_socket(serv->ip_addr, serv->port);
 	if (res < 0) {
-		log_mesg(LOG_ERR, "Create socket failed");
+		log_mesg(LOG_EMERG, "Create socket failed");
 		return -1;
 	}
 	serv->sockfd = res;
 	res = create_tun_if(serv->tun_name);
 	if (res < 0) {
-		log_mesg(LOG_ERR, "Allocating interface failed");
+		log_mesg(LOG_EMERG, "Allocating interface failed");
 		return -1;
 	}
 	serv->tunfd = res;
 	log_mesg(LOG_INFO, "created dev %s", serv->tun_name);
 	res = setup_tun_if(serv->tun_name, serv->tun_addr, serv->tun_netmask);
 	if (res < 0) {
-		log_mesg(LOG_ERR, "Setting up %s failed", serv->tun_name);
+		log_mesg(LOG_EMERG, "Setting up %s failed", serv->tun_name);
 		return -1;
 	}
 	set_nonblock_io(serv->sockfd);
@@ -400,12 +400,12 @@ void run_vpnserver(const char *config)
 reload_server:
 	serv = create_server(config);
 	if (!serv) {
-		log_mesg(LOG_ERR, "Failed to create init server");
+		log_mesg(LOG_EMERG, "Failed to create server configuration");
 		exit(EXIT_FAILURE);
 	}
 	res = vpn_server_up(serv);
 	if (res < 0) {
-		log_mesg(LOG_ERR, "Failed to bring server up");
+		log_mesg(LOG_EMERG, "Failed to bring server up");
 		exit(EXIT_FAILURE);
 	}
 
