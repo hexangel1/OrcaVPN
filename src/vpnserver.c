@@ -34,16 +34,21 @@ struct vpnserver {
 	int tunfd;
 	int sockfd;
 	int reload_flag;
-	uint32_t private_ip;
-	uint32_t private_mask;
+
 	unsigned short port;
 	char ip_addr[MAX_IPV4_ADDR_LEN];
+
+	char tun_name[MAX_IF_NAME_LEN];
 	char tun_addr[MAX_IPV4_ADDR_LEN];
 	char tun_netmask[MAX_IPV4_ADDR_LEN];
-	char tun_name[MAX_IF_NAME_LEN];
-	struct vpn_peer peers[PEERS_LIMIT];
-	uint8_t point_id_map[PEERS_LIMIT];
+
+	uint32_t private_ip;
+	uint32_t private_mask;
+
 	uint8_t peers_count;
+	uint8_t point_id_map[PEERS_LIMIT];
+	struct vpn_peer peers[PEERS_LIMIT];
+
 	hashmap_t *vpn_ip_hash;
 	hashmap_t *ip_hash;
 };

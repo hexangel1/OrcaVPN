@@ -22,17 +22,22 @@ struct vpnclient {
 	int tunfd;
 	int sockfd;
 	int reload_flag;
+
 	unsigned short port;
+	unsigned short server_port;
 	char ip_addr[MAX_IPV4_ADDR_LEN];
+	char server_ip[MAX_IPV4_ADDR_LEN];
+
+	char tun_name[MAX_IF_NAME_LEN];
 	char tun_addr[MAX_IPV4_ADDR_LEN];
 	char tun_netmask[MAX_IPV4_ADDR_LEN];
-	char tun_name[MAX_IF_NAME_LEN];
-	unsigned short server_port;
-	char server_ip[MAX_IPV4_ADDR_LEN];
-	void *cipher_key;
-	uint32_t router_ip;
+
 	uint32_t private_ip;
+	uint32_t router_ip;
+
+	void *cipher_key;
 	uint8_t point_id;
+
 	uint16_t sequance_id;
 	uint16_t sequance_no;
 };
