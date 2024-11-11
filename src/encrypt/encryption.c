@@ -59,11 +59,11 @@ static void free_urandom_buffer(void)
 	free(urandom_buffer);
 }
 
-void init_encryption(size_t key_size)
+void init_encryption(void)
 {
 	unsigned int seed = time(NULL);
 	srand(seed);
-	aes_init(key_size);
+	aes_init(CIPHER_KEY_LEN);
 	init_urandom_buffer();
 	atexit(free_urandom_buffer);
 }

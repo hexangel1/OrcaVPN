@@ -7,7 +7,7 @@
 #define AES_BLOCK_SIZE 16
 
 /* Initialize AES variables */
-void aes_init(size_t key_size);
+int aes_init(size_t key_size);
 /* Performs AES round keys generation */
 uint8_t *aes_key_expansion(const uint8_t *key, uint8_t *w);
 /* Performs AES cipher operation */

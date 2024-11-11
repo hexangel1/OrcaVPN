@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <stdlib.h>
 
 #include "aes.h"
@@ -220,7 +219,7 @@ static void inv_sub_bytes(uint8_t *state)
 	}
 }
 
-void aes_init(size_t key_size)
+int aes_init(size_t key_size)
 {
 	switch (key_size) {
 	case 16:
@@ -230,9 +229,9 @@ void aes_init(size_t key_size)
 	case 32:
 		Nk = 8; Nr = 14; break;
 	default:
-		fprintf(stderr, "aes_init(): key size = %ld not supported", key_size);
-		exit(EXIT_FAILURE);
+		return -1;
 	}
+	return 0;
 }
 
 uint8_t *aes_key_expansion(const uint8_t *key, uint8_t *w)
