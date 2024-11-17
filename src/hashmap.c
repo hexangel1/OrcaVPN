@@ -116,6 +116,8 @@ struct hashmap *make_map(void)
 void delete_map(struct hashmap *hm)
 {
 	size_t idx;
+	if (!hm)
+		return;
 	for (idx = 0; idx < hm->size; ++idx) {
 		if (is_key_valid(&hm->keys[idx]))
 			free(hm->keys[idx].data);
