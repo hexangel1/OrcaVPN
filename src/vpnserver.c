@@ -92,7 +92,7 @@ static struct vpn_peer *get_peer_by_addr(struct vpnserver *serv, uint32_t vpn_ip
 	return get_peer_by_id(serv, point_id);
 }
 
-static void push_new_peer(struct vpnserver *serv, point_id_t point_id,
+static int create_peer(struct vpnserver *serv, point_id_t point_id,
 	const char *ip, const char *key)
 {
 	uint8_t cipher_key[CIPHER_KEY_LEN];
@@ -103,23 +103,23 @@ static void push_new_peer(struct vpnserver *serv, point_id_t point_id,
 	vpn_ip = inet_network(ip);
 	if (vpn_ip == (uint32_t)-1) {
 		log_mesg(LOG_ERR, "bad ip address: %s", ip);
-		return;
+		return -1;
 	}
 	if (strlen(key) != CIPHER_KEY_HEX_LEN) {
 		log_mesg(LOG_ERR, "invalid cipher key length");
-		return;
+		return -1;
 	}
 	if (!binarize(key, CIPHER_KEY_HEX_LEN, cipher_key)) {
 		log_mesg(LOG_ERR, "invalid cipher key format");
-		return;
+		return -1;
 	}
 	if (serv->peers_count == PEERS_LIMIT - 1) {
 		log_mesg(LOG_ERR, "too many peers, ignoring peer %u", point_id);
-		return;
+		return -1;
 	}
 	if (serv->point_id_map[point_id] != 0xFF) {
 		log_mesg(LOG_ERR, "peer with same id %u already exists", point_id);
-		return;
+		return -1;
 	}
 	serv->point_id_map[point_id] = serv->peers_count;
 	peer = &serv->peers[serv->peers_count++];
@@ -130,6 +130,7 @@ static void push_new_peer(struct vpnserver *serv, point_id_t point_id,
 	ip_key.data = (uint8_t *)&vpn_ip;
 	ip_key.len = 4;
 	hashmap_insert(serv->vpn_ip_hash, &ip_key, point_id);
+	return 0;
 }
 
 static int is_private_peer(struct vpnserver *serv, uint32_t ip)
@@ -291,11 +292,12 @@ static void vpn_server_handle(struct vpnserver *serv)
 	}
 }
 
-static void add_peers(struct vpnserver *serv, struct config_section *cfg)
+static int add_peers(struct vpnserver *serv, struct config_section *cfg)
 {
 	struct config_section *peer;
 	const char *private_ip, *cipher_key;
 	point_id_t point_id;
+	int res, has_errors = 0;
 
 	serv->peers_count = 0;
 	memset(serv->peers, 0, sizeof(serv->peers));
@@ -303,27 +305,52 @@ static void add_peers(struct vpnserver *serv, struct config_section *cfg)
 
 	for (peer = cfg; peer; peer = peer->next) {
 		point_id = get_int_var(peer, "point_id");
-		private_ip = get_str_var(peer, "vpn_ip", MAX_IPV4_ADDR_LEN - 1);
+		private_ip = get_str_var(peer, "private_ip", MAX_IPV4_ADDR_LEN - 1);
 		cipher_key = get_str_var(peer, "cipher_key", CIPHER_KEY_HEX_LEN);
-		if (private_ip && cipher_key)
-			push_new_peer(serv, point_id, private_ip, cipher_key);
-		else
-			log_mesg(LOG_WARNING, "check section [%s]!", peer->scope);
+		if (!private_ip) {
+			has_errors = 1;
+			log_mesg(LOG_ERR, "private ip for [%s] not set", peer->scope);
+			continue;
+		}
+		if (!cipher_key) {
+			has_errors = 1;
+			log_mesg(LOG_ERR, "cipher key for [%s] not set", peer->scope);
+			continue;
+		}
+		res = create_peer(serv, point_id, private_ip, cipher_key);
+		if (res < 0) {
+			has_errors = 1;
+			log_mesg(LOG_ERR, "create peer [%s] failed", peer->scope);
+		}
 	}
+	return has_errors ? -1 : 0;
 }
 
 #define CONFIG_ERROR(message) \
 	do { \
+		free_server(serv); \
 		free_config(config); \
 		log_mesg(LOG_ERR, message); \
 		return NULL; \
 	} while (0)
 
+static void free_server(struct vpnserver *serv)
+{
+	uint8_t i;
+	if (!serv)
+		return;
+	for (i = 0; i < serv->peers_count; i++)
+		free(serv->peers[i].cipher_key);
+	delete_map(serv->vpn_ip_hash);
+	delete_map(serv->ip_hash);
+	free(serv);
+}
+
 static struct vpnserver *create_server(const char *file)
 {
-	struct vpnserver *serv;
+	struct vpnserver *serv = NULL;
 	struct config_section *config;
-	int port;
+	int port, res;
 	const char *ip, *tun_name, *tun_addr, *tun_netmask;
 
 	config = read_config(file);
@@ -356,7 +383,10 @@ static struct vpnserver *create_server(const char *file)
 	serv->vpn_ip_hash = make_map();
 	serv->ip_hash = make_map();
 
-	add_peers(serv, config->next);
+	res = add_peers(serv, config->next);
+	if (res < 0)
+		CONFIG_ERROR("adding peers failed");
+
 	free_config(config);
 	return serv;
 }
@@ -389,14 +419,9 @@ static int vpn_server_up(struct vpnserver *serv)
 
 static void vpn_server_down(struct vpnserver *serv)
 {
-	uint8_t i;
-	for (i = 0; i < serv->peers_count; i++)
-		free(serv->peers[i].cipher_key);
-	delete_map(serv->vpn_ip_hash);
-	delete_map(serv->ip_hash);
 	close(serv->sockfd);
 	close(serv->tunfd);
-	free(serv);
+	free_server(serv);
 }
 
 void run_vpnserver(const char *config)
