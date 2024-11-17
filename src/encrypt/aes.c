@@ -67,6 +67,8 @@ static const uint8_t r_con[][4] = {
 	{0x36, 0x00, 0x00, 0x00},
 };
 
+#define get_round_key(w, r) ((w) + 4 * Nb * (r))
+
 #define coef_mult(a, b, c) do { \
 	c[0] = gfmult(a[0], b[0]) ^ gfmult(a[3], b[1]) ^ gfmult(a[2], b[2]) ^ gfmult(a[1], b[3]); \
 	c[1] = gfmult(a[1], b[0]) ^ gfmult(a[0], b[1]) ^ gfmult(a[3], b[2]) ^ gfmult(a[2], b[3]); \
@@ -97,15 +99,15 @@ static uint8_t *rot_word(uint8_t w[])
 	return w;
 }
 
-static void add_round_key(uint8_t *state, const uint8_t *w, uint8_t r)
+static void add_round_key(uint8_t *state, const uint8_t *rkey)
 {
 	register uint8_t j;
 
 	for (j = 0; j < Nb; j++) {
-		state[Nb * 0 + j] ^= w[4 * Nb * r + 4 * j + 0];
-		state[Nb * 1 + j] ^= w[4 * Nb * r + 4 * j + 1];
-		state[Nb * 2 + j] ^= w[4 * Nb * r + 4 * j + 2];
-		state[Nb * 3 + j] ^= w[4 * Nb * r + 4 * j + 3];
+		state[Nb * 0 + j] ^= rkey[4 * j + 0];
+		state[Nb * 1 + j] ^= rkey[4 * j + 1];
+		state[Nb * 2 + j] ^= rkey[4 * j + 2];
+		state[Nb * 3 + j] ^= rkey[4 * j + 3];
 	}
 }
 
@@ -279,18 +281,18 @@ void aes_cipher(const uint8_t *in, uint8_t *out, const uint8_t *w)
 		}
 	}
 
-	add_round_key(state, w, 0);
+	add_round_key(state, get_round_key(w, 0));
 
 	for (r = 1; r < Nr; r++) {
 		sub_bytes(state);
 		shift_rows(state);
 		mix_columns(state);
-		add_round_key(state, w, r);
+		add_round_key(state, get_round_key(w, r));
 	}
 
 	sub_bytes(state);
 	shift_rows(state);
-	add_round_key(state, w, Nr);
+	add_round_key(state, get_round_key(w, Nr));
 
 	for (i = 0; i < 4; i++) {
 		for (j = 0; j < Nb; j++) {
@@ -310,18 +312,18 @@ void aes_inv_cipher(const uint8_t *in, uint8_t *out, const uint8_t *w)
 		}
 	}
 
-	add_round_key(state, w, Nr);
+	add_round_key(state, get_round_key(w, Nr));
 	inv_shift_rows(state);
 	inv_sub_bytes(state);
 
 	for (r = Nr - 1; r >= 1; r--) {
-		add_round_key(state, w, r);
+		add_round_key(state, get_round_key(w, r));
 		inv_mix_columns(state);
 		inv_shift_rows(state);
 		inv_sub_bytes(state);
 	}
 
-	add_round_key(state, w, 0);
+	add_round_key(state, get_round_key(w, 0));
 
 	for (i = 0; i < 4; i++) {
 		for (j = 0; j < Nb; j++) {
