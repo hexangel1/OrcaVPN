@@ -18,6 +18,33 @@ static char *extract_str(const char *begin, const char *end)
 	return str;
 }
 
+static struct config_section *new_scope(struct config_section **next, char *s)
+{
+	struct config_section *section;
+
+	section = malloc(sizeof(struct config_section));
+	memset(section, 0, sizeof(struct config_section));
+	section->scope = s;
+	section->next = NULL;
+
+	*next = section;
+	return section;
+}
+
+static void add_var(struct config_section *cs, char *key, char *val)
+{
+	size_t new_size;
+	if (cs->vars_count == cs->vars_alloc) {
+		cs->vars_alloc += 8;
+		new_size = cs->vars_alloc * sizeof(char *);
+		cs->keys = realloc(cs->keys, new_size);
+		cs->vals = realloc(cs->vals, new_size);
+	}
+	cs->keys[cs->vars_count] = key;
+	cs->vals[cs->vars_count] = val;
+	cs->vars_count++;
+}
+
 #define CONFIG_ERROR(message) \
 	do { \
 		free_config(head); \
@@ -29,9 +56,9 @@ static char *extract_str(const char *begin, const char *end)
 
 struct config_section *read_config(const char *file)
 {
-	char buffer[256];
-	char *k_begin, *k_end, *v_begin, *v_end, *ptr;
-	struct config_section *section = NULL, *head = NULL, **next = &head;
+	char buffer[1024];
+	char *k_begin, *k_end, *v_begin, *v_end;
+	struct config_section *curr = NULL, *head = NULL, **next = &head;
 
 	FILE *fp = fopen(file, "r");
 	if (!fp) {
@@ -40,21 +67,18 @@ struct config_section *read_config(const char *file)
 	}
 	while (fgets(buffer, sizeof(buffer), fp)) {
 		if (buffer[0] == '[') {
-			ptr = strchr(buffer, ']');
-			if (!ptr)
+			const char *br = strchr(buffer, ']');
+			if (!br)
 				CONFIG_ERROR("expected ']', end of line found");
-			section = malloc(sizeof(struct config_section));
-			memset(section, 0, sizeof(struct config_section));
-			section->section_name = extract_str(buffer + 1, ptr - 1);
-			*next = section;
-			next = &section->next;
+			curr = new_scope(next, extract_str(buffer + 1, br - 1));
+			next = &curr->next;
 			continue;
 		}
-		if (!section)
+		if (!curr)
 			CONFIG_ERROR("expected '[', variable found");
 
 		for (k_begin = buffer; isspace(*k_begin); k_begin++);
-		if (!*k_begin) /* blank line */
+		if (!*k_begin || *k_begin == '#') /* blank line or comment */
 			continue;
 		k_end = strchr(k_begin, '=');
 		if (!k_end)
@@ -68,16 +92,9 @@ struct config_section *read_config(const char *file)
 		for (k_end--; isspace(*k_end); k_end--);
 		for (v_end--; isspace(*v_end); v_end--);
 
-		if (section->vars_count == section->vars_alloc) {
-			size_t new_size;
-			section->vars_alloc += 8;
-			new_size = section->vars_alloc * sizeof(char *);
-			section->keys = realloc(section->keys, new_size);
-			section->vals = realloc(section->vals, new_size);
-		}
-		section->keys[section->vars_count] = extract_str(k_begin, k_end);
-		section->vals[section->vars_count] = extract_str(v_begin, v_end);
-		section->vars_count++;
+		add_var(curr,
+			extract_str(k_begin, k_end),
+			extract_str(v_begin, v_end));
 	}
 	fclose(fp);
 	return head;
@@ -91,13 +108,13 @@ void free_config(struct config_section *cfg)
 	while (cfg) {
 		tmp = cfg;
 		cfg = cfg->next;
-		free(tmp->section_name);
 		for (i = 0; i < tmp->vars_count; i++) {
 			free(tmp->keys[i]);
 			free(tmp->vals[i]);
 		}
 		free(tmp->keys);
 		free(tmp->vals);
+		free(tmp->scope);
 		free(tmp);
 	}
 }
@@ -108,10 +125,9 @@ void debug_config(struct config_section *cfg)
 	struct config_section *tmp;
 
 	for (tmp = cfg; tmp; tmp = tmp->next) {
-		fprintf(stderr, "[%s]\n", tmp->section_name);
-		for (i = 0; i < tmp->vars_count; i++) {
+		fprintf(stderr, "[%s]\n", tmp->scope);
+		for (i = 0; i < tmp->vars_count; i++)
 			fprintf(stderr, "%s = %s\n", tmp->keys[i], tmp->vals[i]);
-		}
 	}
 }
 

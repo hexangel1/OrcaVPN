@@ -190,7 +190,7 @@ static struct vpnclient *create_client(const char *file)
 	if (!config)
 		return NULL;
 
-	ip_addr = get_str_var(config, "ip_addr", MAX_IPV4_ADDR_LEN - 1);
+	ip_addr = get_str_var(config, "ip", MAX_IPV4_ADDR_LEN - 1);
 	if (!ip_addr)
 		ip_addr = "";
 	router_ip = get_str_var(config, "router_ip", MAX_IPV4_ADDR_LEN - 1);

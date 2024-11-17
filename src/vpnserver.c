@@ -291,6 +291,27 @@ static void vpn_server_handle(struct vpnserver *serv)
 	}
 }
 
+static void add_peers(struct vpnserver *serv, struct config_section *cfg)
+{
+	struct config_section *peer;
+	const char *private_ip, *cipher_key;
+	point_id_t point_id;
+
+	serv->peers_count = 0;
+	memset(serv->peers, 0, sizeof(serv->peers));
+	memset(serv->point_id_map, 0xFF, sizeof(serv->point_id_map));
+
+	for (peer = cfg; peer; peer = peer->next) {
+		point_id = get_int_var(peer, "point_id");
+		private_ip = get_str_var(peer, "vpn_ip", MAX_IPV4_ADDR_LEN - 1);
+		cipher_key = get_str_var(peer, "cipher_key", CIPHER_KEY_HEX_LEN);
+		if (private_ip && cipher_key)
+			push_new_peer(serv, point_id, private_ip, cipher_key);
+		else
+			log_mesg(LOG_WARNING, "check section [%s]!", peer->scope);
+	}
+}
+
 #define CONFIG_ERROR(message) \
 	do { \
 		free_config(config); \
@@ -301,32 +322,30 @@ static void vpn_server_handle(struct vpnserver *serv)
 static struct vpnserver *create_server(const char *file)
 {
 	struct vpnserver *serv;
-	struct config_section *client, *config;
+	struct config_section *config;
 	int port;
-	point_id_t point_id;
-	const char *ip_addr, *tun_addr, *tun_netmask, *tun_name;
-	const char *private_ip, *cipher_key;
+	const char *ip, *tun_name, *tun_addr, *tun_netmask;
 
 	config = read_config(file);
 	if (!config)
 		return NULL;
 
-	ip_addr = get_str_var(config, "ip_addr", MAX_IPV4_ADDR_LEN - 1);
-	if (!ip_addr)
-		CONFIG_ERROR("ip_addr var not set");
+	port = get_int_var(config, "port");
+	ip = get_str_var(config, "ip", MAX_IPV4_ADDR_LEN - 1);
+	if (!ip)
+		CONFIG_ERROR("ip var not set");
 
+	tun_name = get_str_var(config, "tun_name", MAX_IF_NAME_LEN - 1);
 	tun_addr = get_str_var(config, "tun_addr", MAX_IPV4_ADDR_LEN - 1);
 	tun_netmask = get_str_var(config, "tun_netmask", MAX_IPV4_ADDR_LEN - 1);
-	tun_name = get_str_var(config, "tun_name", MAX_IF_NAME_LEN - 1);
-	port = get_int_var(config, "port");
 
 	serv = malloc(sizeof(struct vpnserver));
 	memset(serv, 0, sizeof(struct vpnserver));
 
-	strcpy(serv->ip_addr, ip_addr);
+	strcpy(serv->ip_addr, ip);
+	strcpy(serv->tun_name, tun_name ? tun_name : TUN_IF_NAME);
 	strcpy(serv->tun_addr, tun_addr ? tun_addr : TUN_IF_ADDR);
 	strcpy(serv->tun_netmask, tun_netmask ? tun_netmask : TUN_IF_NETMASK);
-	strcpy(serv->tun_name, tun_name ? tun_name : TUN_IF_NAME);
 
 	serv->tunfd = -1;
 	serv->sockfd = -1;
@@ -336,20 +355,8 @@ static struct vpnserver *create_server(const char *file)
 	serv->port = port ? port : VPN_PORT;
 	serv->vpn_ip_hash = make_map();
 	serv->ip_hash = make_map();
-	serv->peers_count = 0;
-	memset(serv->peers, 0, sizeof(serv->peers));
-	memset(serv->point_id_map, 0xFF, sizeof(serv->point_id_map));
 
-	for (client = config->next; client; client = client->next) {
-		point_id = get_int_var(client, "point_id");
-		private_ip = get_str_var(client, "vpn_ip", MAX_IPV4_ADDR_LEN - 1);
-		cipher_key = get_str_var(client, "cipher_key", CIPHER_KEY_HEX_LEN);
-		if (private_ip && cipher_key)
-			push_new_peer(serv, point_id, private_ip, cipher_key);
-		else
-			log_mesg(LOG_WARNING, "check section [%s]!", client->section_name);
-	}
-
+	add_peers(serv, config->next);
 	free_config(config);
 	return serv;
 }

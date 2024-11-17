@@ -4,7 +4,7 @@
 #include <stddef.h>
 
 struct config_section {
-	char *section_name;
+	char *scope;
 	char **keys;
 	char **vals;
 	size_t vars_count;
