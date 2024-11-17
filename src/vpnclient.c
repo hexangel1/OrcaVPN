@@ -126,9 +126,9 @@ static int sigevent_handler(struct vpnclient *clnt, const sigset_t *sigmask)
 	switch (get_signal_event()) {
 	case sigevent_restart:
 		clnt->reload_flag = 1;
-		restore_signal_mask(sigmask);
 		/* fallthrough */
 	case sigevent_shutdown:
+		restore_signal_mask(sigmask);
 		return -1;
 	case sigevent_absent:
 		;
