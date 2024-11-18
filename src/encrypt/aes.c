@@ -113,7 +113,7 @@ static void add_round_key(uint8_t *state, const uint8_t *rkey)
 
 static void mix_columns(uint8_t *state)
 {
-	const uint8_t a[] = {0x02, 0x01, 0x01, 0x03};
+	const uint8_t a[] = {0x01, 0x00, 0x00, 0x02};
 	uint8_t col[4], res[4];
 	register uint8_t j;
 
@@ -134,7 +134,7 @@ static void mix_columns(uint8_t *state)
 
 static void inv_mix_columns(uint8_t *state)
 {
-	const uint8_t a[] = {0x0e, 0x09, 0x0d, 0x0b};
+	const uint8_t a[] = {0x06, 0x03, 0x05, 0x04};
 	uint8_t col[4], res[4];
 	register uint8_t j;
 
