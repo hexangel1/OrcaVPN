@@ -20,11 +20,9 @@
 #define PEERS_LIMIT 256
 #define PEER_ADDR_EXPIRE 600
 
-typedef unsigned char point_id_t;
-
 struct vpn_peer {
 	uint32_t private_ip;
-	point_id_t point_id;
+	uint8_t point_id;
 	struct sockaddr_in addr;
 	time_t last_update;
 	void *cipher_key;
@@ -73,7 +71,7 @@ static void log_ip_address(hashmap_t *ip_hash, struct sockaddr_in *addr)
 	}
 }
 
-static struct vpn_peer *get_peer_by_id(struct vpnserver *serv, point_id_t point_id)
+static struct vpn_peer *get_peer_by_id(struct vpnserver *serv, uint8_t point_id)
 {
 	uint8_t idx = serv->point_id_map[point_id];
 	return idx < serv->peers_count ? &serv->peers[idx] : NULL;
@@ -92,7 +90,7 @@ static struct vpn_peer *get_peer_by_addr(struct vpnserver *serv, uint32_t vpn_ip
 	return get_peer_by_id(serv, point_id);
 }
 
-static int create_peer(struct vpnserver *serv, point_id_t point_id,
+static int create_peer(struct vpnserver *serv, uint8_t point_id,
 	const char *ip, const char *key)
 {
 	uint8_t cipher_key[CIPHER_KEY_LEN];
@@ -176,12 +174,12 @@ static int route_packet(struct vpnserver *serv, void *buf, size_t len)
 
 static int socket_handler(struct vpnserver *serv)
 {
-	char buffer[PACKET_BUFFER_SIZE];
+	uint8_t buffer[PACKET_BUFFER_SIZE];
 	struct sockaddr_in addr;
 	struct vpn_peer *peer;
 	ssize_t res;
 	size_t length;
-	point_id_t point_id;
+	uint8_t point_id;
 
 	res = recv_udp(serv->sockfd, buffer, MAX_UDP_PAYLOAD, &addr);
 	if (res < 0) {
@@ -212,7 +210,7 @@ static int socket_handler(struct vpnserver *serv)
 
 static int tun_if_handler(struct vpnserver *serv)
 {
-	char buffer[PACKET_BUFFER_SIZE];
+	uint8_t buffer[PACKET_BUFFER_SIZE];
 	struct vpn_peer *peer;
 	ssize_t res;
 	size_t length;
@@ -296,7 +294,7 @@ static int add_peers(struct vpnserver *serv, struct config_section *cfg)
 {
 	struct config_section *peer;
 	const char *private_ip, *cipher_key;
-	point_id_t point_id;
+	uint8_t point_id;
 	int res, has_errors = 0;
 
 	serv->peers_count = 0;

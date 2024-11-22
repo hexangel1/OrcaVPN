@@ -44,7 +44,7 @@ struct vpnclient {
 
 static int ping_vpn_router(struct vpnclient *clnt)
 {
-	char buffer[PACKET_BUFFER_SIZE];
+	uint8_t buffer[PACKET_BUFFER_SIZE];
 	struct icmp_echo_param icmp_echo;
 	ssize_t res;
 	size_t length;
@@ -73,7 +73,7 @@ static int timeout_handler(struct vpnclient *clnt)
 
 static int socket_handler(struct vpnclient *clnt)
 {
-	char buffer[PACKET_BUFFER_SIZE];
+	uint8_t buffer[PACKET_BUFFER_SIZE];
 	ssize_t res;
 	size_t length;
 
@@ -98,7 +98,7 @@ static int socket_handler(struct vpnclient *clnt)
 
 static int tun_if_handler(struct vpnclient *clnt)
 {
-	char buffer[PACKET_BUFFER_SIZE];
+	uint8_t buffer[PACKET_BUFFER_SIZE];
 	ssize_t res;
 	size_t length;
 
