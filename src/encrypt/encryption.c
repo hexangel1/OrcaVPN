@@ -115,7 +115,7 @@ void decrypt_packet(void *packet, size_t *len, const void *key)
 	padded_size -= AES_BLOCK_SIZE;
 	for (endoffs = padded_size; endoffs > 0; endoffs -= AES_BLOCK_SIZE) {
 		offs = endoffs - AES_BLOCK_SIZE;
-		iv = offs > 0 ? data + offs - AES_BLOCK_SIZE : data + padded_size;
+		iv = data + (offs > 0 ? offs - AES_BLOCK_SIZE : padded_size);
 		aes_inv_cipher(data + offs, data + offs, key);
 		memxor(data + offs, iv, AES_BLOCK_SIZE);
 	}

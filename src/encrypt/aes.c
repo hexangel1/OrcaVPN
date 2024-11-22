@@ -3,6 +3,12 @@
 #include "aes.h"
 #include "gfmult.h"
 
+#ifdef USE_RESTRICT
+	#define EXCL_PTR __restrict__
+#else
+	#define EXCL_PTR
+#endif
+
 /* Number of state columns */
 #define Nb 4
 
@@ -99,7 +105,7 @@ static uint8_t *rot_word(uint8_t w[])
 	return w;
 }
 
-static void add_round_key(uint8_t *state, const uint8_t *rkey)
+static void add_round_key(uint8_t *state, const uint8_t *EXCL_PTR rkey)
 {
 	register uint8_t j;
 
@@ -270,7 +276,7 @@ uint8_t *aes_key_expansion(const uint8_t *key, uint8_t *w)
 	return w;
 }
 
-void aes_cipher(const uint8_t *in, uint8_t *out, const uint8_t *w)
+void aes_cipher(const uint8_t *in, uint8_t *out, const uint8_t *EXCL_PTR w)
 {
 	uint8_t state[4 * Nb];
 	uint8_t i, j, r;
@@ -301,7 +307,7 @@ void aes_cipher(const uint8_t *in, uint8_t *out, const uint8_t *w)
 	}
 }
 
-void aes_inv_cipher(const uint8_t *in, uint8_t *out, const uint8_t *w)
+void aes_inv_cipher(const uint8_t *in, uint8_t *out, const uint8_t *EXCL_PTR w)
 {
 	uint8_t state[4 * Nb];
 	uint8_t i, j, r;
