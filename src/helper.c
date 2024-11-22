@@ -22,7 +22,7 @@ static int create_pidfile(const char *pidfile)
 
 	if (!pidfile)
 		return 0;
-	pid_fd = creat(pidfile, S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH);
+	pid_fd = open(pidfile, O_WRONLY | O_CREAT | O_TRUNC, 0644);
 	if (pid_fd < 0)
 		return -1;
 	len = snprintf(pid_str, sizeof(pid_str), "%d\n", getpid());
