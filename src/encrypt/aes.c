@@ -3,10 +3,14 @@
 #include "aes.h"
 #include "gfmult.h"
 
-#ifdef USE_RESTRICT
-	#define EXCL_PTR __restrict__
+#if __STDC_VERSION__ >= 199901L
+/* inline & restrict keywords present */
+#elif defined(__GNUC__)
+#define inline __inline__
+#define restrict __restrict__
 #else
-	#define EXCL_PTR
+#define inline
+#define restrict
 #endif
 
 /* Number of state columns */
@@ -82,7 +86,7 @@ static const uint8_t r_con[][4] = {
 	c[3] = gfmult(a[3], b[0]) ^ gfmult(a[2], b[1]) ^ gfmult(a[1], b[2]) ^ gfmult(a[0], b[3]); \
 } while (0)
 
-static void coef_add(const uint8_t a[], const uint8_t b[], uint8_t c[])
+static inline void coef_add(const uint8_t a[], const uint8_t b[], uint8_t c[])
 {
 	c[0] = a[0] ^ b[0];
 	c[1] = a[1] ^ b[1];
@@ -90,22 +94,20 @@ static void coef_add(const uint8_t a[], const uint8_t b[], uint8_t c[])
 	c[3] = a[3] ^ b[3];
 }
 
-static uint8_t *sub_word(uint8_t w[])
+static inline void sub_word(uint8_t w[])
 {
 	w[0] = s_box[w[0]]; w[1] = s_box[w[1]];
 	w[2] = s_box[w[2]]; w[3] = s_box[w[3]];
-	return w;
 }
 
-static uint8_t *rot_word(uint8_t w[])
+static inline void rot_word(uint8_t w[])
 {
 	uint8_t tmp = w[0];
 	w[0] = w[1]; w[1] = w[2];
 	w[2] = w[3]; w[3] = tmp;
-	return w;
 }
 
-static void add_round_key(uint8_t *state, const uint8_t *EXCL_PTR rkey)
+static inline void add_round_key(uint8_t *state, const uint8_t *restrict rkey)
 {
 	register uint8_t j;
 
@@ -117,7 +119,7 @@ static void add_round_key(uint8_t *state, const uint8_t *EXCL_PTR rkey)
 	}
 }
 
-static void mix_columns(uint8_t *state)
+static inline void mix_columns(uint8_t *state)
 {
 	const uint8_t a[] = {0x01, 0x00, 0x00, 0x02};
 	uint8_t col[4], res[4];
@@ -138,7 +140,7 @@ static void mix_columns(uint8_t *state)
 	}
 }
 
-static void inv_mix_columns(uint8_t *state)
+static inline void inv_mix_columns(uint8_t *state)
 {
 	const uint8_t a[] = {0x06, 0x03, 0x05, 0x04};
 	uint8_t col[4], res[4];
@@ -159,9 +161,10 @@ static void inv_mix_columns(uint8_t *state)
 	}
 }
 
-static void shift_rows(uint8_t *state)
+static inline void shift_rows(uint8_t *state)
 {
 	register uint8_t tmp;
+
 	tmp = state[Nb + 0];
 	state[Nb + 0] = state[Nb + 1];
 	state[Nb + 1] = state[Nb + 2];
@@ -182,9 +185,10 @@ static void shift_rows(uint8_t *state)
 	state[3 * Nb + 0] = tmp;
 }
 
-static void inv_shift_rows(uint8_t *state)
+static inline void inv_shift_rows(uint8_t *state)
 {
 	register uint8_t tmp;
+
 	tmp = state[Nb + 3];
 	state[Nb + 3] = state[Nb + 2];
 	state[Nb + 2] = state[Nb + 1];
@@ -205,26 +209,18 @@ static void inv_shift_rows(uint8_t *state)
 	state[3 * Nb + 3] = tmp;
 }
 
-static void sub_bytes(uint8_t *state)
+static inline void sub_bytes(uint8_t *state)
 {
-	register uint8_t i, j;
-
-	for (i = 0; i < 4; i++) {
-		for (j = 0; j < Nb; j++) {
-			state[Nb * i + j] = s_box[state[Nb * i + j]];
-		}
-	}
+	register uint8_t i;
+	for (i = 0; i < 4 * Nb; i++)
+		state[i] = s_box[state[i]];
 }
 
-static void inv_sub_bytes(uint8_t *state)
+static inline void inv_sub_bytes(uint8_t *state)
 {
-	register uint8_t i, j;
-
-	for (i = 0; i < 4; i++) {
-		for (j = 0; j < Nb; j++) {
-			state[Nb * i + j] = inv_s_box[state[Nb * i + j]];
-		}
-	}
+	register uint8_t i;
+	for (i = 0; i < 4 * Nb; i++)
+		state[i] = inv_s_box[state[i]];
 }
 
 int aes_init(size_t key_size)
@@ -263,10 +259,13 @@ uint8_t *aes_key_expansion(const uint8_t *key, uint8_t *w)
 		tmp[2] = w[4 * (i - 1) + 2];
 		tmp[3] = w[4 * (i - 1) + 3];
 
-		if (i % Nk == 0)
-			coef_add(sub_word(rot_word(tmp)), r_con[i / Nk], tmp);
-		else if (Nk > 6 && i % Nk == 4)
+		if (i % Nk == 0) {
+			rot_word(tmp);
 			sub_word(tmp);
+			coef_add(tmp, r_con[i / Nk], tmp);
+		} else if (Nk > 6 && i % Nk == 4) {
+			sub_word(tmp);
+		}
 
 		w[4 * i + 0] = w[4 * (i - Nk) + 0] ^ tmp[0];
 		w[4 * i + 1] = w[4 * (i - Nk) + 1] ^ tmp[1];
@@ -276,7 +275,7 @@ uint8_t *aes_key_expansion(const uint8_t *key, uint8_t *w)
 	return w;
 }
 
-void aes_cipher(const uint8_t *in, uint8_t *out, const uint8_t *EXCL_PTR w)
+void aes_cipher(const uint8_t *in, uint8_t *out, const uint8_t *w)
 {
 	uint8_t state[4 * Nb];
 	uint8_t i, j, r;
@@ -307,7 +306,7 @@ void aes_cipher(const uint8_t *in, uint8_t *out, const uint8_t *EXCL_PTR w)
 	}
 }
 
-void aes_inv_cipher(const uint8_t *in, uint8_t *out, const uint8_t *EXCL_PTR w)
+void aes_inv_cipher(const uint8_t *in, uint8_t *out, const uint8_t *w)
 {
 	uint8_t state[4 * Nb];
 	uint8_t i, j, r;
