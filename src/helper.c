@@ -69,6 +69,7 @@ char *hexlify(const void *bin, size_t len, int upper, char *res)
 		res[i * 2]     = hex_digits[bytes[i] >> 4];
 		res[i * 2 + 1] = hex_digits[bytes[i] & 0x0F];
 	}
+	res[len * 2] = 0;
 	return res;
 }
 
@@ -76,6 +77,9 @@ void *binarize(const char *hex, size_t len, void *res)
 {
 	unsigned char *bytes = res;
 	size_t i;
+
+	if (len % 2)
+		return NULL;
 
 	for (i = 0; i < len / 2; ++i) {
 		if (!isxdigit(hex[2 * i]) || !isxdigit(hex[2 * i + 1]))
