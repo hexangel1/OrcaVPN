@@ -181,7 +181,8 @@ static struct vpnclient *create_client(const char *file)
 {
 	struct vpnclient *clnt;
 	struct config_section *config;
-	uint8_t cipher_key[CIPHER_KEY_LEN];
+	uint8_t *exp_key, cipher_key[64];
+	size_t keylen;
 	int port, server_port, point_id;
 	const char *ip_addr, *server_ip, *router_ip, *hex_key;
 	const char *tun_addr, *tun_netmask, *tun_name;
@@ -202,12 +203,15 @@ static struct vpnclient *create_client(const char *file)
 	tun_addr = get_str_var(config, "tun_addr", MAX_IPV4_ADDR_LEN - 1);
 	if (!tun_addr)
 		CONFIG_ERROR("tun_addr var not set");
-	hex_key = get_str_var(config, "cipher_key", CIPHER_KEY_HEX_LEN);
-	if (!hex_key || strlen(hex_key) != CIPHER_KEY_HEX_LEN)
-		CONFIG_ERROR("password var not set");
+	hex_key = get_var_value(config, "cipher_key");
+	if (!hex_key)
+		CONFIG_ERROR("cipher key var not set");
 
-	if (!binarize(hex_key, CIPHER_KEY_HEX_LEN, cipher_key))
-		CONFIG_ERROR("invalid cipher key");
+	keylen = strlen(hex_key);
+	if (keylen > sizeof(cipher_key) * 2)
+		CONFIG_ERROR("cipher key too long");
+	if (!binarize(hex_key, keylen, cipher_key))
+		CONFIG_ERROR("cipher key has not hex format");
 
 	tun_netmask = get_str_var(config, "tun_netmask", MAX_IPV4_ADDR_LEN - 1);
 	tun_name = get_str_var(config, "tun_name", MAX_IF_NAME_LEN - 1);
@@ -216,6 +220,10 @@ static struct vpnclient *create_client(const char *file)
 	point_id = get_int_var(config, "point_id");
 	if (point_id > 0xFF || point_id < 0)
 		CONFIG_ERROR("invalid point_id");
+
+	exp_key = gen_encrypt_key(cipher_key, keylen / 2);
+	if (!exp_key)
+		CONFIG_ERROR("encrypt keygen failed");
 
 	clnt = malloc(sizeof(struct vpnclient));
 	memset(clnt, 0, sizeof(struct vpnclient));
@@ -234,7 +242,7 @@ static struct vpnclient *create_client(const char *file)
 	clnt->point_id = point_id;
 	clnt->router_ip = inet_network(router_ip);
 	clnt->private_ip = inet_network(clnt->tun_addr);
-	clnt->cipher_key = get_expanded_key(cipher_key);
+	clnt->cipher_key = exp_key;
 	clnt->sequance_id = (0xffff & getpid());
 	clnt->sequance_no = 0;
 
@@ -277,7 +285,7 @@ static void vpn_client_down(struct vpnclient *clnt)
 {
 	close(clnt->sockfd);
 	close(clnt->tunfd);
-	free(clnt->cipher_key);
+	free_encrypt_key(clnt->cipher_key);
 	free(clnt);
 }
 

@@ -3,14 +3,14 @@
 
 #include <stddef.h>
 
-#define CIPHER_KEY_LEN 24
-#define CIPHER_KEY_HEX_LEN 2 * CIPHER_KEY_LEN
 #define PACKET_SIGNATURE_LEN 20
 
 void init_encryption(void);
 
 void read_random(void *buf, size_t n);
-void *get_expanded_key(const void *key);
+
+void *gen_encrypt_key(const void *key, unsigned char keylen);
+void free_encrypt_key(void *key);
 
 void encrypt_packet(void *packet, size_t *len, const void *key);
 void decrypt_packet(void *packet, size_t *len, const void *key);

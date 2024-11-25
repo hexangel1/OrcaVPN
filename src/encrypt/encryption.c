@@ -63,7 +63,6 @@ void init_encryption(void)
 {
 	unsigned int seed = time(NULL);
 	srand(seed);
-	aes_init(CIPHER_KEY_LEN);
 	init_urandom_buffer();
 	atexit(free_urandom_buffer);
 }
@@ -80,9 +79,14 @@ void read_random(void *buf, size_t n)
 	}
 }
 
-void *get_expanded_key(const void *key)
+void *gen_encrypt_key(const void *key, unsigned char key_len)
 {
-	return aes_key_expansion(key, NULL);
+	return aes_key_schedule(key, key_len);
+}
+
+void free_encrypt_key(void *key)
+{
+	aes_key_destroy(key);
 }
 
 void encrypt_packet(void *packet, size_t *len, const void *key)
@@ -91,12 +95,13 @@ void encrypt_packet(void *packet, size_t *len, const void *key)
 	size_t offs, size = *len;
 	size_t padded_size = ((size / AES_BLOCK_SIZE) + 1) * AES_BLOCK_SIZE;
 	uint8_t padding = padded_size - size, *iv = data + padded_size;
+	const aes_key *w = key;
 
 	read_random(iv, AES_BLOCK_SIZE);
 	memset(data + size, padding, padding);
 	for (offs = 0; offs < padded_size; offs += AES_BLOCK_SIZE) {
 		memxor(data + offs, iv, AES_BLOCK_SIZE);
-		aes_cipher(data + offs, data + offs, key);
+		aes_cipher(data + offs, data + offs, w);
 		iv = data + offs;
 	}
 	*len += padding + AES_BLOCK_SIZE;
@@ -107,6 +112,7 @@ void decrypt_packet(void *packet, size_t *len, const void *key)
 	uint8_t *data = packet;
 	size_t endoffs, offs, padded_size = *len;
 	uint8_t padding, *iv;
+	const aes_key *w = key;
 
 	if (padded_size % AES_BLOCK_SIZE || padded_size / AES_BLOCK_SIZE < 2) {
 		*len = 0;
@@ -116,7 +122,7 @@ void decrypt_packet(void *packet, size_t *len, const void *key)
 	for (endoffs = padded_size; endoffs > 0; endoffs -= AES_BLOCK_SIZE) {
 		offs = endoffs - AES_BLOCK_SIZE;
 		iv = data + (offs > 0 ? offs - AES_BLOCK_SIZE : padded_size);
-		aes_inv_cipher(data + offs, data + offs, key);
+		aes_inv_cipher(data + offs, data + offs, w);
 		memxor(data + offs, iv, AES_BLOCK_SIZE);
 	}
 	padding = data[padded_size - 1];
