@@ -20,7 +20,7 @@
 #define URANDOM_BUFFER_SIZE 262144
 
 static int urandom_fd = -1;
-static size_t urandom_avail = 0;
+static size_t urandom_read_pos = 0;
 static uint8_t *urandom_buffer = NULL;
 
 static void fill_urandom_buffer(void)
@@ -28,7 +28,7 @@ static void fill_urandom_buffer(void)
 	ssize_t res;
 	size_t rc = 0;
 
-	urandom_avail = URANDOM_BUFFER_SIZE;
+	urandom_read_pos = 0;
 	while (rc < URANDOM_BUFFER_SIZE) {
 		res = read(urandom_fd, urandom_buffer + rc, URANDOM_BUFFER_SIZE - rc);
 		if (res < 0) {
@@ -69,13 +69,16 @@ void init_encryption(void)
 
 void read_random(void *buf, size_t n)
 {
-	size_t urandom_used, len, rc;
-	for (rc = 0; rc < n; rc += len, urandom_avail -= len) {
-		if (!urandom_avail)
+	size_t urandom_avail, len, rc;
+
+	for (rc = 0; rc < n; rc += len, urandom_read_pos += len) {
+		urandom_avail = URANDOM_BUFFER_SIZE - urandom_read_pos;
+		if (!urandom_avail) {
 			fill_urandom_buffer();
-		urandom_used = URANDOM_BUFFER_SIZE - urandom_avail;
+			urandom_avail = URANDOM_BUFFER_SIZE;
+		}
 		len = n - rc < urandom_avail ? n - rc : urandom_avail;
-		memcpy((uint8_t *)buf + rc, urandom_buffer + urandom_used, len);
+		memcpy((uint8_t *)buf + rc, urandom_buffer + urandom_read_pos, len);
 	}
 }
 
