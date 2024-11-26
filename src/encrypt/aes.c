@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 
 #include "aes.h"
 #include "gfmult.h"
@@ -14,7 +15,7 @@
 #endif
 
 /* Number of state columns */
-#define Nb 4
+#define Nb AES_STATE_COLS
 
 /* S-box transformation table */
 static const uint8_t s_box[256] = {
@@ -71,7 +72,7 @@ static const uint8_t r_con[][4] = {
 	{0x36, 0x00, 0x00, 0x00},
 };
 
-#define get_round_key(w, r) ((w) + 4 * Nb * (r))
+#define get_round_key(w, r) ((w)->round_keys + 4 * Nb * (r))
 
 #define coef_mult(a, b, c) do { \
 	c[0] = gfmult(a[0], b[0]) ^ gfmult(a[3], b[1]) ^ gfmult(a[2], b[2]) ^ gfmult(a[1], b[3]); \
@@ -233,68 +234,55 @@ static aes_key *aes_key_alloc(uint8_t key_size)
 		return NULL;
 	}
 	w = malloc(sizeof(aes_key));
-	w->n_rounds = rounds;
-	w->round_keys_len = 4 * Nb * (rounds + 1);
-	w->round_keys = malloc(w->round_keys_len);
+	memset(w, 0, sizeof(aes_key));
+	w->nrounds = rounds;
 	return w;
 }
 
-aes_key *aes_key_schedule(const uint8_t *key, uint8_t key_len)
+aes_key *aes_key_schedule(const uint8_t *cipher_key, uint8_t keylen)
 {
 	uint8_t i, tmp[4], *rkeys;
-	uint8_t dw_rkeys_len, dw_key_len;
+	uint8_t dw_keylen = keylen / 4;
 	aes_key *w;
 
-	w = aes_key_alloc(key_len);
+	w = aes_key_alloc(keylen);
 	if (!w)
 		return NULL;
 
 	rkeys = w->round_keys;
-	dw_rkeys_len = w->round_keys_len / 4;
-	dw_key_len = key_len / 4;
-
-	for (i = 0; i < dw_key_len; i++) {
-		rkeys[4 * i + 0] = key[4 * i + 0];
-		rkeys[4 * i + 1] = key[4 * i + 1];
-		rkeys[4 * i + 2] = key[4 * i + 2];
-		rkeys[4 * i + 3] = key[4 * i + 3];
+	for (i = 0; i < dw_keylen; i++) {
+		rkeys[4 * i + 0] = cipher_key[4 * i + 0];
+		rkeys[4 * i + 1] = cipher_key[4 * i + 1];
+		rkeys[4 * i + 2] = cipher_key[4 * i + 2];
+		rkeys[4 * i + 3] = cipher_key[4 * i + 3];
 	}
 
-	for (i = dw_key_len; i < dw_rkeys_len; i++) {
+	for (i = dw_keylen; i < Nb * (w->nrounds + 1); i++) {
 		tmp[0] = rkeys[4 * (i - 1) + 0];
 		tmp[1] = rkeys[4 * (i - 1) + 1];
 		tmp[2] = rkeys[4 * (i - 1) + 2];
 		tmp[3] = rkeys[4 * (i - 1) + 3];
 
-		if (i % dw_key_len == 0) {
+		if (i % dw_keylen == 0) {
 			rot_word(tmp);
 			sub_word(tmp);
-			coef_add(tmp, r_con[i / dw_key_len], tmp);
-		} else if (dw_key_len > 6 && i % dw_key_len == 4) {
+			coef_add(tmp, r_con[i / dw_keylen], tmp);
+		} else if (dw_keylen > 6 && i % dw_keylen == 4) {
 			sub_word(tmp);
 		}
 
-		rkeys[4 * i + 0] = rkeys[4 * (i - dw_key_len) + 0] ^ tmp[0];
-		rkeys[4 * i + 1] = rkeys[4 * (i - dw_key_len) + 1] ^ tmp[1];
-		rkeys[4 * i + 2] = rkeys[4 * (i - dw_key_len) + 2] ^ tmp[2];
-		rkeys[4 * i + 3] = rkeys[4 * (i - dw_key_len) + 3] ^ tmp[3];
+		rkeys[4 * i + 0] = rkeys[4 * (i - dw_keylen) + 0] ^ tmp[0];
+		rkeys[4 * i + 1] = rkeys[4 * (i - dw_keylen) + 1] ^ tmp[1];
+		rkeys[4 * i + 2] = rkeys[4 * (i - dw_keylen) + 2] ^ tmp[2];
+		rkeys[4 * i + 3] = rkeys[4 * (i - dw_keylen) + 3] ^ tmp[3];
 	}
 	return w;
-}
-
-void aes_key_destroy(aes_key *w)
-{
-	if (!w)
-		return;
-	free(w->round_keys);
-	free(w);
 }
 
 void aes_cipher(const uint8_t *in, uint8_t *out, const aes_key *w)
 {
 	uint8_t state[4 * Nb];
-	uint8_t i, j, r, nr = w->n_rounds;
-	uint8_t *rkeys = w->round_keys;
+	uint8_t i, j, r, nr = w->nrounds;
 
 	for (i = 0; i < 4; i++) {
 		for (j = 0; j < Nb; j++) {
@@ -302,18 +290,18 @@ void aes_cipher(const uint8_t *in, uint8_t *out, const aes_key *w)
 		}
 	}
 
-	add_round_key(state, get_round_key(rkeys, 0));
+	add_round_key(state, get_round_key(w, 0));
 
 	for (r = 1; r < nr; r++) {
 		sub_bytes(state);
 		shift_rows(state);
 		mix_columns(state);
-		add_round_key(state, get_round_key(rkeys, r));
+		add_round_key(state, get_round_key(w, r));
 	}
 
 	sub_bytes(state);
 	shift_rows(state);
-	add_round_key(state, get_round_key(rkeys, nr));
+	add_round_key(state, get_round_key(w, nr));
 
 	for (i = 0; i < 4; i++) {
 		for (j = 0; j < Nb; j++) {
@@ -325,8 +313,7 @@ void aes_cipher(const uint8_t *in, uint8_t *out, const aes_key *w)
 void aes_inv_cipher(const uint8_t *in, uint8_t *out, const aes_key *w)
 {
 	uint8_t state[4 * Nb];
-	uint8_t i, j, r, nr = w->n_rounds;
-	uint8_t *rkeys = w->round_keys;
+	uint8_t i, j, r, nr = w->nrounds;
 
 	for (i = 0; i < 4; i++) {
 		for (j = 0; j < Nb; j++) {
@@ -334,18 +321,18 @@ void aes_inv_cipher(const uint8_t *in, uint8_t *out, const aes_key *w)
 		}
 	}
 
-	add_round_key(state, get_round_key(rkeys, nr));
+	add_round_key(state, get_round_key(w, nr));
 	inv_shift_rows(state);
 	inv_sub_bytes(state);
 
 	for (r = nr - 1; r >= 1; r--) {
-		add_round_key(state, get_round_key(rkeys, r));
+		add_round_key(state, get_round_key(w, r));
 		inv_mix_columns(state);
 		inv_shift_rows(state);
 		inv_sub_bytes(state);
 	}
 
-	add_round_key(state, get_round_key(rkeys, 0));
+	add_round_key(state, get_round_key(w, 0));
 
 	for (i = 0; i < 4; i++) {
 		for (j = 0; j < Nb; j++) {

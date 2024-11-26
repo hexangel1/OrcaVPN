@@ -35,7 +35,7 @@ struct vpnclient {
 	uint32_t private_ip;
 	uint32_t router_ip;
 
-	void *cipher_key;
+	void *encrypt_key;
 	uint8_t point_id;
 
 	uint16_t sequance_id;
@@ -56,7 +56,7 @@ static int ping_vpn_router(struct vpnclient *clnt)
 	read_random(icmp_echo.data, PING_DATA_LEN);
 	length = write_icmp_echo(buffer, &icmp_echo);
 	sign_packet(buffer, &length);
-	encrypt_packet(buffer, &length, clnt->cipher_key);
+	encrypt_packet(buffer, &length, clnt->encrypt_key);
 	buffer[length++] = clnt->point_id;
 	res = send_udp(clnt->sockfd, buffer, length, NULL);
 	if (res < 0) {
@@ -83,7 +83,7 @@ static int socket_handler(struct vpnclient *clnt)
 		return -1;
 	}
 	length = res;
-	decrypt_packet(buffer, &length, clnt->cipher_key);
+	decrypt_packet(buffer, &length, clnt->encrypt_key);
 	if (!check_signature(buffer, &length)) {
 		log_mesg(LOG_NOTICE, "bad packet signature");
 		return -1;
@@ -111,7 +111,7 @@ static int tun_if_handler(struct vpnclient *clnt)
 	if (clnt->private_ip != get_source_ip(buffer, length))
 		return -1;
 	sign_packet(buffer, &length);
-	encrypt_packet(buffer, &length, clnt->cipher_key);
+	encrypt_packet(buffer, &length, clnt->encrypt_key);
 	buffer[length++] = clnt->point_id;
 	res = send_udp(clnt->sockfd, buffer, length, NULL);
 	if (res < 0) {
@@ -181,11 +181,12 @@ static struct vpnclient *create_client(const char *file)
 {
 	struct vpnclient *clnt;
 	struct config_section *config;
-	uint8_t *exp_key, cipher_key[64];
+	uint8_t bin_cipher_key[64];
 	size_t keylen;
 	int port, server_port, point_id;
-	const char *ip_addr, *server_ip, *router_ip, *hex_key;
+	const char *ip_addr, *server_ip, *router_ip, *cipher_key;
 	const char *tun_addr, *tun_netmask, *tun_name;
+	void *encrypt_key;
 
 	config = read_config(file);
 	if (!config)
@@ -203,14 +204,14 @@ static struct vpnclient *create_client(const char *file)
 	tun_addr = get_str_var(config, "tun_addr", MAX_IPV4_ADDR_LEN - 1);
 	if (!tun_addr)
 		CONFIG_ERROR("tun_addr var not set");
-	hex_key = get_var_value(config, "cipher_key");
-	if (!hex_key)
+	cipher_key = get_var_value(config, "cipher_key");
+	if (!cipher_key)
 		CONFIG_ERROR("cipher key var not set");
 
-	keylen = strlen(hex_key);
-	if (keylen > sizeof(cipher_key) * 2)
+	keylen = strlen(cipher_key);
+	if (keylen > sizeof(bin_cipher_key) * 2)
 		CONFIG_ERROR("cipher key too long");
-	if (!binarize(hex_key, keylen, cipher_key))
+	if (!binarize(cipher_key, keylen, bin_cipher_key))
 		CONFIG_ERROR("cipher key has not hex format");
 
 	tun_netmask = get_str_var(config, "tun_netmask", MAX_IPV4_ADDR_LEN - 1);
@@ -221,8 +222,8 @@ static struct vpnclient *create_client(const char *file)
 	if (point_id > 0xFF || point_id < 0)
 		CONFIG_ERROR("invalid point_id");
 
-	exp_key = gen_encrypt_key(cipher_key, keylen / 2);
-	if (!exp_key)
+	encrypt_key = gen_encrypt_key(bin_cipher_key, keylen / 2);
+	if (!encrypt_key)
 		CONFIG_ERROR("encrypt keygen failed");
 
 	clnt = malloc(sizeof(struct vpnclient));
@@ -242,7 +243,7 @@ static struct vpnclient *create_client(const char *file)
 	clnt->point_id = point_id;
 	clnt->router_ip = inet_network(router_ip);
 	clnt->private_ip = inet_network(clnt->tun_addr);
-	clnt->cipher_key = exp_key;
+	clnt->encrypt_key = encrypt_key;
 	clnt->sequance_id = (0xffff & getpid());
 	clnt->sequance_no = 0;
 
@@ -285,7 +286,7 @@ static void vpn_client_down(struct vpnclient *clnt)
 {
 	close(clnt->sockfd);
 	close(clnt->tunfd);
-	free_encrypt_key(clnt->cipher_key);
+	free(clnt->encrypt_key);
 	free(clnt);
 }
 

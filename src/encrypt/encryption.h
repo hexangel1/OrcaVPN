@@ -9,8 +9,7 @@ void init_encryption(void);
 
 void read_random(void *buf, size_t n);
 
-void *gen_encrypt_key(const void *key, unsigned char keylen);
-void free_encrypt_key(void *key);
+void *gen_encrypt_key(const void *cipher_key, unsigned char keylen);
 
 void encrypt_packet(void *packet, size_t *len, const void *key);
 void decrypt_packet(void *packet, size_t *len, const void *key);

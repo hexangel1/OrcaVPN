@@ -25,7 +25,7 @@ struct vpn_peer {
 	uint8_t point_id;
 	struct sockaddr_in addr;
 	time_t last_update;
-	void *cipher_key;
+	void *encrypt_key;
 };
 
 struct vpnserver {
@@ -91,24 +91,25 @@ static struct vpn_peer *get_peer_by_addr(struct vpnserver *serv, uint32_t vpn_ip
 }
 
 static int create_peer(struct vpnserver *serv, uint8_t point_id,
-	const char *ip, const char *key)
+	const char *ip, const char *cipher_key)
 {
-	uint8_t *exp_key, cipher_key[64];
+	uint8_t bin_cipher_key[64];
 	hashstring_t ip_key;
 	struct vpn_peer *peer;
 	uint32_t vpn_ip;
-	size_t keylen = strlen(key);
+	size_t keylen = strlen(cipher_key);
+	void *encrypt_key;
 
 	vpn_ip = inet_network(ip);
 	if (vpn_ip == (uint32_t)-1) {
 		log_mesg(LOG_ERR, "peer %u: bad ip address: %s", point_id, ip);
 		return -1;
 	}
-	if (keylen > sizeof(cipher_key) * 2) {
+	if (keylen > sizeof(bin_cipher_key) * 2) {
 		log_mesg(LOG_ERR, "peer %u: cipher key too long", point_id);
 		return -1;
 	}
-	if (!binarize(key, keylen, cipher_key)) {
+	if (!binarize(cipher_key, keylen, bin_cipher_key)) {
 		log_mesg(LOG_ERR, "peer %u: cipher key has not hex format", point_id);
 		return -1;
 	}
@@ -120,8 +121,8 @@ static int create_peer(struct vpnserver *serv, uint8_t point_id,
 		log_mesg(LOG_ERR, "peer %u: already exists, duplicated id", point_id);
 		return -1;
 	}
-	exp_key = gen_encrypt_key(cipher_key, keylen / 2);
-	if (!exp_key) {
+	encrypt_key = gen_encrypt_key(bin_cipher_key, keylen / 2);
+	if (!encrypt_key) {
 		log_mesg(LOG_ERR, "peer %u: encrypt keygen failed", point_id);
 		return -1;
 	}
@@ -130,7 +131,7 @@ static int create_peer(struct vpnserver *serv, uint8_t point_id,
 	peer->private_ip = vpn_ip;
 	peer->point_id = point_id;
 	peer->last_update = 0;
-	peer->cipher_key = exp_key;
+	peer->encrypt_key = encrypt_key;
 	ip_key.data = (uint8_t *)&vpn_ip;
 	ip_key.len = 4;
 	hashmap_insert(serv->vpn_ip_hash, &ip_key, point_id);
@@ -162,7 +163,7 @@ static int route_packet(struct vpnserver *serv, void *buf, size_t len)
 			return -1;
 		}
 		len += PACKET_SIGNATURE_LEN;
-		encrypt_packet(buf, &len, peer->cipher_key);
+		encrypt_packet(buf, &len, peer->encrypt_key);
 		res = send_udp(serv->sockfd, buf, len, &peer->addr);
 		if (res < 0) {
 			log_mesg(LOG_ERR, "sending packet failed");
@@ -200,7 +201,7 @@ static int socket_handler(struct vpnserver *serv)
 		log_mesg(LOG_NOTICE, "peer %u not found", point_id);
 		return -1;
 	}
-	decrypt_packet(buffer, &length, peer->cipher_key);
+	decrypt_packet(buffer, &length, peer->encrypt_key);
 	if (!check_signature(buffer, &length)) {
 		log_mesg(LOG_NOTICE, "bad packet signature");
 		return -1;
@@ -243,7 +244,7 @@ static int tun_if_handler(struct vpnserver *serv)
 		return -1;
 	}
 	sign_packet(buffer, &length);
-	encrypt_packet(buffer, &length, peer->cipher_key);
+	encrypt_packet(buffer, &length, peer->encrypt_key);
 	res = send_udp(serv->sockfd, buffer, length, &peer->addr);
 	if (res < 0) {
 		log_mesg(LOG_ERR, "sending packet failed");
@@ -344,7 +345,7 @@ static void free_server(struct vpnserver *serv)
 	if (!serv)
 		return;
 	for (i = 0; i < serv->peers_count; i++)
-		free_encrypt_key(serv->peers[i].cipher_key);
+		free(serv->peers[i].encrypt_key);
 	delete_map(serv->vpn_ip_hash);
 	delete_map(serv->ip_hash);
 	free(serv);

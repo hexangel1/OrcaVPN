@@ -79,14 +79,9 @@ void read_random(void *buf, size_t n)
 	}
 }
 
-void *gen_encrypt_key(const void *key, unsigned char key_len)
+void *gen_encrypt_key(const void *cipher_key, unsigned char keylen)
 {
-	return aes_key_schedule(key, key_len);
-}
-
-void free_encrypt_key(void *key)
-{
-	aes_key_destroy(key);
+	return aes_key_schedule(cipher_key, keylen);
 }
 
 void encrypt_packet(void *packet, size_t *len, const void *key)
