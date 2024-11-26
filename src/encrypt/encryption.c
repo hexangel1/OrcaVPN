@@ -31,8 +31,8 @@ static void fill_urandom_buffer(void)
 	urandom_read_pos = 0;
 	while (rc < URANDOM_BUFFER_SIZE) {
 		res = read(urandom_fd, urandom_buffer + rc, URANDOM_BUFFER_SIZE - rc);
-		if (res < 0) {
-			if (errno == EINTR)
+		if (res < 1) {
+			if (res < 0 && errno == EINTR)
 				continue;
 			perror("fill_urandom_buffer");
 			return;
