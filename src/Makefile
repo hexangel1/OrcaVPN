@@ -1,5 +1,6 @@
 PROJECT = orcavpn
-SOURCES = $(wildcard *.c)
+SOURCES = main.c vpnserver.c vpnclient.c network.c sigevent.c \
+	logger.c helper.c configparser.c hashmap.c
 HEADERS = $(filter-out main.h, $(SOURCES:.c=.h))
 OBJECTS = $(SOURCES:.c=.o)
 

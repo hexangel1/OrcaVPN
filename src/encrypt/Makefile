@@ -1,7 +1,7 @@
 LIBNAME = encrypt
 LIBFILE = lib$(LIBNAME).a
 
-SOURCES = $(wildcard *.c)
+SOURCES = encryption.c aes.c sha1.c gfmult.c
 HEADERS = $(SOURCES:.c=.h)
 OBJECTS = $(SOURCES:.c=.o)
 
