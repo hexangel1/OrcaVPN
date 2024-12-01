@@ -17,5 +17,5 @@ if [ $# -ge 3 ]; then
 fi
 
 set -x
-ip route add $SERVER_IP via $DEFAULT_ROUTER
-ip route add default via $SERVER_TUN_IP metric 80
+ip route add $SERVER_IP via $DEFAULT_ROUTER proto static
+ip route add default via $SERVER_TUN_IP proto static
