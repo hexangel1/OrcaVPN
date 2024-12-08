@@ -17,69 +17,50 @@
 		(a)[i] ^= (b)[i]; \
 } while (0)
 
-#define URANDOM_BUFFER_SIZE 262144
-
-static int urandom_fd = -1;
-static size_t urandom_read_pos = 0;
-static uint8_t *urandom_buffer = NULL;
-
-static void fill_urandom_buffer(void)
+static int get_urandom_fd(void)
 {
-	ssize_t res;
-	size_t rc = 0;
+	static int urandom_fd = -1;
 
-	urandom_read_pos = 0;
-	while (rc < URANDOM_BUFFER_SIZE) {
-		res = read(urandom_fd, urandom_buffer + rc, URANDOM_BUFFER_SIZE - rc);
-		if (res < 1) {
-			if (res < 0 && errno == EINTR)
-				continue;
-			perror("fill_urandom_buffer");
-			return;
+	if (urandom_fd < 0) {
+		urandom_fd = open("/dev/urandom", O_RDONLY);
+		if (urandom_fd < 0) {
+			perror("open urandom");
+			return -1;
 		}
-		rc += res;
 	}
+	return urandom_fd;
 }
 
-static void init_urandom_buffer(void)
+static void close_urandom_fd(void)
 {
-	urandom_fd = open("/dev/urandom", O_RDONLY);
-	if (urandom_fd == -1) {
-		perror("init_urandom_buffer");
-		exit(EXIT_FAILURE);
-	}
-	urandom_buffer = malloc(URANDOM_BUFFER_SIZE);
-	memset(urandom_buffer, 0, URANDOM_BUFFER_SIZE);
-	fill_urandom_buffer();
-}
-
-static void free_urandom_buffer(void)
-{
-	close(urandom_fd);
-	free(urandom_buffer);
+	close(get_urandom_fd());
 }
 
 void init_encryption(void)
 {
 	unsigned int seed = time(NULL);
 	srand(seed);
-	init_urandom_buffer();
-	atexit(free_urandom_buffer);
+	if (get_urandom_fd() < 0)
+		exit(EXIT_FAILURE);
+	atexit(close_urandom_fd);
 }
 
-void read_random(void *buf, size_t n)
+int read_random(void *buf, size_t len)
 {
-	size_t urandom_avail, len, rc;
+	ssize_t res;
+	size_t rc = 0;
+	int urandom_fd = get_urandom_fd();
 
-	for (rc = 0; rc < n; rc += len, urandom_read_pos += len) {
-		urandom_avail = URANDOM_BUFFER_SIZE - urandom_read_pos;
-		if (!urandom_avail) {
-			fill_urandom_buffer();
-			urandom_avail = URANDOM_BUFFER_SIZE;
+	while (rc < len) {
+		res = read(urandom_fd, ((char *)buf) + rc, len - rc);
+		if (res < 1) {
+			if (res < 0 && errno == EINTR)
+				continue;
+			return -1;
 		}
-		len = n - rc < urandom_avail ? n - rc : urandom_avail;
-		memcpy((uint8_t *)buf + rc, urandom_buffer + urandom_read_pos, len);
+		rc += res;
 	}
+	return 0;
 }
 
 void *gen_encrypt_key(const void *cipher_key, unsigned char keylen)

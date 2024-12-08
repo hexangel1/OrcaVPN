@@ -7,7 +7,7 @@
 
 void init_encryption(void);
 
-void read_random(void *buf, size_t n);
+int read_random(void *buf, size_t len);
 
 void *gen_encrypt_key(const void *cipher_key, unsigned char keylen);
 
