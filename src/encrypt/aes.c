@@ -74,13 +74,6 @@ static const uint8_t r_con[][4] = {
 
 #define get_round_key(w, r) ((w)->round_keys + 4 * Nb * (r))
 
-#define coef_mult(a, b, c) do { \
-	c[0] = gfmult(a[0], b[0]) ^ gfmult(a[3], b[1]) ^ gfmult(a[2], b[2]) ^ gfmult(a[1], b[3]); \
-	c[1] = gfmult(a[1], b[0]) ^ gfmult(a[0], b[1]) ^ gfmult(a[3], b[2]) ^ gfmult(a[2], b[3]); \
-	c[2] = gfmult(a[2], b[0]) ^ gfmult(a[1], b[1]) ^ gfmult(a[0], b[2]) ^ gfmult(a[3], b[3]); \
-	c[3] = gfmult(a[3], b[0]) ^ gfmult(a[2], b[1]) ^ gfmult(a[1], b[2]) ^ gfmult(a[0], b[3]); \
-} while (0)
-
 static inline void coef_add(const uint8_t a[], const uint8_t b[], uint8_t c[])
 {
 	c[0] = a[0] ^ b[0];
@@ -116,8 +109,7 @@ static inline void add_round_key(uint8_t *state, const uint8_t *restrict rkey)
 
 static inline void mix_columns(uint8_t *state)
 {
-	const uint8_t a[] = {0x01, 0x00, 0x00, 0x02};
-	uint8_t col[4], res[4];
+	uint8_t col[4];
 	register uint8_t j;
 
 	for (j = 0; j < Nb; j++) {
@@ -126,19 +118,16 @@ static inline void mix_columns(uint8_t *state)
 		col[2] = state[Nb * 2 + j];
 		col[3] = state[Nb * 3 + j];
 
-		coef_mult(a, col, res);
-
-		state[Nb * 0 + j] = res[0];
-		state[Nb * 1 + j] = res[1];
-		state[Nb * 2 + j] = res[2];
-		state[Nb * 3 + j] = res[3];
+		state[Nb * 0 + j] = coef_mult0(1, 0, 0, 2, col);
+		state[Nb * 1 + j] = coef_mult1(1, 0, 0, 2, col);
+		state[Nb * 2 + j] = coef_mult2(1, 0, 0, 2, col);
+		state[Nb * 3 + j] = coef_mult3(1, 0, 0, 2, col);
 	}
 }
 
 static inline void inv_mix_columns(uint8_t *state)
 {
-	const uint8_t a[] = {0x06, 0x03, 0x05, 0x04};
-	uint8_t col[4], res[4];
+	uint8_t col[4];
 	register uint8_t j;
 
 	for (j = 0; j < Nb; j++) {
@@ -147,12 +136,10 @@ static inline void inv_mix_columns(uint8_t *state)
 		col[2] = state[Nb * 2 + j];
 		col[3] = state[Nb * 3 + j];
 
-		coef_mult(a, col, res);
-
-		state[Nb * 0 + j] = res[0];
-		state[Nb * 1 + j] = res[1];
-		state[Nb * 2 + j] = res[2];
-		state[Nb * 3 + j] = res[3];
+		state[Nb * 0 + j] = coef_mult0(6, 3, 5, 4, col);
+		state[Nb * 1 + j] = coef_mult1(6, 3, 5, 4, col);
+		state[Nb * 2 + j] = coef_mult2(6, 3, 5, 4, col);
+		state[Nb * 3 + j] = coef_mult3(6, 3, 5, 4, col);
 	}
 }
 
