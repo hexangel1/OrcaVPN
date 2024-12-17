@@ -21,11 +21,8 @@
 
 #define PUTPAD(x) \
 	do { \
-		ctxt->m.b8[ctxt->count % 64] = (x); \
-		ctxt->count++; \
-		ctxt->count %= 64; \
-		if (ctxt->count == 0) \
-			sha1_step(ctxt); \
+		ctxt->m.b8[ctxt->count++] = (x); \
+		ctxt->count &= 63; \
 	} while (0)
 
 #define TO_BIG_ENDIAN32(output, input, size) \
@@ -109,23 +106,23 @@ static void sha1_step(struct sha1_ctxt *ctxt)
 
 static void sha1_pad(struct sha1_ctxt *ctxt)
 {
-	size_t padstart, padlen;
+	size_t padlen;
 
 	PUTPAD(0x80);
-
-	padstart = ctxt->count % 64;
-	padlen = 64 - padstart;
-	if (padlen < 8) {
-		memset(&ctxt->m.b8[padstart], 0, padlen);
-		ctxt->count += padlen;
-		ctxt->count %= 64;
+	if (ctxt->count == 0)
 		sha1_step(ctxt);
-		padstart = 0;
+
+	padlen = 64 - ctxt->count;
+	if (padlen < 8) {
+		memset(&ctxt->m.b8[ctxt->count], 0, padlen);
+		ctxt->count += padlen;
+		ctxt->count &= 63;
+		sha1_step(ctxt);
 		padlen = 64;
 	}
-	memset(&ctxt->m.b8[padstart], 0, padlen - 8);
+	memset(&ctxt->m.b8[ctxt->count], 0, padlen - 8);
 	ctxt->count += (padlen - 8);
-	ctxt->count %= 64;
+	ctxt->count &= 63;
 #ifdef WORDS_BIGENDIAN
 	PUTPAD(ctxt->c.b8[0]);
 	PUTPAD(ctxt->c.b8[1]);
@@ -145,6 +142,8 @@ static void sha1_pad(struct sha1_ctxt *ctxt)
 	PUTPAD(ctxt->c.b8[1]);
 	PUTPAD(ctxt->c.b8[0]);
 #endif
+	/* ctxt->count must be 0 here */
+	sha1_step(ctxt);
 }
 
 void sha1_init(struct sha1_ctxt *ctxt)
@@ -159,20 +158,18 @@ void sha1_init(struct sha1_ctxt *ctxt)
 
 void sha1_loop(struct sha1_ctxt *ctxt, const uint8_t *input, size_t len)
 {
-	size_t gapstart, gaplen, off, written;
+	size_t offs, written;
 
-	for (off = 0; off < len; off += written) {
-		gapstart = ctxt->count % 64;
-		gaplen = 64 - gapstart;
-
-		written = (gaplen < len - off) ? gaplen : len - off;
-		memcpy(&ctxt->m.b8[gapstart], &input[off], written);
-		ctxt->c.b64 += written * 8;
+	for (offs = 0; offs < len; offs += written) {
+		written = (64 < len - offs) ? 64 : len - offs;
+		memcpy(ctxt->m.b8, input + offs, written);
+		ctxt->c.b64 += written;
 		ctxt->count += written;
-		ctxt->count %= 64;
+		ctxt->count &= 63;
 		if (ctxt->count == 0)
 			sha1_step(ctxt);
 	}
+	ctxt->c.b64 <<= 3;
 }
 
 void sha1_result(struct sha1_ctxt *ctxt, uint8_t *digest)
