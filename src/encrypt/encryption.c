@@ -11,10 +11,13 @@
 #include "aes.h"
 #include "sha1.h"
 
-#define memxor(a, b, len) do { \
-	size_t i; \
-	for (i = 0; i < (len); i++) \
-		(a)[i] ^= (b)[i]; \
+#define ENCRYPT 0
+#define DECRYPT 1
+
+#define xor_with_iv(block, iv) do { \
+	uint8_t i; \
+	for (i = 0; i < AES_BLOCK_SIZE; i++) \
+		(block)[i] ^= (iv)[i]; \
 } while (0)
 
 static int get_urandom_fd(void)
@@ -65,7 +68,10 @@ int read_random(void *buf, size_t len)
 
 void *gen_encrypt_key(const void *cipher_key, unsigned char keylen)
 {
-	return aes_key_schedule(cipher_key, keylen);
+	aes_key *keys = malloc(sizeof(aes_key) * 2);
+	aes_set_encrypt_key(cipher_key, keylen * 8, &keys[ENCRYPT]);
+	aes_set_decrypt_key(cipher_key, keylen * 8, &keys[DECRYPT]);
+	return keys;
 }
 
 void encrypt_packet(void *packet, size_t *len, const void *key)
@@ -79,9 +85,10 @@ void encrypt_packet(void *packet, size_t *len, const void *key)
 	read_random(iv - padding, AES_BLOCK_SIZE + padding);
 	data[padded_size - 1] = padding;
 	for (offs = 0; offs < padded_size; offs += AES_BLOCK_SIZE) {
-		memxor(data + offs, iv, AES_BLOCK_SIZE);
-		aes_cipher(data + offs, data + offs, w);
-		iv = data + offs;
+		uint8_t *aes_block = data + offs;
+		xor_with_iv(aes_block, iv);
+		aes_encrypt(aes_block, aes_block, &w[ENCRYPT]);
+		iv = aes_block;
 	}
 	*len += padding + AES_BLOCK_SIZE;
 }
@@ -89,7 +96,7 @@ void encrypt_packet(void *packet, size_t *len, const void *key)
 void decrypt_packet(void *packet, size_t *len, const void *key)
 {
 	uint8_t *data = packet;
-	size_t endoffs, offs, padded_size = *len;
+	size_t endoffs, padded_size = *len;
 	uint8_t padding, *iv;
 	const aes_key *w = key;
 
@@ -99,10 +106,10 @@ void decrypt_packet(void *packet, size_t *len, const void *key)
 	}
 	padded_size -= AES_BLOCK_SIZE;
 	for (endoffs = padded_size; endoffs > 0; endoffs -= AES_BLOCK_SIZE) {
-		offs = endoffs - AES_BLOCK_SIZE;
-		iv = data + (offs > 0 ? offs - AES_BLOCK_SIZE : padded_size);
-		aes_inv_cipher(data + offs, data + offs, w);
-		memxor(data + offs, iv, AES_BLOCK_SIZE);
+		uint8_t *aes_block = data + endoffs - AES_BLOCK_SIZE;
+		iv = aes_block > data ? aes_block - AES_BLOCK_SIZE : data + padded_size;
+		aes_decrypt(aes_block, aes_block, &w[DECRYPT]);
+		xor_with_iv(aes_block, iv);
 	}
 	padding = data[padded_size - 1];
 	if (!padding || padding > AES_BLOCK_SIZE)
