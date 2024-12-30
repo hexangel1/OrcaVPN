@@ -254,6 +254,18 @@ static struct vpnclient *create_client(const char *file)
 static int vpn_client_up(struct vpnclient *clnt)
 {
 	int res;
+	res = create_tun_if(clnt->tun_name);
+	if (res < 0) {
+		log_mesg(LOG_EMERG, "Allocating interface failed");
+		return -1;
+	}
+	clnt->tunfd = res;
+	log_mesg(LOG_INFO, "Created dev %s", clnt->tun_name);
+	res = setup_tun_if(clnt->tun_name, clnt->tun_addr, clnt->tun_netmask);
+	if (res < 0) {
+		log_mesg(LOG_EMERG, "Setting up %s failed", clnt->tun_name);
+		return -1;
+	}
 	res = create_udp_socket(clnt->ip_addr, clnt->port);
 	if (res < 0) {
 		log_mesg(LOG_EMERG, "Create socket failed");
@@ -265,27 +277,15 @@ static int vpn_client_up(struct vpnclient *clnt)
 		log_mesg(LOG_EMERG, "Connection failed");
 		return -1;
 	}
-	res = create_tun_if(clnt->tun_name);
-	if (res < 0) {
-		log_mesg(LOG_EMERG, "Allocating interface failed");
-		return -1;
-	}
-	clnt->tunfd = res;
-	log_mesg(LOG_INFO, "created dev %s", clnt->tun_name);
-	res = setup_tun_if(clnt->tun_name, clnt->tun_addr, clnt->tun_netmask);
-	if (res < 0) {
-		log_mesg(LOG_EMERG, "Setting up %s failed", clnt->tun_name);
-		return -1;
-	}
-	set_nonblock_io(clnt->sockfd);
 	set_nonblock_io(clnt->tunfd);
+	set_nonblock_io(clnt->sockfd);
 	return 0;
 }
 
 static void vpn_client_down(struct vpnclient *clnt)
 {
-	close(clnt->sockfd);
 	close(clnt->tunfd);
+	close(clnt->sockfd);
 	free(clnt->encrypt_key);
 	free(clnt);
 }

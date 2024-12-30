@@ -399,33 +399,33 @@ static struct vpnserver *create_server(const char *file)
 static int vpn_server_up(struct vpnserver *serv)
 {
 	int res;
-	res = create_udp_socket(serv->ip_addr, serv->port);
-	if (res < 0) {
-		log_mesg(LOG_EMERG, "Create socket failed");
-		return -1;
-	}
-	serv->sockfd = res;
 	res = create_tun_if(serv->tun_name);
 	if (res < 0) {
 		log_mesg(LOG_EMERG, "Allocating interface failed");
 		return -1;
 	}
 	serv->tunfd = res;
-	log_mesg(LOG_INFO, "created dev %s", serv->tun_name);
+	log_mesg(LOG_INFO, "Created dev %s", serv->tun_name);
 	res = setup_tun_if(serv->tun_name, serv->tun_addr, serv->tun_netmask);
 	if (res < 0) {
 		log_mesg(LOG_EMERG, "Setting up %s failed", serv->tun_name);
 		return -1;
 	}
-	set_nonblock_io(serv->sockfd);
+	res = create_udp_socket(serv->ip_addr, serv->port);
+	if (res < 0) {
+		log_mesg(LOG_EMERG, "Create socket failed");
+		return -1;
+	}
+	serv->sockfd = res;
 	set_nonblock_io(serv->tunfd);
+	set_nonblock_io(serv->sockfd);
 	return 0;
 }
 
 static void vpn_server_down(struct vpnserver *serv)
 {
-	close(serv->sockfd);
 	close(serv->tunfd);
+	close(serv->sockfd);
 	free_server(serv);
 }
 
