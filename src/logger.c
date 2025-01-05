@@ -13,9 +13,12 @@
 
 #include "logger.h"
 
-static FILE *log_file = NULL;
-static int enable_syslog = 0;
-static int enable_time = 0;
+static struct logger_config {
+	FILE *log_file;
+	const char *log_file_path;
+	int enable_syslog;
+	int enable_time;
+} logger;
 
 static const char *current_timestamp(int local)
 {
@@ -29,10 +32,20 @@ static const char *current_timestamp(int local)
 	return buffer;
 }
 
+static void open_logfile(void)
+{
+	logger.log_file = fopen(logger.log_file_path, "a");
+	if (!logger.log_file) {
+		perror(logger.log_file_path);
+		exit(EXIT_FAILURE);
+	}
+	setbuf(logger.log_file, NULL);
+}
+
 static void close_logfile(void)
 {
-	fflush(log_file);
-	fclose(log_file);
+	fflush(logger.log_file);
+	fclose(logger.log_file);
 }
 
 static void limit_filesize(size_t max_size)
@@ -49,21 +62,18 @@ static void limit_filesize(size_t max_size)
 void init_logger(const char *service, const char *filename,
 	int syslog_on, int time_on)
 {
-	if (filename) {
-		log_file = fopen(filename, "a");
-		if (!log_file) {
-			perror(filename);
-			exit(EXIT_FAILURE);
-		}
-		setbuf(log_file, NULL);
+	logger.log_file_path = filename;
+	logger.enable_syslog = syslog_on;
+	logger.enable_time = time_on;
+
+	if (logger.log_file_path) {
+		open_logfile();
 		atexit(close_logfile);
 		limit_filesize(LOG_FILE_SIZE_LIMIT);
 	} else {
-		log_file = stderr;
+		logger.log_file = stderr;
 	}
-	enable_syslog = syslog_on;
-	enable_time = time_on;
-	if (enable_syslog) {
+	if (logger.enable_syslog) {
 		unsigned int logmask = setlogmask(0);
 		setlogmask(logmask & ~LOG_MASK(LOG_NOTICE));
 		openlog(service, LOG_PID | LOG_CONS | LOG_NDELAY, LOG_DAEMON);
@@ -77,7 +87,7 @@ void log_mesg(int level, const char *mesg, ...)
 		"emerg", "alert",  "crit", "err",
 		"warn",  "notice", "info", "debug",
 	};
-	const char *timestamp = "";
+	const char *ts = "";
 	char buffer[1024];
 	int len;
 	va_list args;
@@ -87,10 +97,10 @@ void log_mesg(int level, const char *mesg, ...)
 	va_end(args);
 	if (len < 0 || (size_t)len > sizeof(buffer)-1)
 		return;
-	if (enable_time != LOG_NO_DATETIME)
-		timestamp = current_timestamp(enable_time == LOG_LOCAL_DATETIME);
-	fprintf(log_file, "%s[%s] %s\n", timestamp, str_levels[level], buffer);
-	if (enable_syslog)
+	if (logger.enable_time != LOG_NO_DATETIME)
+		ts = current_timestamp(logger.enable_time == LOG_LOCAL_DATETIME);
+	fprintf(logger.log_file, "%s[%s] %s\n", ts, str_levels[level], buffer);
+	if (logger.enable_syslog)
 		syslog(level, "%s", buffer);
 }
 
@@ -100,4 +110,10 @@ void log_perror(const char *mesg)
 	if (!err)
 		err = "unknown error occurred";
 	log_mesg(LOG_ERR, "%s: %s", mesg, err);
+}
+
+void log_rotate(void)
+{
+	close_logfile();
+	open_logfile();
 }

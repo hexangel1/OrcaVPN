@@ -451,6 +451,7 @@ reload_server:
 	reload = serv->reload_flag;
 	vpn_server_down(serv);
 	if (reload) {
+		log_rotate();
 		log_mesg(LOG_INFO, "Reloading server...");
 		goto reload_server;
 	}

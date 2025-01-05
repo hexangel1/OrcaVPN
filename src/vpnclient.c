@@ -312,6 +312,7 @@ reload_client:
 	reload = clnt->reload_flag;
 	vpn_client_down(clnt);
 	if (reload) {
+		log_rotate();
 		log_mesg(LOG_INFO, "Reloading client...");
 		goto reload_client;
 	}

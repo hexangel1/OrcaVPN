@@ -16,4 +16,6 @@ void log_mesg(int level, const char *mesg, ...);
 
 void log_perror(const char *mesg);
 
+void log_rotate(void);
+
 #endif /* LOGGER_H_SENTRY */
