@@ -7,7 +7,7 @@
 #define LOG_UTC_DATETIME 1
 #define LOG_LOCAL_DATETIME 2
 
-#define LOG_FILE_SIZE_LIMIT 1048576UL /* 1 GB */
+#define LOG_FILE_SIZE_LIMIT 2147483648UL /* 2 GB */
 
 void init_logger(const char *service, const char *filename,
 	int syslog_on, int time_on);
