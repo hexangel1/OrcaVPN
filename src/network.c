@@ -117,6 +117,8 @@ static ssize_t send_udp_af(int af, int sockfd, const void *buf, size_t len,
 			if (errno == EAGAIN || errno == EWOULDBLOCK) {
 				block_for_write(sockfd);
 				success = 0;
+			} else if (errno == EINTR) {
+				success = 0;
 			} else {
 				log_perror("sendto");
 				return -1;
@@ -133,10 +135,15 @@ static ssize_t recv_udp_af(int af, int sockfd, void *buf, size_t len,
 	socklen_t addrlen = AF_SOCKLEN(af);
 
 	res = recvfrom(sockfd, buf, len, 0, addr, addr ? &addrlen : NULL);
-	if (res <= 0) {
-		log_perror("recvfrom");
-		return -1;
+	if (res < 0) {
+		if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
+			log_perror("recvfrom");
+			return -1;
+		}
+		res = 0;
 	}
+	if (!res)
+		log_mesg(LOG_NOTICE, "received no data on udp socket");
 	return res;
 }
 
@@ -333,6 +340,33 @@ int setup_tun_if(const char *ifname, const char *addr, const char *mask)
 		return -1;
 	}
 	return 0;
+}
+
+ssize_t send_tun(int tunfd, const void *buf, size_t len)
+{
+	ssize_t res;
+	res = write(tunfd, buf, len);
+	if (res < 0) {
+		log_perror("write tun device");
+		return -1;
+	}
+	return res;
+}
+
+ssize_t recv_tun(int tunfd, void *buf, size_t len)
+{
+	ssize_t res;
+	res = read(tunfd, buf, len);
+	if (res < 0) {
+		if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
+			log_perror("read tun device");
+			return -1;
+		}
+		res = 0;
+	}
+	if (!res)
+		log_mesg(LOG_NOTICE, "received no data on tun device");
+	return res;
 }
 
 void set_nonblock_io(int fd)

@@ -209,20 +209,16 @@ static int route_packet(struct vpnserver *serv, struct vpn_peer *src,
 		len += PACKET_SIGNATURE_LEN;
 		encrypt_packet(buf, &len, dest->encrypt_key);
 		res = send_udp(serv->sockfd, buf, len, &dest->addr);
-		if (res < 0) {
-			log_mesg(LOG_ERR, "sending packet failed");
-			return -1;
-		}
 	} else {
 		if (!src->inet_on && dest_ip != serv->private_ip) {
 			log_drop_packet("source inet disabled", src_ip, dest_ip);
 			return -1;
 		}
-		res = write(serv->tunfd, buf, len);
-		if (res < 0) {
-			log_perror("write to tun failed");
-			return -1;
-		}
+		res = send_tun(serv->tunfd, buf, len);
+	}
+	if (res < 0) {
+		log_mesg(LOG_ERR, "forwarding client packet failed");
+		return -1;
 	}
 	return 0;
 }
@@ -238,9 +234,12 @@ static int socket_handler(struct vpnserver *serv)
 
 	res = recv_udp(serv->sockfd, buffer, MAX_UDP_PAYLOAD, &addr);
 	if (res < 0) {
-		log_mesg(LOG_ERR, "receiving packet failed");
-		return -1;
+		log_mesg(LOG_EMERG, "fatal error reading udp socket");
+		exit(EXIT_FAILURE);
 	}
+	if (!res)
+		return 0;
+
 	log_ip_address(serv->ip_hash, &addr);
 	length = res;
 	point_id = buffer[--length];
@@ -271,11 +270,14 @@ static int tun_if_handler(struct vpnserver *serv)
 	size_t length;
 	uint32_t src_ip, dest_ip;
 
-	res = read(serv->tunfd, buffer, TUN_IF_MTU);
-	if (res <= 0) {
-		log_perror("read from tun failed");
-		return -1;
+	res = recv_tun(serv->tunfd, buffer, TUN_IF_MTU);
+	if (res < 0) {
+		log_mesg(LOG_EMERG, "fatal error reading tun device");
+		exit(EXIT_FAILURE);
 	}
+	if (!res)
+		return 0;
+
 	length = res;
 	src_ip = get_source_ip(buffer, length);
 	dest_ip = get_destination_ip(buffer, length);
@@ -300,7 +302,7 @@ static int tun_if_handler(struct vpnserver *serv)
 	encrypt_packet(buffer, &length, peer->encrypt_key);
 	res = send_udp(serv->sockfd, buffer, length, &peer->addr);
 	if (res < 0) {
-		log_mesg(LOG_ERR, "sending packet failed");
+		log_mesg(LOG_ERR, "forwarding tun packet failed");
 		return -1;
 	}
 	return 0;

@@ -79,18 +79,20 @@ static int socket_handler(struct vpnclient *clnt)
 
 	res = recv_udp(clnt->sockfd, buffer, MAX_UDP_PAYLOAD, NULL);
 	if (res < 0) {
-		log_mesg(LOG_ERR, "receiving packet failed");
-		return -1;
+		log_mesg(LOG_EMERG, "fatal error reading udp socket");
+		exit(EXIT_FAILURE);
 	}
+	if (!res)
+		return 0;
 	length = res;
 	decrypt_packet(buffer, &length, clnt->encrypt_key);
 	if (!check_signature(buffer, &length)) {
 		log_mesg(LOG_NOTICE, "bad packet signature");
 		return -1;
 	}
-	res = write(clnt->tunfd, buffer, length);
+	res = send_tun(clnt->tunfd, buffer, length);
 	if (res < 0) {
-		log_perror("write to tun failed");
+		log_mesg(LOG_ERR, "sending packet to tun failed");
 		return -1;
 	}
 	return 0;
@@ -102,11 +104,13 @@ static int tun_if_handler(struct vpnclient *clnt)
 	ssize_t res;
 	size_t length;
 
-	res = read(clnt->tunfd, buffer, TUN_IF_MTU);
-	if (res <= 0) {
-		log_perror("read from tun failed");
-		return -1;
+	res = recv_tun(clnt->tunfd, buffer, TUN_IF_MTU);
+	if (res < 0) {
+		log_mesg(LOG_EMERG, "fatal error reading tun device");
+		exit(EXIT_FAILURE);
 	}
+	if (!res)
+		return 0;
 	length = res;
 	if (clnt->private_ip != get_source_ip(buffer, length))
 		return -1;
@@ -115,7 +119,7 @@ static int tun_if_handler(struct vpnclient *clnt)
 	buffer[length++] = clnt->point_id;
 	res = send_udp(clnt->sockfd, buffer, length, NULL);
 	if (res < 0) {
-		log_mesg(LOG_ERR, "sending packet failed");
+		log_mesg(LOG_ERR, "sending packet to server failed");
 		return -1;
 	}
 	return 0;
