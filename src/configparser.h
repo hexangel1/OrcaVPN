@@ -24,4 +24,6 @@ const char *get_str_var(struct config_section *cfg, const char *var, int len);
 
 int get_int_var(struct config_section *cfg, const char *var);
 
+int get_bool_var(struct config_section *cfg, const char *var);
+
 #endif /* CONFIGPARSER_H_SENTRY */

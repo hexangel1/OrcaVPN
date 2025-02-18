@@ -154,3 +154,21 @@ int get_int_var(struct config_section *cfg, const char *var)
 	const char *value = get_var_value(cfg, var);
 	return value ? atoi(value) : 0;
 }
+
+int get_bool_var(struct config_section *cfg, const char *var)
+{
+	static const char *const boolean_values[] = {
+		"on", "off", "true", "false", "1", "0"
+	};
+	const char *value;
+	unsigned int i;
+
+	value = get_var_value(cfg, var);
+	if (!value)
+		return 0;
+	for (i = 0; i < sizeof(boolean_values) / sizeof(boolean_values[0]); i++) {
+		if (!strcmp(value, boolean_values[i]))
+			return !(i % 2);
+	}
+	return -1;
+}
