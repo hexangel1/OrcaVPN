@@ -68,7 +68,9 @@ static const char usage[] = "Usage: %s "
 
 int main(int argc, char **argv)
 {
-	int res = get_command_line_options(argc, argv);
+	int res, status = 0;
+
+	res = get_command_line_options(argc, argv);
 	if (res < 0) {
 		fprintf(stderr, usage, argv[0]);
 		exit(EXIT_FAILURE);
@@ -85,16 +87,16 @@ int main(int argc, char **argv)
 	case VPNSERVER_MODE:
 		if (!config_file)
 			config_file = "config/server/orcavpn.conf";
-		run_vpnserver(config_file);
+		status = run_vpnserver(config_file);
 		break;
 	case VPNCLIENT_MODE:
 		if (!config_file)
 			config_file = "config/client/orcavpn.conf";
-		run_vpnclient(config_file);
+		status = run_vpnclient(config_file);
 		break;
 	default:
 		log_mesg(LOG_EMERG, "Unknown working mode");
 		exit(EXIT_FAILURE);
 	}
-	return 0;
+	return status;
 }

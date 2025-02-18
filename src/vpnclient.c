@@ -21,6 +21,9 @@
 struct vpnclient {
 	int tunfd;
 	int sockfd;
+
+	int exit_loop;
+	int status_flag;
 	int reload_flag;
 
 	unsigned short port;
@@ -41,6 +44,13 @@ struct vpnclient {
 	uint16_t sequance_id;
 	uint16_t sequance_no;
 };
+
+static void die_client(struct vpnclient *clnt, const char *mesg)
+{
+	log_mesg(LOG_EMERG, "Fatal error %s, process exiting", mesg);
+	clnt->status_flag = EXIT_FAILURE;
+	clnt->exit_loop = 1;
+}
 
 static int ping_vpn_router(struct vpnclient *clnt)
 {
@@ -79,8 +89,8 @@ static int socket_handler(struct vpnclient *clnt)
 
 	res = recv_udp(clnt->sockfd, buffer, MAX_UDP_PAYLOAD, NULL);
 	if (res < 0) {
-		log_mesg(LOG_EMERG, "fatal error reading udp socket");
-		exit(EXIT_FAILURE);
+		die_client(clnt, "reading udp socket");
+		return -1;
 	}
 	if (!res)
 		return 0;
@@ -106,8 +116,8 @@ static int tun_if_handler(struct vpnclient *clnt)
 
 	res = recv_tun(clnt->tunfd, buffer, TUN_IF_MTU);
 	if (res < 0) {
-		log_mesg(LOG_EMERG, "fatal error reading tun device");
-		exit(EXIT_FAILURE);
+		die_client(clnt, "reading tun device");
+		return -1;
 	}
 	if (!res)
 		return 0;
@@ -125,18 +135,17 @@ static int tun_if_handler(struct vpnclient *clnt)
 	return 0;
 }
 
-static int sigevent_handler(struct vpnclient *clnt)
+static void sigevent_handler(struct vpnclient *clnt)
 {
 	switch (get_signal_event()) {
 	case sigevent_reload:
 		clnt->reload_flag = 1;
 		/* fallthrough */
 	case sigevent_stop:
-		return -1;
+		clnt->exit_loop = 1;
 	case sigevent_absent:
 		;
 	}
-	return 0;
 }
 
 static void vpn_client_handle(struct vpnclient *clnt)
@@ -147,7 +156,7 @@ static void vpn_client_handle(struct vpnclient *clnt)
 	int res, nfds = MAX(clnt->tunfd, clnt->sockfd) + 1;
 
 	setup_signal_events(&sigmask);
-	for (;;) {
+	while (!clnt->exit_loop) {
 		FD_ZERO(&readfds);
 		FD_SET(clnt->tunfd, &readfds);
 		FD_SET(clnt->sockfd, &readfds);
@@ -155,11 +164,10 @@ static void vpn_client_handle(struct vpnclient *clnt)
 		if (res < 0) {
 			if (errno != EINTR) {
 				log_perror("pselect");
+				die_client(clnt, "polling fds");
 				break;
 			}
-			res = sigevent_handler(clnt);
-			if (res < 0)
-				break;
+			sigevent_handler(clnt);
 			continue;
 		}
 		if (res == 0) {
@@ -234,6 +242,8 @@ static struct vpnclient *create_client(const char *file)
 	memset(clnt, 0, sizeof(struct vpnclient));
 	clnt->tunfd = -1;
 	clnt->sockfd = -1;
+	clnt->exit_loop = 0;
+	clnt->status_flag = 0;
 	clnt->reload_flag = 0;
 
 	strcpy(clnt->ip_addr, ip_addr);
@@ -294,10 +304,10 @@ static void vpn_client_down(struct vpnclient *clnt)
 	free(clnt);
 }
 
-void run_vpnclient(const char *config)
+int run_vpnclient(const char *config)
 {
 	struct vpnclient *clnt;
-	int res, reload;
+	int res, reload, status;
 
 reload_client:
 	clnt = create_client(config);
@@ -314,11 +324,14 @@ reload_client:
 	log_mesg(LOG_INFO, "Running client...");
 	vpn_client_handle(clnt);
 	reload = clnt->reload_flag;
+	status = clnt->status_flag;
 	vpn_client_down(clnt);
 	if (reload) {
 		log_rotate();
 		log_mesg(LOG_INFO, "Reloading client...");
 		goto reload_client;
 	}
-	log_mesg(LOG_INFO, "Gracefully finished");
+	if (!status)
+		log_mesg(LOG_INFO, "Gracefully finished");
+	return status;
 }

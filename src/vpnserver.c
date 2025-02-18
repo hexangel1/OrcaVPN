@@ -33,6 +33,9 @@ struct vpn_peer {
 struct vpnserver {
 	int tunfd;
 	int sockfd;
+
+	int exit_loop;
+	int status_flag;
 	int reload_flag;
 
 	unsigned short port;
@@ -52,6 +55,13 @@ struct vpnserver {
 	hashmap_t *vpn_ip_hash;
 	hashmap_t *ip_hash;
 };
+
+static void die_server(struct vpnserver *serv, const char *mesg)
+{
+	log_mesg(LOG_EMERG, "Fatal error %s, process exiting", mesg);
+	serv->status_flag = EXIT_FAILURE;
+	serv->exit_loop = 1;
+}
 
 static void log_ip_address(hashmap_t *ip_hash, struct sockaddr_in *addr)
 {
@@ -234,8 +244,8 @@ static int socket_handler(struct vpnserver *serv)
 
 	res = recv_udp(serv->sockfd, buffer, MAX_UDP_PAYLOAD, &addr);
 	if (res < 0) {
-		log_mesg(LOG_EMERG, "fatal error reading udp socket");
-		exit(EXIT_FAILURE);
+		die_server(serv, "reading udp socket");
+		return -1;
 	}
 	if (!res)
 		return 0;
@@ -272,8 +282,8 @@ static int tun_if_handler(struct vpnserver *serv)
 
 	res = recv_tun(serv->tunfd, buffer, TUN_IF_MTU);
 	if (res < 0) {
-		log_mesg(LOG_EMERG, "fatal error reading tun device");
-		exit(EXIT_FAILURE);
+		die_server(serv, "reading tun device");
+		return -1;
 	}
 	if (!res)
 		return 0;
@@ -308,18 +318,17 @@ static int tun_if_handler(struct vpnserver *serv)
 	return 0;
 }
 
-static int sigevent_handler(struct vpnserver *serv)
+static void sigevent_handler(struct vpnserver *serv)
 {
 	switch (get_signal_event()) {
 	case sigevent_reload:
 		serv->reload_flag = 1;
 		/* fallthrough */
 	case sigevent_stop:
-		return -1;
+		serv->exit_loop = 1;
 	case sigevent_absent:
 		;
 	}
-	return 0;
 }
 
 static void vpn_server_handle(struct vpnserver *serv)
@@ -329,7 +338,7 @@ static void vpn_server_handle(struct vpnserver *serv)
 	int res, nfds = MAX(serv->tunfd, serv->sockfd) + 1;
 
 	setup_signal_events(&sigmask);
-	for (;;) {
+	while (!serv->exit_loop) {
 		FD_ZERO(&readfds);
 		FD_SET(serv->tunfd, &readfds);
 		FD_SET(serv->sockfd, &readfds);
@@ -337,11 +346,10 @@ static void vpn_server_handle(struct vpnserver *serv)
 		if (res < 0) {
 			if (errno != EINTR) {
 				log_perror("pselect");
+				die_server(serv, "polling fds");
 				break;
 			}
-			res = sigevent_handler(serv);
-			if (res < 0)
-				break;
+			sigevent_handler(serv);
 			continue;
 		}
 		if (FD_ISSET(serv->tunfd, &readfds))
@@ -449,6 +457,8 @@ static struct vpnserver *create_server(const char *file)
 
 	serv->tunfd = -1;
 	serv->sockfd = -1;
+	serv->exit_loop = 0;
+	serv->status_flag = 0;
 	serv->reload_flag = 0;
 	serv->private_ip = inet_network(serv->tun_addr);
 	serv->private_mask = inet_network(serv->tun_netmask);
@@ -497,10 +507,10 @@ static void vpn_server_down(struct vpnserver *serv)
 	free_server(serv);
 }
 
-void run_vpnserver(const char *config)
+int run_vpnserver(const char *config)
 {
 	struct vpnserver *serv;
-	int res, reload;
+	int res, reload, status;
 
 reload_server:
 	serv = create_server(config);
@@ -517,11 +527,14 @@ reload_server:
 	log_mesg(LOG_INFO, "Running server...");
 	vpn_server_handle(serv);
 	reload = serv->reload_flag;
+	status = serv->status_flag;
 	vpn_server_down(serv);
 	if (reload) {
 		log_rotate();
 		log_mesg(LOG_INFO, "Reloading server...");
 		goto reload_server;
 	}
-	log_mesg(LOG_INFO, "Gracefully finished");
+	if (!status)
+		log_mesg(LOG_INFO, "Gracefully finished");
+	return status;
 }
