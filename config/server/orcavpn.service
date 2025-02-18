@@ -13,8 +13,8 @@ Environment=MODE=server
 
 ExecStartPre=/usr/local/sbin/vpnserver-setup.sh
 ExecStart=/usr/local/sbin/orcavpn -d -m $MODE -c $CONFIGFILE -p $PIDFILE -l $LOGFILE
-ExecStop=/bin/kill -s SIGTERM $MAINPID
 ExecReload=/bin/kill -s SIGHUP $MAINPID
+ExecStop=/bin/kill -s SIGTERM $MAINPID
 TimeoutSec=10
 
 [Install]
