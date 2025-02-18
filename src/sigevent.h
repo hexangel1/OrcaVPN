@@ -5,8 +5,8 @@
 
 typedef enum sigevent_status {
 	sigevent_absent,
-	sigevent_shutdown,
-	sigevent_restart
+	sigevent_reload,
+	sigevent_stop
 } sigevent_status_t;
 
 void setup_signal_events(sigset_t *origmask);

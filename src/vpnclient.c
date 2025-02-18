@@ -121,14 +121,13 @@ static int tun_if_handler(struct vpnclient *clnt)
 	return 0;
 }
 
-static int sigevent_handler(struct vpnclient *clnt, const sigset_t *sigmask)
+static int sigevent_handler(struct vpnclient *clnt)
 {
 	switch (get_signal_event()) {
-	case sigevent_restart:
+	case sigevent_reload:
 		clnt->reload_flag = 1;
 		/* fallthrough */
-	case sigevent_shutdown:
-		restore_signal_mask(sigmask);
+	case sigevent_stop:
 		return -1;
 	case sigevent_absent:
 		;
@@ -154,7 +153,7 @@ static void vpn_client_handle(struct vpnclient *clnt)
 				log_perror("pselect");
 				break;
 			}
-			res = sigevent_handler(clnt, &sigmask);
+			res = sigevent_handler(clnt);
 			if (res < 0)
 				break;
 			continue;
@@ -168,6 +167,7 @@ static void vpn_client_handle(struct vpnclient *clnt)
 		if (FD_ISSET(clnt->sockfd, &readfds))
 			socket_handler(clnt);
 	}
+	restore_signal_mask(&sigmask);
 }
 
 #define CONFIG_ERROR(message) \

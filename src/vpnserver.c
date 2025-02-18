@@ -306,14 +306,13 @@ static int tun_if_handler(struct vpnserver *serv)
 	return 0;
 }
 
-static int sigevent_handler(struct vpnserver *serv, const sigset_t *sigmask)
+static int sigevent_handler(struct vpnserver *serv)
 {
 	switch (get_signal_event()) {
-	case sigevent_restart:
+	case sigevent_reload:
 		serv->reload_flag = 1;
 		/* fallthrough */
-	case sigevent_shutdown:
-		restore_signal_mask(sigmask);
+	case sigevent_stop:
 		return -1;
 	case sigevent_absent:
 		;
@@ -338,7 +337,7 @@ static void vpn_server_handle(struct vpnserver *serv)
 				log_perror("pselect");
 				break;
 			}
-			res = sigevent_handler(serv, &sigmask);
+			res = sigevent_handler(serv);
 			if (res < 0)
 				break;
 			continue;
@@ -348,6 +347,7 @@ static void vpn_server_handle(struct vpnserver *serv)
 		if (FD_ISSET(serv->sockfd, &readfds))
 			socket_handler(serv);
 	}
+	restore_signal_mask(&sigmask);
 }
 
 #define ADD_PEER_ERROR(message, peer) \

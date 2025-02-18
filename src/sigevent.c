@@ -8,10 +8,10 @@ static volatile sig_atomic_t sigevent_flag = sigevent_absent;
 
 static void signal_handler(int signum)
 {
-	if (signum == SIGTERM || signum == SIGUSR1)
-		sigevent_flag = sigevent_shutdown;
-	else if (signum == SIGHUP || signum == SIGUSR2)
-		sigevent_flag = sigevent_restart;
+	if (signum == SIGHUP || signum == SIGUSR1)
+		sigevent_flag = sigevent_reload;
+	else if (signum == SIGTERM || signum == SIGUSR2)
+		sigevent_flag = sigevent_stop;
 }
 
 static void register_sigactions(void)
