@@ -68,7 +68,10 @@ int read_random(void *buf, size_t len)
 
 void *gen_encrypt_key(const void *cipher_key, unsigned char keylen)
 {
-	aes_key *keys = malloc(sizeof(aes_key) * 2);
+	aes_key *keys;
+	if (keylen != 16 && keylen != 24 && keylen != 32)
+		return NULL;
+	keys = malloc(sizeof(aes_key) * 2);
 	aes_set_encrypt_key(cipher_key, keylen * 8, &keys[ENCRYPT]);
 	aes_set_decrypt_key(cipher_key, keylen * 8, &keys[DECRYPT]);
 	return keys;
