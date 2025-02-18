@@ -106,10 +106,13 @@ void log_mesg(int level, const char *mesg, ...)
 
 void log_perror(const char *mesg)
 {
+	int save_errno = errno;
 	const char *err = strerror(errno);
+
 	if (!err)
 		err = "unknown error occurred";
 	log_mesg(LOG_ERR, "%s: %s", mesg, err);
+	errno = save_errno;
 }
 
 void log_rotate(void)
