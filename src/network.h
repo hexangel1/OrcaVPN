@@ -63,6 +63,7 @@ size_t write_icmp_echo(void *buf, const struct icmp_echo_param *param);
 uint32_t get_destination_ip(const void *buf, size_t len);
 uint32_t get_source_ip(const void *buf, size_t len);
 
+const char *ipv4tosb(uint32_t ip, int host_order, char *buf);
 const char *ipv4tos(uint32_t ip, int host_order);
 int ip_in_network(uint32_t ip, uint32_t network, uint32_t mask);
 

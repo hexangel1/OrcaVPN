@@ -1,3 +1,4 @@
+#define _XOPEN_SOURCE 500
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -422,11 +423,22 @@ uint32_t get_source_ip(const void *buf, size_t len)
 	return ntohl(ip_header->saddr);
 }
 
+const char *ipv4tosb(uint32_t ip, int host_order, char *buf)
+{
+	static char ipv4_buffer[MAX_IPV4_ADDR_LEN];
+
+	if (!buf)
+		buf = ipv4_buffer;
+	if (!host_order)
+		ip = ntohl(ip);
+	snprintf(buf, sizeof(ipv4_buffer), "%u.%u.%u.%u",
+		(ip >> 24) & 0xFF, (ip >> 16) & 0xFF, (ip >> 8) & 0xFF, ip & 0xFF);
+	return buf;
+}
+
 const char *ipv4tos(uint32_t ip, int host_order)
 {
-	struct in_addr addr;
-	addr.s_addr = host_order ? htonl(ip) : ip;
-	return inet_ntoa(addr);
+	return ipv4tosb(ip, host_order, NULL);
 }
 
 int ip_in_network(uint32_t ip, uint32_t network, uint32_t mask)
