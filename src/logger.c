@@ -117,6 +117,8 @@ void log_perror(const char *mesg)
 
 void log_rotate(void)
 {
+	if (!logger.log_file_path)
+		return;
 	close_logfile();
 	open_logfile();
 }
