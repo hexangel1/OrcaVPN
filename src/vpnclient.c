@@ -291,6 +291,8 @@ static int vpn_client_up(struct vpnclient *clnt)
 		log_mesg(LOG_EMERG, "Connection failed");
 		return -1;
 	}
+	set_max_sndbuf(clnt->sockfd);
+	set_max_rcvbuf(clnt->sockfd);
 	set_nonblock_io(clnt->tunfd);
 	set_nonblock_io(clnt->sockfd);
 	return 0;

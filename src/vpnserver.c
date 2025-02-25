@@ -495,6 +495,8 @@ static int vpn_server_up(struct vpnserver *serv)
 		return -1;
 	}
 	serv->sockfd = res;
+	set_max_sndbuf(serv->sockfd);
+	set_max_rcvbuf(serv->sockfd);
 	set_nonblock_io(serv->tunfd);
 	set_nonblock_io(serv->sockfd);
 	return 0;
