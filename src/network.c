@@ -66,7 +66,7 @@ static int create_socket_af(int af, int type, const char *ip, uint16_t port)
 		log_mesg(LOG_ERR, "get_sockaddr: invalid ip address");
 		return -1;
 	}
-	res = socket(af, type, IPPROTO_IP);
+	res = socket(af, type, 0);
 	if (res < 0) {
 		log_perror("socket");
 		return -1;
@@ -367,6 +367,68 @@ ssize_t recv_tun(int tunfd, void *buf, size_t len)
 	if (!res)
 		log_mesg(LOG_NOTICE, "received no data on tun device");
 	return res;
+}
+
+int set_max_sndbuf(int sockfd)
+{
+	int res, snd_bufsize;
+	socklen_t optlen = sizeof(snd_bufsize);
+	FILE *fp;
+
+	fp = fopen("/proc/sys/net/core/wmem_max", "r");
+	if (!fp) {
+		log_mesg(LOG_NOTICE, "wmem_max value not found");
+		return -1;
+	}
+	res = fscanf(fp, "%d", &snd_bufsize);
+	fclose(fp);
+	if (res < 1) {
+		log_mesg(LOG_NOTICE, "invalid wmem_max value");
+		return -1;
+	}
+	res = setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, &snd_bufsize, optlen);
+	if (res < 0) {
+		log_perror("setsockopt");
+		return -1;
+	}
+	res = getsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, &snd_bufsize, &optlen);
+	if (res < 0) {
+		log_perror("getsockopt");
+		return -1;
+	}
+	log_mesg(LOG_DEBUG, "SO_SNDBUF = %d", snd_bufsize);
+	return 0;
+}
+
+int set_max_rcvbuf(int sockfd)
+{
+	int res, rcv_bufsize;
+	socklen_t optlen = sizeof(rcv_bufsize);
+	FILE *fp;
+
+	fp = fopen("/proc/sys/net/core/rmem_max", "r");
+	if (!fp) {
+		log_mesg(LOG_NOTICE, "rmem_max value not found");
+		return -1;
+	}
+	res = fscanf(fp, "%d", &rcv_bufsize);
+	fclose(fp);
+	if (res < 1) {
+		log_mesg(LOG_NOTICE, "invalid rmem_max value");
+		return -1;
+	}
+	res = setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, &rcv_bufsize, optlen);
+	if (res < 0) {
+		log_perror("setsockopt");
+		return -1;
+	}
+	res = getsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, &rcv_bufsize, &optlen);
+	if (res < 0) {
+		log_perror("getsockopt");
+		return -1;
+	}
+	log_mesg(LOG_DEBUG, "SO_RCVBUF = %d", rcv_bufsize);
+	return 0;
 }
 
 void set_nonblock_io(int fd)

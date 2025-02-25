@@ -57,6 +57,9 @@ int setup_tun_if(const char *ifname, const char *addr, const char *mask);
 ssize_t send_tun(int tunfd, const void *buf, size_t len);
 ssize_t recv_tun(int tunfd, void *buf, size_t len);
 
+int set_max_sndbuf(int sockfd);
+int set_max_rcvbuf(int sockfd);
+
 void set_nonblock_io(int fd);
 void block_for_write(int fd);
 
