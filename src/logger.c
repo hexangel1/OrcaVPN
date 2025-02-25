@@ -74,8 +74,8 @@ void init_logger(const char *service, const char *filename,
 		logger.log_file = stderr;
 	}
 	if (logger.enable_syslog) {
-		unsigned int logmask = setlogmask(0);
-		setlogmask(logmask & ~LOG_MASK(LOG_NOTICE));
+		int logmask = setlogmask(0);
+		setlogmask(logmask & ~(LOG_MASK(LOG_NOTICE) | LOG_MASK(LOG_DEBUG)));
 		openlog(service, LOG_PID | LOG_CONS | LOG_NDELAY, LOG_DAEMON);
 		atexit(closelog);
 	}
