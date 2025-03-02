@@ -1,24 +1,12 @@
-#!/usr/bin/sh
+#!/bin/sh
 
-INET_DEV='eth0'
-TUN_DEV='orca-gate'
-PRIVATE='10.80.80.0/24'
-
-if [ $# -ge 1 ]; then
-    INET_DEV=$1
-fi
-
-if [ $# -ge 2 ]; then
-    TUN_DEV=$2
-fi
-
-if [ $# -ge 3 ]; then
-    PRIVATE=$3
-fi
+INET_DEV=${INET_DEV:-${1:-'eth0'}}
+TUN_DEV=${TUN_DEV:-${2:-'orca-gate'}}
+PRIVATE_NET=${PRIVATE_NET:-${3:-'10.80.80.0/24'}}
 
 RULE1="-i ${TUN_DEV} -o ${INET_DEV} -j ACCEPT"
 RULE2="-i ${INET_DEV} -o ${TUN_DEV} -j ACCEPT"
-RULE3="-t nat -s ${PRIVATE} -o ${INET_DEV} -j MASQUERADE"
+RULE3="-t nat -s ${PRIVATE_NET} -o ${INET_DEV} -j MASQUERADE"
 RULE4="-i ${INET_DEV} --proto icmp --icmp-type echo-request -j DROP"
 
 set -x

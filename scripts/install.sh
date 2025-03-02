@@ -1,4 +1,4 @@
-#!/usr/bin/sh
+#!/bin/sh
 
 if [ $# -ne 1 ]; then
     echo "Select configuration mode: server or client"

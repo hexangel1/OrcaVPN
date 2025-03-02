@@ -1,4 +1,4 @@
-#!/usr/bin/sh
+#!/bin/sh
 
 LOGFILE=/var/log/orcavpn.log
 FILESIZE_MB_LIMIT=10
