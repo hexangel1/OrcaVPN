@@ -16,7 +16,7 @@
 #include "logger.h"
 #include "helper.h"
 
-#define IDLE_TIMEOUT 60
+#define IDLE_TIMEOUT 30
 
 struct vpnclient {
 	int tunfd;
