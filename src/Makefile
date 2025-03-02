@@ -23,7 +23,7 @@ deps.mk: $(SOURCES) Makefile
 	$(CC) -MM $(SOURCES) > $@
 
 tags: $(SOURCES) $(HEADERS)
-	$(CTAGS) $(SOURCES) $(HEADERS)
+	$(CTAGS) $(SOURCES) $(HEADERS) encrypt/*
 
 clean:
 	rm -f $(PROJECT) *.o *.a *.bin deps.mk tags

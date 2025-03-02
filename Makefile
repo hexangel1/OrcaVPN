@@ -7,6 +7,9 @@ default: $(PROJECT)
 $(PROJECT):
 	cd src && $(MAKE) $@
 
+tags:
+	cd src && $(MAKE) $@
+
 clean:
 	cd src && $(MAKE) $@
 
