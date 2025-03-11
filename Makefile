@@ -4,13 +4,7 @@ ARCHIEVE_FILES = Makefile README.md LICENSE scripts config \
 
 default: $(PROJECT)
 
-$(PROJECT):
-	cd src && $(MAKE) $@
-
-tags:
-	cd src && $(MAKE) $@
-
-clean:
+$(PROJECT) tags clean:
 	cd src && $(MAKE) $@
 
 tar: $(PROJECT).tar
