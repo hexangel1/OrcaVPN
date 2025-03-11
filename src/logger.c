@@ -22,7 +22,7 @@ static struct logger_config {
 
 static const char *current_timestamp(int local)
 {
-	static char buffer[256];
+	static char buffer[64];
 	struct tm *now_tm;
 	time_t now;
 
