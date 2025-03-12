@@ -59,6 +59,15 @@ time_t get_unix_time(void)
 	return ts.tv_sec;
 }
 
+struct timespec *ms2timespec(struct timespec *ts, long ms)
+{
+	if (ms < 0)
+		return NULL;
+	ts->tv_sec = ms / 1000;
+	ts->tv_nsec = (ms % 1000) * 1000000;
+	return ts;
+}
+
 char *hexlify(const void *bin, size_t len, int upper, char *res)
 {
 	const char *hex_digits = upper ? "0123456789ABCDEF" : "0123456789abcdef";

@@ -15,6 +15,8 @@ void daemonize(const char *pidfile);
 
 time_t get_unix_time(void);
 
+struct timespec *ms2timespec(struct timespec *ts, long ms);
+
 char *hexlify(const void *data, size_t len, int upper, char *res);
 
 void *binarize(const char *hex, size_t len, void *res);
