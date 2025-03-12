@@ -1,17 +1,12 @@
-#define _POSIX_C_SOURCE 200112L
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <sys/select.h>
-#include <errno.h>
 
 #include "vpnserver.h"
+#include "eventloop.h"
 #include "network.h"
 #include "encrypt/encryption.h"
-#include "sigevent.h"
 #include "configparser.h"
 #include "logger.h"
 #include "helper.h"
@@ -31,12 +26,7 @@ struct vpn_peer {
 };
 
 struct vpnserver {
-	int tunfd;
-	int sockfd;
-
-	int exit_loop;
-	int status_flag;
-	int reload_flag;
+	struct event_selector evsel;
 
 	unsigned short port;
 	char ip_addr[MAX_IPV4_ADDR_LEN];
@@ -55,13 +45,6 @@ struct vpnserver {
 	hashmap_t *vpn_ip_hash;
 	hashmap_t *ip_hash;
 };
-
-static void die_server(struct vpnserver *serv, const char *mesg)
-{
-	log_mesg(LOG_EMERG, "Fatal error %s, process exiting", mesg);
-	serv->status_flag = EXIT_FAILURE;
-	serv->exit_loop = 1;
-}
 
 static void log_ip_address(hashmap_t *ip_hash, struct sockaddr_in *addr)
 {
@@ -218,13 +201,13 @@ static int route_packet(struct vpnserver *serv, struct vpn_peer *src,
 		}
 		len += PACKET_SIGNATURE_LEN;
 		encrypt_packet(buf, &len, dest->encrypt_key);
-		res = send_udp(serv->sockfd, buf, len, &dest->addr);
+		res = send_udp(serv->evsel.sockfd, buf, len, &dest->addr);
 	} else {
 		if (!src->inet_on && dest_ip != serv->private_ip) {
 			log_drop_packet("source inet disabled", src_ip, dest_ip);
 			return -1;
 		}
-		res = send_tun(serv->tunfd, buf, len);
+		res = send_tun(serv->evsel.tunfd, buf, len);
 	}
 	if (res < 0) {
 		log_mesg(LOG_ERR, "forwarding client packet failed");
@@ -233,8 +216,9 @@ static int route_packet(struct vpnserver *serv, struct vpn_peer *src,
 	return 0;
 }
 
-static int socket_handler(struct vpnserver *serv)
+static int socket_handler(void *ctx)
 {
+	struct vpnserver *serv = ctx;
 	uint8_t buffer[PACKET_BUFFER_SIZE];
 	struct sockaddr_in addr;
 	struct vpn_peer *peer;
@@ -242,9 +226,9 @@ static int socket_handler(struct vpnserver *serv)
 	size_t length;
 	uint8_t point_id;
 
-	res = recv_udp(serv->sockfd, buffer, MAX_UDP_PAYLOAD, &addr);
+	res = recv_udp(serv->evsel.sockfd, buffer, MAX_UDP_PAYLOAD, &addr);
 	if (res < 0) {
-		die_server(serv, "reading udp socket");
+		raise_panic(&serv->evsel, "reading udp socket");
 		return -1;
 	}
 	if (!res)
@@ -272,17 +256,18 @@ static int socket_handler(struct vpnserver *serv)
 	return route_packet(serv, peer, buffer, length);
 }
 
-static int tun_if_handler(struct vpnserver *serv)
+static int tun_if_handler(void *ctx)
 {
+	struct vpnserver *serv = ctx;
 	uint8_t buffer[PACKET_BUFFER_SIZE];
 	struct vpn_peer *peer;
 	ssize_t res;
 	size_t length;
 	uint32_t src_ip, dest_ip;
 
-	res = recv_tun(serv->tunfd, buffer, TUN_IF_MTU);
+	res = recv_tun(serv->evsel.tunfd, buffer, TUN_IF_MTU);
 	if (res < 0) {
-		die_server(serv, "reading tun device");
+		raise_panic(&serv->evsel, "reading tun device");
 		return -1;
 	}
 	if (!res)
@@ -310,54 +295,12 @@ static int tun_if_handler(struct vpnserver *serv)
 	}
 	sign_packet(buffer, &length);
 	encrypt_packet(buffer, &length, peer->encrypt_key);
-	res = send_udp(serv->sockfd, buffer, length, &peer->addr);
+	res = send_udp(serv->evsel.sockfd, buffer, length, &peer->addr);
 	if (res < 0) {
 		log_mesg(LOG_ERR, "forwarding tun packet failed");
 		return -1;
 	}
 	return 0;
-}
-
-static void sigevent_handler(struct vpnserver *serv)
-{
-	switch (get_signal_event()) {
-	case sigevent_reload:
-		serv->reload_flag = 1;
-		/* fallthrough */
-	case sigevent_stop:
-		serv->exit_loop = 1;
-	case sigevent_absent:
-		;
-	}
-}
-
-static void vpn_server_handle(struct vpnserver *serv)
-{
-	fd_set readfds;
-	sigset_t sigmask;
-	int res, nfds = MAX(serv->tunfd, serv->sockfd) + 1;
-
-	setup_signal_events(&sigmask);
-	while (!serv->exit_loop) {
-		FD_ZERO(&readfds);
-		FD_SET(serv->tunfd, &readfds);
-		FD_SET(serv->sockfd, &readfds);
-		res = pselect(nfds, &readfds, NULL, NULL, NULL, &sigmask);
-		if (res < 0) {
-			if (errno != EINTR) {
-				log_perror("pselect");
-				die_server(serv, "polling fds");
-				break;
-			}
-			sigevent_handler(serv);
-			continue;
-		}
-		if (FD_ISSET(serv->tunfd, &readfds))
-			tun_if_handler(serv);
-		if (FD_ISSET(serv->sockfd, &readfds))
-			socket_handler(serv);
-	}
-	restore_signal_mask(&sigmask);
 }
 
 #define ADD_PEER_ERROR(message, peer) \
@@ -449,17 +392,13 @@ static struct vpnserver *create_server(const char *file)
 
 	serv = malloc(sizeof(struct vpnserver));
 	memset(serv, 0, sizeof(struct vpnserver));
+	init_event_selector(&serv->evsel);
 
 	strcpy(serv->ip_addr, ip);
 	strcpy(serv->tun_name, tun_name ? tun_name : TUN_IF_NAME);
 	strcpy(serv->tun_addr, tun_addr ? tun_addr : TUN_IF_ADDR);
 	strcpy(serv->tun_netmask, tun_netmask ? tun_netmask : TUN_IF_NETMASK);
 
-	serv->tunfd = -1;
-	serv->sockfd = -1;
-	serv->exit_loop = 0;
-	serv->status_flag = 0;
-	serv->reload_flag = 0;
 	serv->private_ip = inet_network(serv->tun_addr);
 	serv->private_mask = inet_network(serv->tun_netmask);
 	serv->port = port ? port : VPN_PORT;
@@ -474,15 +413,26 @@ static struct vpnserver *create_server(const char *file)
 	return serv;
 }
 
+static void set_event_handlers(struct vpnserver *serv)
+{
+	struct event_selector *evsel = &serv->evsel;
+
+	evsel->tun_if_callback = tun_if_handler;
+	evsel->socket_callback = socket_handler;
+	evsel->ctx = serv;
+}
+
 static int vpn_server_up(struct vpnserver *serv)
 {
+	struct event_selector *evsel = &serv->evsel;
 	int res;
+
 	res = create_tun_if(serv->tun_name);
 	if (res < 0) {
 		log_mesg(LOG_EMERG, "Allocating interface failed");
 		return -1;
 	}
-	serv->tunfd = res;
+	evsel->tunfd = res;
 	log_mesg(LOG_INFO, "Created dev %s", serv->tun_name);
 	res = setup_tun_if(serv->tun_name, serv->tun_addr, serv->tun_netmask);
 	if (res < 0) {
@@ -494,18 +444,17 @@ static int vpn_server_up(struct vpnserver *serv)
 		log_mesg(LOG_EMERG, "Create socket failed");
 		return -1;
 	}
-	serv->sockfd = res;
-	set_max_sndbuf(serv->sockfd);
-	set_max_rcvbuf(serv->sockfd);
-	set_nonblock_io(serv->tunfd);
-	set_nonblock_io(serv->sockfd);
+	evsel->sockfd = res;
+	set_max_sndbuf(evsel->sockfd);
+	set_max_rcvbuf(evsel->sockfd);
+	set_event_handlers(serv);
 	return 0;
 }
 
 static void vpn_server_down(struct vpnserver *serv)
 {
-	close(serv->tunfd);
-	close(serv->sockfd);
+	close(serv->evsel.tunfd);
+	close(serv->evsel.sockfd);
 	free_server(serv);
 }
 
@@ -527,9 +476,9 @@ reload_server:
 	}
 
 	log_mesg(LOG_INFO, "Running server...");
-	vpn_server_handle(serv);
-	reload = serv->reload_flag;
-	status = serv->status_flag;
+	event_loop(&serv->evsel);
+	reload = serv->evsel.reload_flag;
+	status = serv->evsel.status_flag;
 	vpn_server_down(serv);
 	if (reload) {
 		log_rotate();

@@ -1,17 +1,12 @@
-#define _POSIX_C_SOURCE 200112L
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <sys/select.h>
-#include <errno.h>
 
 #include "vpnclient.h"
+#include "eventloop.h"
 #include "network.h"
 #include "encrypt/encryption.h"
-#include "sigevent.h"
 #include "configparser.h"
 #include "logger.h"
 #include "helper.h"
@@ -19,12 +14,7 @@
 #define IDLE_TIMEOUT 30
 
 struct vpnclient {
-	int tunfd;
-	int sockfd;
-
-	int exit_loop;
-	int status_flag;
-	int reload_flag;
+	struct event_selector evsel;
 
 	unsigned short port;
 	unsigned short server_port;
@@ -45,13 +35,6 @@ struct vpnclient {
 	uint16_t sequance_no;
 };
 
-static void die_client(struct vpnclient *clnt, const char *mesg)
-{
-	log_mesg(LOG_EMERG, "Fatal error %s, process exiting", mesg);
-	clnt->status_flag = EXIT_FAILURE;
-	clnt->exit_loop = 1;
-}
-
 static int ping_vpn_router(struct vpnclient *clnt)
 {
 	uint8_t buffer[PACKET_BUFFER_SIZE];
@@ -68,7 +51,7 @@ static int ping_vpn_router(struct vpnclient *clnt)
 	sign_packet(buffer, &length);
 	encrypt_packet(buffer, &length, clnt->encrypt_key);
 	buffer[length++] = clnt->point_id;
-	res = send_udp(clnt->sockfd, buffer, length, NULL);
+	res = send_udp(clnt->evsel.sockfd, buffer, length, NULL);
 	if (res < 0) {
 		log_mesg(LOG_ERR, "sending ping packet failed");
 		return -1;
@@ -76,20 +59,21 @@ static int ping_vpn_router(struct vpnclient *clnt)
 	return 0;
 }
 
-static int timeout_handler(struct vpnclient *clnt)
+static int timeout_handler(void *ctx)
 {
-	return ping_vpn_router(clnt);
+	return ping_vpn_router((struct vpnclient *)ctx);
 }
 
-static int socket_handler(struct vpnclient *clnt)
+static int socket_handler(void *ctx)
 {
+	struct vpnclient *clnt = ctx;
 	uint8_t buffer[PACKET_BUFFER_SIZE];
 	ssize_t res;
 	size_t length;
 
-	res = recv_udp(clnt->sockfd, buffer, MAX_UDP_PAYLOAD, NULL);
+	res = recv_udp(clnt->evsel.sockfd, buffer, MAX_UDP_PAYLOAD, NULL);
 	if (res < 0) {
-		die_client(clnt, "reading udp socket");
+		raise_panic(&clnt->evsel, "reading udp socket");
 		return -1;
 	}
 	if (!res)
@@ -100,7 +84,7 @@ static int socket_handler(struct vpnclient *clnt)
 		log_mesg(LOG_NOTICE, "bad packet signature");
 		return -1;
 	}
-	res = send_tun(clnt->tunfd, buffer, length);
+	res = send_tun(clnt->evsel.tunfd, buffer, length);
 	if (res < 0) {
 		log_mesg(LOG_ERR, "sending packet to tun failed");
 		return -1;
@@ -108,15 +92,16 @@ static int socket_handler(struct vpnclient *clnt)
 	return 0;
 }
 
-static int tun_if_handler(struct vpnclient *clnt)
+static int tun_if_handler(void *ctx)
 {
+	struct vpnclient *clnt = ctx;
 	uint8_t buffer[PACKET_BUFFER_SIZE];
 	ssize_t res;
 	size_t length;
 
-	res = recv_tun(clnt->tunfd, buffer, TUN_IF_MTU);
+	res = recv_tun(clnt->evsel.tunfd, buffer, TUN_IF_MTU);
 	if (res < 0) {
-		die_client(clnt, "reading tun device");
+		raise_panic(&clnt->evsel, "reading tun device");
 		return -1;
 	}
 	if (!res)
@@ -127,59 +112,12 @@ static int tun_if_handler(struct vpnclient *clnt)
 	sign_packet(buffer, &length);
 	encrypt_packet(buffer, &length, clnt->encrypt_key);
 	buffer[length++] = clnt->point_id;
-	res = send_udp(clnt->sockfd, buffer, length, NULL);
+	res = send_udp(clnt->evsel.sockfd, buffer, length, NULL);
 	if (res < 0) {
 		log_mesg(LOG_ERR, "sending packet to server failed");
 		return -1;
 	}
 	return 0;
-}
-
-static void sigevent_handler(struct vpnclient *clnt)
-{
-	switch (get_signal_event()) {
-	case sigevent_reload:
-		clnt->reload_flag = 1;
-		/* fallthrough */
-	case sigevent_stop:
-		clnt->exit_loop = 1;
-	case sigevent_absent:
-		;
-	}
-}
-
-static void vpn_client_handle(struct vpnclient *clnt)
-{
-	fd_set readfds;
-	sigset_t sigmask;
-	struct timespec timeout = {IDLE_TIMEOUT, 0};
-	int res, nfds = MAX(clnt->tunfd, clnt->sockfd) + 1;
-
-	setup_signal_events(&sigmask);
-	while (!clnt->exit_loop) {
-		FD_ZERO(&readfds);
-		FD_SET(clnt->tunfd, &readfds);
-		FD_SET(clnt->sockfd, &readfds);
-		res = pselect(nfds, &readfds, NULL, NULL, &timeout, &sigmask);
-		if (res < 0) {
-			if (errno != EINTR) {
-				log_perror("pselect");
-				die_client(clnt, "polling fds");
-				break;
-			}
-			sigevent_handler(clnt);
-			continue;
-		}
-		if (res == 0) {
-			timeout_handler(clnt);
-			continue;
-		}
-		if (FD_ISSET(clnt->tunfd, &readfds))
-			tun_if_handler(clnt);
-		if (FD_ISSET(clnt->sockfd, &readfds))
-			socket_handler(clnt);
-	}
-	restore_signal_mask(&sigmask);
 }
 
 #define CONFIG_ERROR(message) \
@@ -240,11 +178,7 @@ static struct vpnclient *create_client(const char *file)
 
 	clnt = malloc(sizeof(struct vpnclient));
 	memset(clnt, 0, sizeof(struct vpnclient));
-	clnt->tunfd = -1;
-	clnt->sockfd = -1;
-	clnt->exit_loop = 0;
-	clnt->status_flag = 0;
-	clnt->reload_flag = 0;
+	init_event_selector(&clnt->evsel);
 
 	strcpy(clnt->ip_addr, ip_addr);
 	strcpy(clnt->server_ip, server_ip);
@@ -265,15 +199,28 @@ static struct vpnclient *create_client(const char *file)
 	return clnt;
 }
 
+static void set_event_handlers(struct vpnclient *clnt)
+{
+	struct event_selector *evsel = &clnt->evsel;
+
+	evsel->tun_if_callback = tun_if_handler;
+	evsel->socket_callback = socket_handler;
+	evsel->timeout_callback = timeout_handler;
+	evsel->timeout = IDLE_TIMEOUT * 1000;
+	evsel->ctx = clnt;
+}
+
 static int vpn_client_up(struct vpnclient *clnt)
 {
+	struct event_selector *evsel = &clnt->evsel;
 	int res;
+
 	res = create_tun_if(clnt->tun_name);
 	if (res < 0) {
 		log_mesg(LOG_EMERG, "Allocating interface failed");
 		return -1;
 	}
-	clnt->tunfd = res;
+	evsel->tunfd = res;
 	log_mesg(LOG_INFO, "Created dev %s", clnt->tun_name);
 	res = setup_tun_if(clnt->tun_name, clnt->tun_addr, clnt->tun_netmask);
 	if (res < 0) {
@@ -285,23 +232,22 @@ static int vpn_client_up(struct vpnclient *clnt)
 		log_mesg(LOG_EMERG, "Create socket failed");
 		return -1;
 	}
-	clnt->sockfd = res;
-	res = connect_socket(clnt->sockfd, clnt->server_ip, clnt->server_port);
+	evsel->sockfd = res;
+	res = connect_socket(evsel->sockfd, clnt->server_ip, clnt->server_port);
 	if (res < 0) {
 		log_mesg(LOG_EMERG, "Connection failed");
 		return -1;
 	}
-	set_max_sndbuf(clnt->sockfd);
-	set_max_rcvbuf(clnt->sockfd);
-	set_nonblock_io(clnt->tunfd);
-	set_nonblock_io(clnt->sockfd);
+	set_max_sndbuf(evsel->sockfd);
+	set_max_rcvbuf(evsel->sockfd);
+	set_event_handlers(clnt);
 	return 0;
 }
 
 static void vpn_client_down(struct vpnclient *clnt)
 {
-	close(clnt->tunfd);
-	close(clnt->sockfd);
+	close(clnt->evsel.tunfd);
+	close(clnt->evsel.sockfd);
 	free(clnt->encrypt_key);
 	free(clnt);
 }
@@ -324,9 +270,9 @@ reload_client:
 	}
 
 	log_mesg(LOG_INFO, "Running client...");
-	vpn_client_handle(clnt);
-	reload = clnt->reload_flag;
-	status = clnt->status_flag;
+	event_loop(&clnt->evsel);
+	reload = clnt->evsel.reload_flag;
+	status = clnt->evsel.status_flag;
 	vpn_client_down(clnt);
 	if (reload) {
 		log_rotate();
