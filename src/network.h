@@ -63,11 +63,12 @@ int set_max_rcvbuf(int sockfd);
 void set_nonblock_io(int fd);
 void block_for_write(int fd);
 
-uint16_t ip_checksum(uint16_t *addr, unsigned int count);
+uint16_t ip_checksum(const uint16_t *addr, unsigned int count);
+int check_ipv4_packet(const void *buf, size_t len, int skip_sum);
 size_t write_icmp_echo(void *buf, const struct icmp_echo_param *param);
 
-uint32_t get_destination_ip(const void *buf, size_t len);
-uint32_t get_source_ip(const void *buf, size_t len);
+uint32_t get_destination_ip(const void *buf);
+uint32_t get_source_ip(const void *buf);
 
 const char *ipv4tosb(uint32_t ip, int host_order, char *buf);
 const char *ipv4tos(uint32_t ip, int host_order);

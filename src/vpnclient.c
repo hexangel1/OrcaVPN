@@ -84,6 +84,10 @@ static int socket_handler(void *ctx)
 		log_mesg(LOG_NOTICE, "bad packet signature");
 		return -1;
 	}
+	if (!check_ipv4_packet(buffer, length, 0)) {
+		log_mesg(LOG_NOTICE, "bad ipv4 packet from socket");
+		return -1;
+	}
 	res = send_tun(clnt->evsel.tunfd, buffer, length);
 	if (res < 0) {
 		log_mesg(LOG_ERR, "sending packet to tun failed");
@@ -107,7 +111,11 @@ static int tun_if_handler(void *ctx)
 	if (!res)
 		return 0;
 	length = res;
-	if (clnt->private_ip != get_source_ip(buffer, length))
+	if (!check_ipv4_packet(buffer, length, 1)) {
+		log_mesg(LOG_NOTICE, "bad ipv4 packet from tun");
+		return -1;
+	}
+	if (clnt->private_ip != get_source_ip(buffer))
 		return -1;
 	sign_packet(buffer, &length);
 	encrypt_packet(buffer, &length, clnt->encrypt_key);

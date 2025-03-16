@@ -180,7 +180,7 @@ static int route_packet(struct vpnserver *serv, struct vpn_peer *src,
 	ssize_t res;
 	uint32_t dest_ip, src_ip = src->private_ip;
 
-	dest_ip = get_destination_ip(buf, len);
+	dest_ip = get_destination_ip(buf);
 	if (is_private_peer(serv, dest_ip)) {
 		struct vpn_peer *dest = get_peer_by_addr(serv, dest_ip);
 		if (!dest || !dest->last_update) {
@@ -247,7 +247,11 @@ static int socket_handler(void *ctx)
 		log_mesg(LOG_NOTICE, "bad packet signature");
 		return -1;
 	}
-	if (peer->private_ip != get_source_ip(buffer, length)) {
+	if (!check_ipv4_packet(buffer, length, 0)) {
+		log_mesg(LOG_NOTICE, "invalid ipv4 packet from socket");
+		return -1;
+	}
+	if (peer->private_ip != get_source_ip(buffer)) {
 		log_mesg(LOG_NOTICE, "wrong peer private ip address");
 		return -1;
 	}
@@ -274,12 +278,12 @@ static int tun_if_handler(void *ctx)
 		return 0;
 
 	length = res;
-	src_ip = get_source_ip(buffer, length);
-	dest_ip = get_destination_ip(buffer, length);
-	if (!src_ip || !dest_ip) {
-		log_mesg(LOG_NOTICE, "dropped not ipv4 packet");
+	if (!check_ipv4_packet(buffer, length, 1)) {
+		log_mesg(LOG_NOTICE, "bad ipv4 packet from tun");
 		return -1;
 	}
+	src_ip = get_source_ip(buffer);
+	dest_ip = get_destination_ip(buffer);
 	peer = get_peer_by_addr(serv, dest_ip);
 	if (!peer || !peer->last_update) {
 		log_drop_packet("destination not found", src_ip, dest_ip);

@@ -445,7 +445,7 @@ void block_for_write(int fd)
 	select(fd + 1, NULL, &writefds, NULL, NULL);
 }
 
-uint16_t ip_checksum(uint16_t *addr, unsigned int count)
+uint16_t ip_checksum(const uint16_t *addr, unsigned int count)
 {
 	register unsigned long sum = 0;
 
@@ -461,6 +461,22 @@ uint16_t ip_checksum(uint16_t *addr, unsigned int count)
 
 	sum = ~sum;
 	return sum;
+}
+
+int check_ipv4_packet(const void *buf, size_t len, int skip_sum)
+{
+	const struct iphdr *ip_header = buf;
+
+	if (len < sizeof(struct iphdr))
+		return 0;
+	if (ip_header->version != 4 || (size_t)ntohs(ip_header->tot_len) != len)
+		return 0;
+	if (!skip_sum) {
+		unsigned int ihl = ip_header->ihl;
+		if (ihl < 5 || ihl > 15 || ip_checksum((uint16_t *)ip_header, ihl * 4))
+			return 0;
+	}
+	return 1;
 }
 
 size_t write_icmp_echo(void *buf, const struct icmp_echo_param *param)
@@ -503,20 +519,14 @@ size_t write_icmp_echo(void *buf, const struct icmp_echo_param *param)
 	return total_len;
 }
 
-uint32_t get_destination_ip(const void *buf, size_t len)
+uint32_t get_destination_ip(const void *buf)
 {
-	const struct iphdr *ip_header = buf;
-	if (len < sizeof(struct iphdr) || ip_header->version != 4)
-		return 0;
-	return ntohl(ip_header->daddr);
+	return ntohl(((struct iphdr *)buf)->daddr);
 }
 
-uint32_t get_source_ip(const void *buf, size_t len)
+uint32_t get_source_ip(const void *buf)
 {
-	const struct iphdr *ip_header = buf;
-	if (len < sizeof(struct iphdr) || ip_header->version != 4)
-		return 0;
-	return ntohl(ip_header->saddr);
+	return ntohl(((struct iphdr *)buf)->saddr);
 }
 
 const char *ipv4tosb(uint32_t ip, int host_order, char *buf)
