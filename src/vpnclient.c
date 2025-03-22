@@ -88,6 +88,10 @@ static int socket_handler(void *ctx)
 		log_mesg(LOG_NOTICE, "bad ipv4 packet from socket");
 		return -1;
 	}
+	if (clnt->private_ip != get_destination_ip(buffer)) {
+		log_mesg(LOG_NOTICE, "bad destination ip address");
+		return -1;
+	}
 	res = send_tun(clnt->evsel.tunfd, buffer, length);
 	if (res < 0) {
 		log_mesg(LOG_ERR, "sending packet to tun failed");
