@@ -35,7 +35,7 @@ struct vpnclient {
 	uint16_t sequance_no;
 };
 
-static int ping_vpn_router(struct vpnclient *clnt)
+static void ping_vpn_router(struct vpnclient *clnt)
 {
 	uint8_t buffer[PACKET_BUFFER_SIZE];
 	struct icmp_echo_param icmp_echo;
@@ -52,19 +52,16 @@ static int ping_vpn_router(struct vpnclient *clnt)
 	encrypt_packet(buffer, &length, clnt->encrypt_key);
 	buffer[length++] = clnt->point_id;
 	res = send_udp(clnt->evsel.sockfd, buffer, length, NULL);
-	if (res < 0) {
+	if (res < 0)
 		log_mesg(LOG_ERR, "sending ping packet failed");
-		return -1;
-	}
-	return 0;
 }
 
-static int timeout_handler(void *ctx)
+static void timeout_handler(void *ctx)
 {
-	return ping_vpn_router((struct vpnclient *)ctx);
+	ping_vpn_router((struct vpnclient *)ctx);
 }
 
-static int socket_handler(void *ctx)
+static void socket_handler(void *ctx)
 {
 	struct vpnclient *clnt = ctx;
 	uint8_t buffer[PACKET_BUFFER_SIZE];
@@ -74,33 +71,30 @@ static int socket_handler(void *ctx)
 	res = recv_udp(clnt->evsel.sockfd, buffer, MAX_UDP_PAYLOAD, NULL);
 	if (res < 0) {
 		raise_panic(&clnt->evsel, "reading udp socket");
-		return -1;
+		return;
 	}
 	if (!res)
-		return 0;
+		return;
 	length = res;
 	decrypt_packet(buffer, &length, clnt->encrypt_key);
 	if (!check_signature(buffer, &length)) {
 		log_mesg(LOG_NOTICE, "bad packet signature");
-		return -1;
+		return;
 	}
 	if (!check_ipv4_packet(buffer, length, 0)) {
 		log_mesg(LOG_NOTICE, "bad ipv4 packet from socket");
-		return -1;
+		return;
 	}
 	if (clnt->private_ip != get_destination_ip(buffer)) {
 		log_mesg(LOG_NOTICE, "bad destination ip address");
-		return -1;
+		return;
 	}
 	res = send_tun(clnt->evsel.tunfd, buffer, length);
-	if (res < 0) {
+	if (res < 0)
 		log_mesg(LOG_ERR, "sending packet to tun failed");
-		return -1;
-	}
-	return 0;
 }
 
-static int tun_if_handler(void *ctx)
+static void tun_if_handler(void *ctx)
 {
 	struct vpnclient *clnt = ctx;
 	uint8_t buffer[PACKET_BUFFER_SIZE];
@@ -110,26 +104,23 @@ static int tun_if_handler(void *ctx)
 	res = recv_tun(clnt->evsel.tunfd, buffer, TUN_IF_MTU);
 	if (res < 0) {
 		raise_panic(&clnt->evsel, "reading tun device");
-		return -1;
+		return;
 	}
 	if (!res)
-		return 0;
+		return;
 	length = res;
 	if (!check_ipv4_packet(buffer, length, 1)) {
 		log_mesg(LOG_NOTICE, "bad ipv4 packet from tun");
-		return -1;
+		return;
 	}
 	if (clnt->private_ip != get_source_ip(buffer))
-		return -1;
+		return;
 	sign_packet(buffer, &length);
 	encrypt_packet(buffer, &length, clnt->encrypt_key);
 	buffer[length++] = clnt->point_id;
 	res = send_udp(clnt->evsel.sockfd, buffer, length, NULL);
-	if (res < 0) {
+	if (res < 0)
 		log_mesg(LOG_ERR, "sending packet to server failed");
-		return -1;
-	}
-	return 0;
 }
 
 #define CONFIG_ERROR(message) \

@@ -157,9 +157,8 @@ static int create_peer(struct vpnserver *serv, uint8_t point_id,
 static int is_private_peer(struct vpnserver *serv, uint32_t ip)
 {
 	uint32_t private_net = serv->private_ip & serv->private_mask;
-	if (ip != serv->private_ip && ip != private_net)
-		return ip_in_network(ip, private_net, serv->private_mask);
-	return 0;
+	return ip != serv->private_ip && ip != private_net &&
+		ip_in_network(ip, private_net, serv->private_mask);
 }
 
 static void log_drop_packet(const char *mesg, uint32_t src_ip, uint32_t dst_ip)
@@ -174,7 +173,7 @@ static void log_drop_packet(const char *mesg, uint32_t src_ip, uint32_t dst_ip)
 		src_addr, dst_addr, mesg);
 }
 
-static int route_packet(struct vpnserver *serv, struct vpn_peer *src,
+static void route_packet(struct vpnserver *serv, struct vpn_peer *src,
 	void *buf, size_t len)
 {
 	ssize_t res;
@@ -185,19 +184,19 @@ static int route_packet(struct vpnserver *serv, struct vpn_peer *src,
 		struct vpn_peer *dest = get_peer_by_addr(serv, dest_ip);
 		if (!dest || !dest->last_update) {
 			log_drop_packet("destination not found", src_ip, dest_ip);
-			return -1;
+			return;
 		}
 		if (!src->lan_on) {
 			log_drop_packet("source lan disabled", src_ip, dest_ip);
-			return -1;
+			return;
 		}
 		if (!dest->lan_on) {
 			log_drop_packet("destination lan disabled", src_ip, dest_ip);
-			return -1;
+			return;
 		}
 		if (get_unix_time() > dest->last_update + PEER_ADDR_EXPIRE) {
 			log_drop_packet("destination address expired", src_ip, dest_ip);
-			return -1;
+			return;
 		}
 		len += PACKET_SIGNATURE_LEN;
 		encrypt_packet(buf, &len, dest->encrypt_key);
@@ -205,18 +204,15 @@ static int route_packet(struct vpnserver *serv, struct vpn_peer *src,
 	} else {
 		if (!src->inet_on && dest_ip != serv->private_ip) {
 			log_drop_packet("source inet disabled", src_ip, dest_ip);
-			return -1;
+			return;
 		}
 		res = send_tun(serv->evsel.tunfd, buf, len);
 	}
-	if (res < 0) {
+	if (res < 0)
 		log_mesg(LOG_ERR, "forwarding client packet failed");
-		return -1;
-	}
-	return 0;
 }
 
-static int socket_handler(void *ctx)
+static void socket_handler(void *ctx)
 {
 	struct vpnserver *serv = ctx;
 	uint8_t buffer[PACKET_BUFFER_SIZE];
@@ -229,10 +225,10 @@ static int socket_handler(void *ctx)
 	res = recv_udp(serv->evsel.sockfd, buffer, MAX_UDP_PAYLOAD, &addr);
 	if (res < 0) {
 		raise_panic(&serv->evsel, "reading udp socket");
-		return -1;
+		return;
 	}
 	if (!res)
-		return 0;
+		return;
 
 	log_ip_address(serv->ip_hash, &addr);
 	length = res;
@@ -240,27 +236,27 @@ static int socket_handler(void *ctx)
 	peer = get_peer_by_id(serv, point_id);
 	if (!peer) {
 		log_mesg(LOG_NOTICE, "peer %u not found", point_id);
-		return -1;
+		return;
 	}
 	decrypt_packet(buffer, &length, peer->encrypt_key);
 	if (!check_signature(buffer, &length)) {
 		log_mesg(LOG_NOTICE, "bad packet signature");
-		return -1;
+		return;
 	}
 	if (!check_ipv4_packet(buffer, length, 0)) {
 		log_mesg(LOG_NOTICE, "invalid ipv4 packet from socket");
-		return -1;
+		return;
 	}
 	if (peer->private_ip != get_source_ip(buffer)) {
 		log_mesg(LOG_NOTICE, "wrong peer private ip address");
-		return -1;
+		return;
 	}
 	peer->last_update = get_unix_time();
 	memcpy(&peer->addr, &addr, sizeof(struct sockaddr_in));
-	return route_packet(serv, peer, buffer, length);
+	route_packet(serv, peer, buffer, length);
 }
 
-static int tun_if_handler(void *ctx)
+static void tun_if_handler(void *ctx)
 {
 	struct vpnserver *serv = ctx;
 	uint8_t buffer[PACKET_BUFFER_SIZE];
@@ -272,39 +268,36 @@ static int tun_if_handler(void *ctx)
 	res = recv_tun(serv->evsel.tunfd, buffer, TUN_IF_MTU);
 	if (res < 0) {
 		raise_panic(&serv->evsel, "reading tun device");
-		return -1;
+		return;
 	}
 	if (!res)
-		return 0;
+		return;
 
 	length = res;
 	if (!check_ipv4_packet(buffer, length, 1)) {
 		log_mesg(LOG_NOTICE, "bad ipv4 packet from tun");
-		return -1;
+		return;
 	}
 	src_ip = get_source_ip(buffer);
 	dest_ip = get_destination_ip(buffer);
 	peer = get_peer_by_addr(serv, dest_ip);
 	if (!peer || !peer->last_update) {
 		log_drop_packet("destination not found", src_ip, dest_ip);
-		return -1;
+		return;
 	}
 	if (!peer->inet_on && src_ip != serv->private_ip) {
 		log_drop_packet("destination inet disabled", src_ip, dest_ip);
-		return -1;
+		return;
 	}
 	if (get_unix_time() > peer->last_update + PEER_ADDR_EXPIRE) {
 		log_drop_packet("destination address expired", src_ip, dest_ip);
-		return -1;
+		return;
 	}
 	sign_packet(buffer, &length);
 	encrypt_packet(buffer, &length, peer->encrypt_key);
 	res = send_udp(serv->evsel.sockfd, buffer, length, &peer->addr);
-	if (res < 0) {
+	if (res < 0)
 		log_mesg(LOG_ERR, "forwarding tun packet failed");
-		return -1;
-	}
-	return 0;
 }
 
 #define ADD_PEER_ERROR(message, peer) \
