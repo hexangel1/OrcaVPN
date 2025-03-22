@@ -11,6 +11,8 @@
 	((c) >= 'a' && (c) <= 'f') ? ((c) - 'a' + 10) : \
 	((c) >= 'A' && (c) <= 'F') ? ((c) - 'A' + 10) : (-1))
 
+#define UNUSED(v) ((void)(v))
+
 void daemonize(const char *pidfile);
 
 time_t get_unix_time(void);
