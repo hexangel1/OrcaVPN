@@ -26,6 +26,23 @@ static void process_signal(struct event_selector *evsel)
 	}
 }
 
+static void prepare_loop(struct event_selector *evsel, sigset_t *sigmask,
+	struct timespec **timeout, struct timespec *timeout_buf)
+{
+	set_nonblock_io(evsel->tunfd);
+	set_nonblock_io(evsel->sockfd);
+	setup_signal_events(sigmask);
+	*timeout = ms2timespec(timeout_buf, evsel->timeout);
+	log_mesg(LOG_INFO, "Running event loop...");
+}
+
+static void terminate_loop(struct event_selector *evsel, sigset_t *sigmask)
+{
+	UNUSED(evsel);
+	restore_signal_mask(sigmask);
+	log_mesg(LOG_INFO, "Exiting event loop...");
+}
+
 void event_loop(struct event_selector *evsel)
 {
 	fd_set readfds;
@@ -33,10 +50,7 @@ void event_loop(struct event_selector *evsel)
 	struct timespec timeout_buf, *timeout;
 	int res, nfds = MAX(evsel->tunfd, evsel->sockfd) + 1;
 
-	set_nonblock_io(evsel->tunfd);
-	set_nonblock_io(evsel->sockfd);
-	setup_signal_events(&sigmask);
-	timeout = ms2timespec(&timeout_buf, evsel->timeout);
+	prepare_loop(evsel, &sigmask, &timeout, &timeout_buf);
 
 	while (!evsel->exit_loop) {
 		FD_ZERO(&readfds);
@@ -61,7 +75,7 @@ void event_loop(struct event_selector *evsel)
 		if (FD_ISSET(evsel->sockfd, &readfds))
 			evsel->socket_callback(evsel->ctx);
 	}
-	restore_signal_mask(&sigmask);
+	terminate_loop(evsel, &sigmask);
 }
 
 void init_event_selector(struct event_selector *evsel)
@@ -74,7 +88,7 @@ void init_event_selector(struct event_selector *evsel)
 
 void raise_panic(struct event_selector *evsel, const char *mesg)
 {
-	log_mesg(LOG_EMERG, "Fatal error %s, process exiting", mesg);
+	log_mesg(LOG_EMERG, "Fatal error %s, process terminating", mesg);
 	evsel->status_flag = EXIT_FAILURE;
 	evsel->exit_loop = 1;
 }
