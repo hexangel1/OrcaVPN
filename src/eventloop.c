@@ -17,6 +17,7 @@ static void process_signal(struct event_selector *evsel)
 {
 	switch (get_signal_event()) {
 	case sigevent_reload:
+		log_rotate();
 		evsel->reload_flag = 1;
 		/* fallthrough */
 	case sigevent_stop:

@@ -271,18 +271,13 @@ reload_client:
 		log_mesg(LOG_EMERG, "Failed to bring client up");
 		exit(EXIT_FAILURE);
 	}
-
-	log_mesg(LOG_INFO, "Running client...");
 	event_loop(&clnt->evsel);
 	reload = clnt->evsel.reload_flag;
 	status = clnt->evsel.status_flag;
 	vpn_client_down(clnt);
 	if (reload) {
-		log_rotate();
-		log_mesg(LOG_INFO, "Reloading client...");
+		log_mesg(LOG_INFO, "Reloading configuration...");
 		goto reload_client;
 	}
-	if (!status)
-		log_mesg(LOG_INFO, "Gracefully finished");
 	return status;
 }

@@ -471,18 +471,13 @@ reload_server:
 		log_mesg(LOG_EMERG, "Failed to bring server up");
 		exit(EXIT_FAILURE);
 	}
-
-	log_mesg(LOG_INFO, "Running server...");
 	event_loop(&serv->evsel);
 	reload = serv->evsel.reload_flag;
 	status = serv->evsel.status_flag;
 	vpn_server_down(serv);
 	if (reload) {
-		log_rotate();
-		log_mesg(LOG_INFO, "Reloading server...");
+		log_mesg(LOG_INFO, "Reloading configuration...");
 		goto reload_server;
 	}
-	if (!status)
-		log_mesg(LOG_INFO, "Gracefully finished");
 	return status;
 }

@@ -98,5 +98,7 @@ int main(int argc, char **argv)
 		log_mesg(LOG_EMERG, "Unknown working mode");
 		exit(EXIT_FAILURE);
 	}
+	if (!status)
+		log_mesg(LOG_INFO, "Gracefully finished");
 	return status;
 }
