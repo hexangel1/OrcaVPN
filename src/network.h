@@ -60,7 +60,7 @@ ssize_t recv_tun(int tunfd, void *buf, size_t len);
 int set_max_sndbuf(int sockfd);
 int set_max_rcvbuf(int sockfd);
 
-void set_nonblock_io(int fd);
+int set_nonblock_io(int fd);
 void block_for_write(int fd);
 
 uint16_t ip_checksum(const uint16_t *addr, unsigned int count);

@@ -432,10 +432,18 @@ int set_max_rcvbuf(int sockfd)
 	return 0;
 }
 
-void set_nonblock_io(int fd)
+int set_nonblock_io(int fd)
 {
 	int flags = fcntl(fd, F_GETFL);
-	fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+	if (flags < 0) {
+		log_perror("fcntl F_GETFL");
+		return -1;
+	}
+	if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0) {
+		log_perror("fcntl F_SETFL");
+		return -1;
+	}
+	return 0;
 }
 
 void block_for_write(int fd)
