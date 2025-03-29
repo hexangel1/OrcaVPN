@@ -164,11 +164,12 @@ static int tuntap_alloc(char *ifname, int flags)
 		strncpy(ifr.ifr_name, ifname, IFNAMSIZ - 1);
 
 	if (ioctl(fd, TUNSETIFF, (void *)&ifr) < 0) {
-		log_perror("ioctl");
+		log_perror("ioctl TUNSETIFF");
 		close(fd);
 		return -1;
 	}
 	strcpy(ifname, ifr.ifr_name);
+	log_mesg(LOG_INFO, "Created dev %s", ifname);
 	return fd;
 }
 

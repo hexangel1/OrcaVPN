@@ -430,7 +430,6 @@ static int vpn_server_up(struct vpnserver *serv)
 		return -1;
 	}
 	evsel->tunfd = res;
-	log_mesg(LOG_INFO, "Created dev %s", serv->tun_name);
 	res = setup_tun_if(serv->tun_name, serv->tun_addr, serv->tun_netmask);
 	if (res < 0) {
 		log_mesg(LOG_EMERG, "Setting up %s failed", serv->tun_name);

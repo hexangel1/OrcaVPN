@@ -224,7 +224,6 @@ static int vpn_client_up(struct vpnclient *clnt)
 		return -1;
 	}
 	evsel->tunfd = res;
-	log_mesg(LOG_INFO, "Created dev %s", clnt->tun_name);
 	res = setup_tun_if(clnt->tun_name, clnt->tun_addr, clnt->tun_netmask);
 	if (res < 0) {
 		log_mesg(LOG_EMERG, "Setting up %s failed", clnt->tun_name);
