@@ -52,9 +52,9 @@ void event_loop(struct event_selector *evsel)
 	int res, nfds = MAX(evsel->tunfd, evsel->sockfd) + 1;
 
 	prepare_loop(evsel, &sigmask, &timeout, &timeout_buf);
+	FD_ZERO(&readfds);
 
 	while (!evsel->exit_loop) {
-		FD_ZERO(&readfds);
 		FD_SET(evsel->tunfd, &readfds);
 		FD_SET(evsel->sockfd, &readfds);
 		res = pselect(nfds, &readfds, NULL, NULL, timeout, &sigmask);
