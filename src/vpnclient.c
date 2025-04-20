@@ -189,7 +189,7 @@ static struct vpnclient *create_client(const char *file)
 	strcpy(clnt->tun_netmask, tun_netmask ? tun_netmask : TUN_IF_NETMASK);
 	strcpy(clnt->tun_name, tun_name ? tun_name : TUN_IF_NAME);
 
-	clnt->port = port ? port : VPN_PORT;
+	clnt->port = port;
 	clnt->server_port = server_port ? server_port : VPN_PORT;
 	clnt->point_id = point_id;
 	clnt->router_ip = inet_network(router_ip);
