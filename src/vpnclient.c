@@ -147,7 +147,7 @@ static struct vpnclient *create_client(const char *file)
 
 	ip_addr = get_str_var(config, "ip", MAX_IPV4_ADDR_LEN - 1);
 	if (!ip_addr)
-		ip_addr = "";
+		ip_addr = "0.0.0.0";
 	router_ip = get_str_var(config, "router_ip", MAX_IPV4_ADDR_LEN - 1);
 	if (!router_ip)
 		router_ip = TUN_IF_ADDR;
@@ -240,6 +240,10 @@ static int vpn_client_up(struct vpnclient *clnt)
 		log_mesg(LOG_EMERG, "Connection failed");
 		return -1;
 	}
+	log_mesg(LOG_INFO, "Connected from %s:%u to %s:%u",
+		get_local_bind_addr(evsel->sockfd),
+		get_local_bind_port(evsel->sockfd),
+		clnt->server_ip, clnt->server_port);
 	set_max_sndbuf(evsel->sockfd);
 	set_max_rcvbuf(evsel->sockfd);
 	set_event_handlers(clnt);
