@@ -40,8 +40,6 @@ lan = on
 ## Client config example
 ```
 [client]  
-ip = 0.0.0.0  
-port = 778  
 server_ip = 192.168.1.1  
 server_port = 778  
 tun_name = orca-gate  
