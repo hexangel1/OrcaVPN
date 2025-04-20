@@ -57,6 +57,9 @@ int setup_tun_if(const char *ifname, const char *addr, const char *mask);
 ssize_t send_tun(int tunfd, const void *buf, size_t len);
 ssize_t recv_tun(int tunfd, void *buf, size_t len);
 
+const char *get_local_bind_addr(int sockfd);
+int get_local_bind_port(int sockfd);
+
 int set_max_sndbuf(int sockfd);
 int set_max_rcvbuf(int sockfd);
 
@@ -65,7 +68,7 @@ void block_for_write(int fd);
 
 uint16_t ip_checksum(const uint16_t *addr, unsigned int count);
 int check_ipv4_packet(const void *buf, size_t len, int skip_sum);
-size_t write_icmp_echo(void *buf, const struct icmp_echo_param *param);
+int write_icmp_echo(void *buf, const struct icmp_echo_param *param);
 
 uint32_t get_destination_ip(const void *buf);
 uint32_t get_source_ip(const void *buf);

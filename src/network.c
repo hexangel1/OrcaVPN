@@ -370,6 +370,34 @@ ssize_t recv_tun(int tunfd, void *buf, size_t len)
 	return res;
 }
 
+const char *get_local_bind_addr(int sockfd)
+{
+	struct sockaddr_in addr;
+	socklen_t addrlen = sizeof(struct sockaddr_in);
+	int res;
+
+	res = getsockname(sockfd, (struct sockaddr *)&addr, &addrlen);
+	if (res < 0) {
+		log_perror("getsockname");
+		return "";
+	}
+	return ipv4tos(addr.sin_addr.s_addr, 0);
+}
+
+int get_local_bind_port(int sockfd)
+{
+	struct sockaddr_in addr;
+	socklen_t addrlen = sizeof(struct sockaddr_in);
+	int res;
+
+	res = getsockname(sockfd, (struct sockaddr *)&addr, &addrlen);
+	if (res < 0) {
+		log_perror("getsockname");
+		return -1;
+	}
+	return ntohs(addr.sin_port);
+}
+
 int set_max_sndbuf(int sockfd)
 {
 	int res, snd_bufsize;
@@ -488,7 +516,7 @@ int check_ipv4_packet(const void *buf, size_t len, int skip_sum)
 	return 1;
 }
 
-size_t write_icmp_echo(void *buf, const struct icmp_echo_param *param)
+int write_icmp_echo(void *buf, const struct icmp_echo_param *param)
 {
 	struct iphdr *ip_header;
 	struct icmphdr *icmp_header;
