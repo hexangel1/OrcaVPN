@@ -77,6 +77,4 @@ const char *ipv4tosb(uint32_t ip, int host_order, char *buf);
 const char *ipv4tos(uint32_t ip, int host_order);
 int ip_in_network(uint32_t ip, uint32_t network, uint32_t mask);
 
-void print_ip_packet(const void *buf, size_t len);
-
 #endif /* NETWORK_H_SENTRY */

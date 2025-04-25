@@ -588,23 +588,3 @@ int ip_in_network(uint32_t ip, uint32_t network, uint32_t mask)
 {
 	return (ip & mask) == (network & mask);
 }
-
-void print_ip_packet(const void *buf, size_t len)
-{
-	const struct iphdr *ip = buf;
-	if (len < sizeof(struct iphdr)) {
-		fprintf(stderr, "bad ip header length\n");
-		return;
-	}
-	fprintf(stderr, "protocol = %u\n", ip->protocol);
-	fprintf(stderr, "ihl = %u\n", ip->ihl);
-	fprintf(stderr, "version = %u\n", ip->version);
-	fprintf(stderr, "tos = %u\n", ip->tos);
-	fprintf(stderr, "total len = %u\n", ntohs(ip->tot_len));
-	fprintf(stderr, "id = %u\n", ntohs(ip->id));
-	fprintf(stderr, "ttl = %u\n", ip->ttl);
-	fprintf(stderr, "frag off = %u\n", ntohs(ip->frag_off));
-	fprintf(stderr, "check = %u\n", ntohs(ip->check));
-	fprintf(stderr, "ip src = %s\n", ipv4tos(ip->saddr, 0));
-	fprintf(stderr, "ip dst = %s\n", ipv4tos(ip->daddr, 0));
-}
