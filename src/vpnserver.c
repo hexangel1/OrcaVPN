@@ -466,12 +466,12 @@ reload_server:
 	serv = create_server(config);
 	if (!serv) {
 		log_mesg(LOG_EMERG, "Failed to create server configuration");
-		exit(EXIT_FAILURE);
+		return 1;
 	}
 	res = vpn_server_up(serv);
 	if (res < 0) {
 		log_mesg(LOG_EMERG, "Failed to bring server up");
-		exit(EXIT_FAILURE);
+		return 1;
 	}
 	event_loop(&serv->evsel);
 	reload = serv->evsel.reload_flag;

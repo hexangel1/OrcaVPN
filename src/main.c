@@ -68,7 +68,7 @@ static const char usage[] = "Usage: %s "
 
 int main(int argc, char **argv)
 {
-	int res, status = 0;
+	int res, status;
 
 	res = get_command_line_options(argc, argv);
 	if (res < 0) {

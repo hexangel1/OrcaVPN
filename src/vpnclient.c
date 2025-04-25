@@ -267,12 +267,12 @@ reload_client:
 	clnt = create_client(config);
 	if (!clnt) {
 		log_mesg(LOG_EMERG, "Failed to create client configuration");
-		exit(EXIT_FAILURE);
+		return 1;
 	}
 	res = vpn_client_up(clnt);
 	if (res < 0) {
 		log_mesg(LOG_EMERG, "Failed to bring client up");
-		exit(EXIT_FAILURE);
+		return 1;
 	}
 	event_loop(&clnt->evsel);
 	reload = clnt->evsel.reload_flag;
