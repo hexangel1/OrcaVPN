@@ -41,8 +41,7 @@ static void close_urandom_fd(void)
 
 void init_encryption(void)
 {
-	unsigned int seed = time(NULL);
-	srand(seed);
+	srand((unsigned int)time(NULL));
 	if (get_urandom_fd() < 0)
 		exit(EXIT_FAILURE);
 	atexit(close_urandom_fd);
