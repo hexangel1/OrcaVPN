@@ -1,5 +1,5 @@
 #ifndef VPNSERVER_H_SENTRY
-#define VPNSERVER_H_SENRTY
+#define VPNSERVER_H_SENTRY
 
 /* Server working mode */
 int run_vpnserver(const char *config);
