@@ -16,10 +16,11 @@ struct event_selector {
 	void *ctx;
 };
 
+/* Main loop */
 void event_loop(struct event_selector *evsel);
-
+/* Init event selector */
 void init_event_selector(struct event_selector *evsel);
-
+/* Exit event loop with error */
 void raise_panic(struct event_selector *evsel, const char *mesg);
 
 #endif /* EVENTLOOP_H_SENTRY */

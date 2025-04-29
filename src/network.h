@@ -30,51 +30,80 @@ struct icmp_echo_param {
 	uint8_t data[PING_DATA_LEN];
 };
 
+/* Create udp socket & bind to local address [ipv4] */
 int create_udp_socket(const char *ip, unsigned short port);
+/* Create tcp socket & bind to local address [ipv4] */
 int create_tcp_socket(const char *ip, unsigned short port);
 
+/* Create udp socket & bind to local address [ipv6] */
 int create_udp_socket6(const char *ip, unsigned short port);
+/* Create tcp socket & bind to local address [ipv6] */
 int create_tcp_socket6(const char *ip, unsigned short port);
 
+/* Connect socket to address [ipv4] */
 int connect_socket(int sockfd, const char *ip, unsigned short port);
+/* Connect socket to address [ipv6] */
 int connect_socket6(int sockfd, const char *ip, unsigned short port);
 
+/* Send udp datagram [ipv4] */
 ssize_t send_udp(int sockfd, const void *buf, size_t len,
 	struct sockaddr_in *addr);
+/* Send udp datagram [ipv6] */
 ssize_t send_udp6(int sockfd, const void *buf, size_t len,
 	struct sockaddr_in6 *addr);
 
+/* Receive udp datagram [ipv4] */
 ssize_t recv_udp(int sockfd, void *buf, size_t len,
 	struct sockaddr_in *addr);
+/* Receive udp datagram [ipv6] */
 ssize_t recv_udp6(int sockfd, void *buf, size_t len,
 	struct sockaddr_in6 *addr);
 
+/* Create tun device */
 int create_tun_if(char *tun_name);
+/* Create tap device */
 int create_tap_if(char *tap_name);
 
+/* Setup tun device address, mask, mtu, qlen */
 int setup_tun_if(const char *ifname, const char *addr, const char *mask);
 
+/* Write data from buffer to tun device */
 ssize_t send_tun(int tunfd, const void *buf, size_t len);
+/* Write data from tun device to buffer */
 ssize_t recv_tun(int tunfd, void *buf, size_t len);
 
+/* Get local binded address string [ipv4] */
 const char *get_local_bind_addr(int sockfd);
+/* Get local binded port number [ipv4] */
 int get_local_bind_port(int sockfd);
 
+/* Set max udp send buffer size */
 int set_max_sndbuf(int sockfd);
+/* Set max udp recv buffer size */
 int set_max_rcvbuf(int sockfd);
 
+/* Set nonblock io */
 int set_nonblock_io(int fd);
+/* Block until write to fd is possible */
 void block_for_write(int fd);
 
+/* Evaluate IP packet checksum */
 uint16_t ip_checksum(const uint16_t *addr, unsigned int count);
+/* Validate IPv4 packet */
 int check_ipv4_packet(const void *buf, size_t len, int skip_sum);
+/* Write IPv4 icmp echo packet data to buffer */
 int write_icmp_echo(void *buf, const struct icmp_echo_param *param);
 
+/* Get destination ip address from IPv4 packet */
 uint32_t get_destination_ip(const void *buf);
+/* Get source ip address from IPv4 packet */
 uint32_t get_source_ip(const void *buf);
 
+/* Convert IPv4 address to string, use provided buffer for return value */
 const char *ipv4tosb(uint32_t ip, int host_order, char *buf);
+/* Convert IPv4 address to string, use static buffer for return value */
 const char *ipv4tos(uint32_t ip, int host_order);
+/* Check IPv4 address belongs to network */
 int ip_in_network(uint32_t ip, uint32_t network, uint32_t mask);
 
 #endif /* NETWORK_H_SENTRY */

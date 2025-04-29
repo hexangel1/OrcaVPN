@@ -16,6 +16,7 @@ typedef struct aes_key_st {
 int aes_set_encrypt_key(const uint8_t *cipher_key, int bits, aes_key *key);
 /* AES decrypt round keys generation */
 int aes_set_decrypt_key(const uint8_t *cipher_key, int bits, aes_key *key);
+
 /* AES encrypt block operation */
 void aes_encrypt(const uint8_t *in, uint8_t *out, const aes_key *key);
 /* AES decrypt block operation */

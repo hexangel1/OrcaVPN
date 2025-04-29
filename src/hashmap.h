@@ -18,16 +18,19 @@ typedef struct hashmap {
 	uint64_t *vals;
 } hashmap_t;
 
+/* Create hashmap */
 struct hashmap *make_map(void);
-
+/* Delete hashmap */
 void delete_map(struct hashmap *hm);
 
+/* Insert key */
 void hashmap_insert(struct hashmap *hm, hashstring_t *key, uint64_t val);
-
+/* Delete key */
 void hashmap_delete(struct hashmap *hm, hashstring_t *key);
-
+/* Get key */
 uint64_t hashmap_get(struct hashmap *hm, hashstring_t *key);
 
+/* Iterate through all keys */
 void hashmap_foreach(struct hashmap *hm,
 	void (*cb)(hashstring_t *, uint64_t, void *), void *data);
 
