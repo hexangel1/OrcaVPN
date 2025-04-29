@@ -1,11 +1,10 @@
 #define _POSIX_C_SOURCE 200112L
-#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/select.h>
-#include <errno.h>
 
 #include "eventloop.h"
 #include "sigevent.h"
@@ -90,6 +89,6 @@ void init_event_selector(struct event_selector *evsel)
 void raise_panic(struct event_selector *evsel, const char *mesg)
 {
 	log_mesg(LOG_EMERG, "Fatal error %s, process terminating", mesg);
-	evsel->status_flag = EXIT_FAILURE;
+	evsel->status_flag = 1;
 	evsel->exit_loop = 1;
 }

@@ -6,8 +6,8 @@
 
 #include "vpnserver.h"
 #include "vpnclient.h"
-#include "helper.h"
 #include "logger.h"
+#include "helper.h"
 #include "encrypt/encryption.h"
 
 #define VPNSERVER_MODE 0

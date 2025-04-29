@@ -2,9 +2,15 @@
 #define HELPER_H_SENTRY
 
 #include <stddef.h>
+#include <stdint.h>
 #include <time.h>
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
+
+#define IS_XDIGIT(c) (\
+	((c) >= '0' && (c) <= '9') || \
+	((c) >= 'a' && (c) <= 'f') || \
+	((c) >= 'A' && (c) <= 'F'))
 
 #define XDIGIT(c) (\
 	((c) >= '0' && (c) <= '9') ? ((c) - '0') : \

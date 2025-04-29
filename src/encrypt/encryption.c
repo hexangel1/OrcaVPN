@@ -5,7 +5,6 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <time.h>
-#include <sys/types.h>
 
 #include "encryption.h"
 #include "aes.h"

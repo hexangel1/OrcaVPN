@@ -1,17 +1,11 @@
 #define _POSIX_C_SOURCE 200112L
 #define _XOPEN_SOURCE 500
 #include <stdio.h>
-#include <stdarg.h>
 #include <stdlib.h>
-#include <stdint.h>
 #include <unistd.h>
-#include <syslog.h>
-#include <signal.h>
 #include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <ctype.h>
 #include <time.h>
+#include <sys/stat.h>
 
 #include "helper.h"
 
@@ -91,7 +85,7 @@ void *binarize(const char *hex, size_t len, void *res)
 		return NULL;
 
 	for (i = 0; i < len / 2; ++i) {
-		if (!isxdigit(hex[2 * i]) || !isxdigit(hex[2 * i + 1]))
+		if (!IS_XDIGIT(hex[2 * i]) || !IS_XDIGIT(hex[2 * i + 1]))
 			return NULL;
 		bytes[i] = (XDIGIT(hex[2 * i]) << 4) | (XDIGIT(hex[2 * i + 1]));
 	}

@@ -1,14 +1,11 @@
-#define _POSIX_C_SOURCE 200112L
 #define _XOPEN_SOURCE 500
 #include <stdio.h>
-#include <stdarg.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
 #include <syslog.h>
 #include <errno.h>
 #include <time.h>
-#include <sys/time.h>
 #include <sys/resource.h>
 
 #include "logger.h"

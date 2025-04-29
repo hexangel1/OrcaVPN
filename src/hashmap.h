@@ -1,7 +1,7 @@
 #ifndef HASHMAP_H_SENTRY
 #define HASHMAP_H_SENTRY
 
-#include <stdlib.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #define HASHMAP_MISS ((uint64_t)-1)
