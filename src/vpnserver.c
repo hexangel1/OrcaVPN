@@ -5,7 +5,7 @@
 #include "vpnserver.h"
 #include "eventloop.h"
 #include "network.h"
-#include "encrypt/encryption.h"
+#include "encryption.h"
 #include "configparser.h"
 #include "logger.h"
 #include "helper.h"

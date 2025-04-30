@@ -6,6 +6,7 @@ OBJECTS = $(SOURCES:.c=.o)
 
 LIBDEPEND = encrypt/libencrypt.a
 LOCALLIBS = -lencrypt -Lencrypt -lrt
+INC_DIRS = -I encrypt
 CFLAGS = -Wall -Wextra -ansi -pedantic -O2 -g
 CC = gcc
 CTAGS = ctags
@@ -13,14 +14,14 @@ CTAGS = ctags
 $(PROJECT): $(OBJECTS) $(LIBDEPEND)
 	$(CC) $(CFLAGS) -o $@ $(OBJECTS) $(LOCALLIBS)
 
-%.o: %.c %.h
-	$(CC) $(CFLAGS) -c -o $@ $<
+%.o: %.c
+	$(CC) $(CFLAGS) $(INC_DIRS) -c -o $@ $<
 
 encrypt/libencrypt.a:
 	cd encrypt && $(MAKE)
 
 deps.mk: $(SOURCES) Makefile
-	$(CC) -MM $(SOURCES) > $@
+	$(CC) -MM $(SOURCES) $(INC_DIRS) > $@
 
 tags: $(SOURCES) $(HEADERS)
 	$(CTAGS) $(SOURCES) $(HEADERS) encrypt/*
