@@ -38,8 +38,8 @@
 
 static void sha1_step(struct sha1_ctxt *ctxt)
 {
-	uint32_t a, b, c, d, e, tmp;
-	size_t t, s;
+	uint32_t a, b, c, d, e;
+	uint32_t t, s, tmp;
 
 #ifndef WORDS_BIGENDIAN
 	TO_BIG_ENDIAN32(ctxt->m.b8, ctxt->m.b8, 64);
@@ -93,13 +93,11 @@ static void sha1_step(struct sha1_ctxt *ctxt)
 		a = tmp;
 	}
 
-	H(0) = H(0) + a;
-	H(1) = H(1) + b;
-	H(2) = H(2) + c;
-	H(3) = H(3) + d;
-	H(4) = H(4) + e;
-
-	memset(ctxt->m.b8, 0, 64);
+	H(0) += a;
+	H(1) += b;
+	H(2) += c;
+	H(3) += d;
+	H(4) += e;
 }
 
 static void sha1_pad(struct sha1_ctxt *ctxt)
