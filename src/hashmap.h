@@ -26,14 +26,14 @@ hashmap *make_map(void);
 void delete_map(hashmap *hm);
 
 /* Insert key */
-void hashmap_insert(hashmap *hm, hashmap_key *key, hashmap_val val);
+void hashmap_insert(hashmap *hm, const hashmap_key *key, hashmap_val val);
 /* Delete key */
-void hashmap_delete(hashmap *hm, hashmap_key *key);
+void hashmap_delete(hashmap *hm, const hashmap_key *key);
 /* Get key */
-hashmap_val hashmap_get(hashmap *hm, hashmap_key *key);
+hashmap_val hashmap_get(const hashmap *hm, const hashmap_key *key);
 
 /* Iterate through all keys */
-void hashmap_foreach(hashmap *hm,
-	void (*cb)(hashmap_key *, hashmap_val, void *), void *data);
+void hashmap_foreach(const hashmap *hm,
+	void (*cb)(const hashmap_key *, hashmap_val, void *), void *data);
 
 #endif /* HASHMAP_H_SENTRY */

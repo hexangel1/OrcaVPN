@@ -3,7 +3,7 @@
 
 #include "hashmap.h"
 
-static const uint8_t DELETED;
+static uint8_t DELETED;
 
 static const size_t hashmap_sizes[] = {
 	11,        /* > 8         */
@@ -42,12 +42,12 @@ static void *memdup(const void *mem, size_t len)
 	return memcpy(copy, mem, len);
 }
 
-static int is_key_valid(hashmap_key *key)
+static int is_key_valid(const hashmap_key *key)
 {
 	return key->data && key->data != &DELETED;
 }
 
-static int keys_differ(hashmap_key *hmkey, hashmap_key *key)
+static int keys_differ(const hashmap_key *hmkey, const hashmap_key *key)
 {
 	if (!is_key_valid(hmkey))
 		return 1;
@@ -62,7 +62,7 @@ static size_t get_hashmap_size(size_t cur_size)
 	return hashmap_sizes[i];
 }
 
-static size_t hash_function(hashmap_key *key)
+static size_t hash_function(const hashmap_key *key)
 {
 	const size_t hash_multiplier = 0x9c406bb5;
 	const size_t hash_xor_op = 0x12fade34;
@@ -129,7 +129,7 @@ void delete_map(hashmap *hm)
 	free(hm);
 }
 
-void hashmap_insert(hashmap *hm, hashmap_key *key, hashmap_val val)
+void hashmap_insert(hashmap *hm, const hashmap_key *key, hashmap_val val)
 {
 	size_t idx = hash_function(key) % hm->size;
 
@@ -150,7 +150,7 @@ void hashmap_insert(hashmap *hm, hashmap_key *key, hashmap_val val)
 		hashmap_evacuation(hm);
 }
 
-void hashmap_delete(hashmap *hm, hashmap_key *key)
+void hashmap_delete(hashmap *hm, const hashmap_key *key)
 {
 	size_t idx = hash_function(key) % hm->size;
 
@@ -160,12 +160,12 @@ void hashmap_delete(hashmap *hm, hashmap_key *key)
 	if (!hm->keys[idx].data)
 		return;
 	free(hm->keys[idx].data);
-	hm->keys[idx].data = (uint8_t *)&DELETED;
+	hm->keys[idx].data = &DELETED;
 	hm->keys[idx].len = 0;
 	hm->vals[idx] = HASHMAP_MISS;
 }
 
-hashmap_val hashmap_get(hashmap *hm, hashmap_key *key)
+hashmap_val hashmap_get(const hashmap *hm, const hashmap_key *key)
 {
 	size_t idx = hash_function(key) % hm->size;
 
@@ -175,8 +175,8 @@ hashmap_val hashmap_get(hashmap *hm, hashmap_key *key)
 	return is_key_valid(&hm->keys[idx]) ? hm->vals[idx] : HASHMAP_MISS;
 }
 
-void hashmap_foreach(hashmap *hm,
-	void (*callback)(hashmap_key *, hashmap_val, void *),
+void hashmap_foreach(const hashmap *hm,
+	void (*callback)(const hashmap_key *, hashmap_val, void *),
 	void *data)
 {
 	size_t idx;
