@@ -4,34 +4,36 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define HASHMAP_MISS ((uint64_t)-1)
+#define HASHMAP_MISS ((hashmap_val)-1)
 
-typedef struct hashstring {
+typedef size_t hashmap_val;
+
+typedef struct hashmap_key_st {
 	uint8_t *data;
 	size_t len;
-} hashstring_t;
+} hashmap_key;
 
-typedef struct hashmap {
+typedef struct hashmap_st {
 	size_t size;
 	size_t used;
-	hashstring_t *keys;
-	uint64_t *vals;
-} hashmap_t;
+	hashmap_key *keys;
+	hashmap_val *vals;
+} hashmap;
 
 /* Create hashmap */
-struct hashmap *make_map(void);
+hashmap *make_map(void);
 /* Delete hashmap */
-void delete_map(struct hashmap *hm);
+void delete_map(hashmap *hm);
 
 /* Insert key */
-void hashmap_insert(struct hashmap *hm, hashstring_t *key, uint64_t val);
+void hashmap_insert(hashmap *hm, hashmap_key *key, hashmap_val val);
 /* Delete key */
-void hashmap_delete(struct hashmap *hm, hashstring_t *key);
+void hashmap_delete(hashmap *hm, hashmap_key *key);
 /* Get key */
-uint64_t hashmap_get(struct hashmap *hm, hashstring_t *key);
+hashmap_val hashmap_get(hashmap *hm, hashmap_key *key);
 
 /* Iterate through all keys */
-void hashmap_foreach(struct hashmap *hm,
-	void (*cb)(hashstring_t *, uint64_t, void *), void *data);
+void hashmap_foreach(hashmap *hm,
+	void (*cb)(hashmap_key *, hashmap_val, void *), void *data);
 
 #endif /* HASHMAP_H_SENTRY */

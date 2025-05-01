@@ -42,12 +42,12 @@ static void *memdup(const void *mem, size_t len)
 	return memcpy(copy, mem, len);
 }
 
-static int is_key_valid(hashstring_t *key)
+static int is_key_valid(hashmap_key *key)
 {
 	return key->data && key->data != &DELETED;
 }
 
-static int keys_differ(hashstring_t *hmkey, hashstring_t *key)
+static int keys_differ(hashmap_key *hmkey, hashmap_key *key)
 {
 	if (!is_key_valid(hmkey))
 		return 1;
@@ -62,7 +62,7 @@ static size_t get_hashmap_size(size_t cur_size)
 	return hashmap_sizes[i];
 }
 
-static size_t hash_function(hashstring_t *key)
+static size_t hash_function(hashmap_key *key)
 {
 	const size_t hash_multiplier = 0x9c406bb5;
 	const size_t hash_xor_op = 0x12fade34;
@@ -76,16 +76,16 @@ static size_t hash_function(hashstring_t *key)
 	return hash_multiplier * (hash_sum ^ hash_xor_op);
 }
 
-static void hashmap_evacuation(struct hashmap *hm)
+static void hashmap_evacuation(hashmap *hm)
 {
 	size_t idx, new_idx, new_used = 0;
 	size_t new_size = get_hashmap_size(hm->size);
 
-	hashstring_t *new_keys = calloc(new_size, sizeof(hashstring_t));
-	uint64_t *new_vals = malloc(new_size * sizeof(uint64_t));
+	hashmap_key *new_keys = calloc(new_size, sizeof(hashmap_key));
+	hashmap_val *new_vals = malloc(new_size * sizeof(hashmap_val));
 
 	for (idx = 0; idx < hm->size; ++idx) {
-		hashstring_t *key = &hm->keys[idx];
+		hashmap_key *key = &hm->keys[idx];
 		if (!is_key_valid(key))
 			continue;
 		new_idx = hash_function(key) % new_size;
@@ -103,18 +103,19 @@ static void hashmap_evacuation(struct hashmap *hm)
 	hm->used = new_used;
 }
 
-struct hashmap *make_map(void)
+hashmap *make_map(void)
 {
-	struct hashmap *hm = malloc(sizeof(struct hashmap));
+	hashmap *hm = malloc(sizeof(hashmap));
 	size_t hash_size = get_hashmap_size(0);
+
 	hm->size = hash_size;
 	hm->used = 0;
-	hm->keys = calloc(hash_size, sizeof(hashstring_t));
-	hm->vals = malloc(hash_size * sizeof(uint64_t));
+	hm->keys = calloc(hash_size, sizeof(hashmap_key));
+	hm->vals = malloc(hash_size * sizeof(hashmap_val));
 	return hm;
 }
 
-void delete_map(struct hashmap *hm)
+void delete_map(hashmap *hm)
 {
 	size_t idx;
 	if (!hm)
@@ -128,7 +129,7 @@ void delete_map(struct hashmap *hm)
 	free(hm);
 }
 
-void hashmap_insert(struct hashmap *hm, hashstring_t *key, uint64_t val)
+void hashmap_insert(hashmap *hm, hashmap_key *key, hashmap_val val)
 {
 	size_t idx = hash_function(key) % hm->size;
 
@@ -149,7 +150,7 @@ void hashmap_insert(struct hashmap *hm, hashstring_t *key, uint64_t val)
 		hashmap_evacuation(hm);
 }
 
-void hashmap_delete(struct hashmap *hm, hashstring_t *key)
+void hashmap_delete(hashmap *hm, hashmap_key *key)
 {
 	size_t idx = hash_function(key) % hm->size;
 
@@ -164,7 +165,7 @@ void hashmap_delete(struct hashmap *hm, hashstring_t *key)
 	hm->vals[idx] = HASHMAP_MISS;
 }
 
-uint64_t hashmap_get(struct hashmap *hm, hashstring_t *key)
+hashmap_val hashmap_get(hashmap *hm, hashmap_key *key)
 {
 	size_t idx = hash_function(key) % hm->size;
 
@@ -174,8 +175,8 @@ uint64_t hashmap_get(struct hashmap *hm, hashstring_t *key)
 	return is_key_valid(&hm->keys[idx]) ? hm->vals[idx] : HASHMAP_MISS;
 }
 
-void hashmap_foreach(struct hashmap *hm,
-	void (*callback)(hashstring_t *, uint64_t, void *),
+void hashmap_foreach(hashmap *hm,
+	void (*callback)(hashmap_key *, hashmap_val, void *),
 	void *data)
 {
 	size_t idx;

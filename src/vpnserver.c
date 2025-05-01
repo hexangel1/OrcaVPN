@@ -41,15 +41,15 @@ struct vpnserver {
 	uint8_t point_id_map[PEERS_LIMIT];
 	struct vpn_peer *peers[PEERS_LIMIT];
 
-	hashmap_t *vpn_ip_hash;
-	hashmap_t *ip_hash;
+	hashmap *vpn_ip_hash;
+	hashmap *ip_hash;
 };
 
-static void log_ip_address(hashmap_t *ip_hash, struct sockaddr_in *addr)
+static void log_ip_address(hashmap *ip_hash, struct sockaddr_in *addr)
 {
 	uint32_t ip_addr = addr->sin_addr.s_addr;
-	uint64_t counter;
-	hashstring_t ip_key;
+	hashmap_val counter;
+	hashmap_key ip_key;
 
 	ip_key.data = (uint8_t *)&ip_addr;
 	ip_key.len = 4;
@@ -72,8 +72,8 @@ static struct vpn_peer *get_peer_by_id(struct vpnserver *serv, uint8_t point_id)
 
 static struct vpn_peer *get_peer_by_addr(struct vpnserver *serv, uint32_t vpn_ip)
 {
-	uint64_t point_id;
-	hashstring_t ip_key;
+	hashmap_val point_id;
+	hashmap_key ip_key;
 
 	ip_key.data = (uint8_t *)&vpn_ip;
 	ip_key.len = 4;
@@ -129,7 +129,7 @@ static int create_peer(struct vpnserver *serv, uint8_t point_id,
 	const char *ip, const char *cipher_key, int inet, int lan)
 {
 	struct vpn_peer *peer;
-	hashstring_t ip_key;
+	hashmap_key ip_key;
 
 	if (serv->peers_count == PEERS_LIMIT - 1) {
 		log_mesg(LOG_ERR, "peer %u: too many peers", point_id);
