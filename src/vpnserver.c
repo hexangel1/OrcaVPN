@@ -51,8 +51,7 @@ static void log_ip_address(hashmap *ip_hash, struct sockaddr_in *addr)
 	hashmap_val counter;
 	hashmap_key ip_key;
 
-	ip_key.data = (uint8_t *)&ip_addr;
-	ip_key.len = 4;
+	HASHMAP_KEY_INT(ip_key, ip_addr);
 	counter = hashmap_get(ip_hash, &ip_key);
 	if (counter != HASHMAP_MISS) {
 		hashmap_insert(ip_hash, &ip_key, ++counter);
@@ -75,8 +74,7 @@ static struct vpn_peer *get_peer_by_addr(struct vpnserver *serv, uint32_t vpn_ip
 	hashmap_val point_id;
 	hashmap_key ip_key;
 
-	ip_key.data = (uint8_t *)&vpn_ip;
-	ip_key.len = 4;
+	HASHMAP_KEY_INT(ip_key, vpn_ip);
 	point_id = hashmap_get(serv->vpn_ip_hash, &ip_key);
 	if (point_id == HASHMAP_MISS)
 		return NULL;
@@ -147,8 +145,7 @@ static int create_peer(struct vpnserver *serv, uint8_t point_id,
 	serv->point_id_map[point_id] = serv->peers_count;
 	serv->peers[serv->peers_count++] = peer;
 
-	ip_key.data = (uint8_t *)&peer->private_ip;
-	ip_key.len = 4;
+	HASHMAP_KEY_INT(ip_key, peer->private_ip);
 	hashmap_insert(serv->vpn_ip_hash, &ip_key, point_id);
 	return 0;
 }
