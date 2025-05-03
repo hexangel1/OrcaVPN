@@ -103,6 +103,16 @@ static void hashmap_evacuation(hashmap *hm)
 	hm->used = new_used;
 }
 
+static hashmap_val *hashmap_get_ptr(const hashmap *hm, const hashmap_key *key)
+{
+	size_t idx = hash_function(key) % hm->size;
+
+	while (hm->keys[idx].data && keys_differ(&hm->keys[idx], key))
+		idx = idx ? idx - 1 : hm->size - 1;
+
+	return is_key_valid(&hm->keys[idx]) ? &hm->vals[idx] : NULL;
+}
+
 hashmap *make_map(void)
 {
 	hashmap *hm = malloc(sizeof(hashmap));
@@ -167,12 +177,20 @@ void hashmap_delete(hashmap *hm, const hashmap_key *key)
 
 hashmap_val hashmap_get(const hashmap *hm, const hashmap_key *key)
 {
-	size_t idx = hash_function(key) % hm->size;
+	hashmap_val *val_ptr = hashmap_get_ptr(hm, key);
 
-	while (hm->keys[idx].data && keys_differ(&hm->keys[idx], key))
-		idx = idx ? idx - 1 : hm->size - 1;
+	return val_ptr ? *val_ptr : HASHMAP_MISS;
+}
 
-	return is_key_valid(&hm->keys[idx]) ? hm->vals[idx] : HASHMAP_MISS;
+hashmap_val hashmap_inc(hashmap *hm, const hashmap_key *key, hashmap_val c)
+{
+	hashmap_val *val_ptr = hashmap_get_ptr(hm, key);
+
+	if (val_ptr)
+		return (*val_ptr)++;
+
+	hashmap_insert(hm, key, c);
+	return c;
 }
 
 void hashmap_foreach(const hashmap *hm,

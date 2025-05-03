@@ -36,6 +36,8 @@ void hashmap_insert(hashmap *hm, const hashmap_key *key, hashmap_val val);
 void hashmap_delete(hashmap *hm, const hashmap_key *key);
 /* Get key */
 hashmap_val hashmap_get(const hashmap *hm, const hashmap_key *key);
+/* Increase key counter */
+hashmap_val hashmap_inc(hashmap *hm, const hashmap_key *key, hashmap_val c);
 
 /* Iterate through all keys */
 void hashmap_foreach(const hashmap *hm,

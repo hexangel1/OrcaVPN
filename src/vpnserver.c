@@ -52,14 +52,12 @@ static void log_ip_address(hashmap *ip_hash, struct sockaddr_in *addr)
 	hashmap_key ip_key;
 
 	HASHMAP_KEY_INT(ip_key, ip_addr);
-	counter = hashmap_get(ip_hash, &ip_key);
-	if (counter != HASHMAP_MISS) {
-		hashmap_insert(ip_hash, &ip_key, ++counter);
+	counter = hashmap_inc(ip_hash, &ip_key, 1);
+	if (counter > 1) {
 		if (counter % 100000 == 0)
 			log_mesg(LOG_NOTICE, "received %lu datagram from %s",
 				counter, ipv4tos(ip_addr, 0));
 	} else {
-		hashmap_insert(ip_hash, &ip_key, 1);
 		log_mesg(LOG_INFO, "received datagram from %s", ipv4tos(ip_addr, 0));
 	}
 }
