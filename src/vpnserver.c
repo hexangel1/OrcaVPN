@@ -34,6 +34,8 @@ struct vpnserver {
 	char tun_addr[MAX_IPV4_ADDR_LEN];
 	char tun_netmask[MAX_IPV4_ADDR_LEN];
 
+	unsigned int block_ip_ttl;
+
 	uint32_t private_ip;
 	uint32_t private_mask;
 
@@ -41,13 +43,13 @@ struct vpnserver {
 	uint8_t point_id_map[PEERS_LIMIT];
 	struct vpn_peer *peers[PEERS_LIMIT];
 
-	hashmap *vpn_ip_hash;
 	hashmap *ip_hash;
+	hashmap *vpn_ip_hash;
+	hashmap *blocked_ip_hash;
 };
 
-static void log_ip_address(hashmap *ip_hash, struct sockaddr_in *addr)
+static void log_ip_address(hashmap *ip_hash, uint32_t ip_addr)
 {
-	uint32_t ip_addr = addr->sin_addr.s_addr;
 	hashmap_val counter;
 	hashmap_key ip_key;
 
@@ -55,11 +57,46 @@ static void log_ip_address(hashmap *ip_hash, struct sockaddr_in *addr)
 	counter = hashmap_inc(ip_hash, &ip_key, 1);
 	if (counter > 1) {
 		if (counter % 100000 == 0)
-			log_mesg(LOG_NOTICE, "received %lu datagram from %s",
+			log_mesg(LOG_NOTICE, "received %lu packets from %s",
 				counter, ipv4tos(ip_addr, 0));
 	} else {
-		log_mesg(LOG_INFO, "received datagram from %s", ipv4tos(ip_addr, 0));
+		log_mesg(LOG_INFO, "received packet from %s", ipv4tos(ip_addr, 0));
 	}
+}
+
+static int throttle_packet(struct vpnserver *serv, struct sockaddr_in *addr)
+{
+	uint32_t ip = addr->sin_addr.s_addr;
+	hashmap_key ip_key;
+	hashmap_val val;
+
+	log_ip_address(serv->ip_hash, ip);
+
+	HASHMAP_KEY_INT(ip_key, ip);
+	val = hashmap_get(serv->blocked_ip_hash, &ip_key);
+	if (val == HASHMAP_MISS)
+		return 0;
+
+	if ((time_t)val > get_unix_time())
+		return 1;
+
+	hashmap_delete(serv->blocked_ip_hash, &ip_key);
+	return 0;
+}
+
+static void block_ip(struct vpnserver *serv, struct sockaddr_in *addr)
+{
+	uint32_t ip = addr->sin_addr.s_addr;
+	hashmap_key ip_key;
+	hashmap_val val;
+
+	if (!serv->block_ip_ttl)
+		return;
+
+	HASHMAP_KEY_INT(ip_key, ip);
+	val = (hashmap_val)get_unix_time() + serv->block_ip_ttl;
+	hashmap_insert(serv->blocked_ip_hash, &ip_key, val);
+	log_mesg(LOG_NOTICE, "ip address %s blocked", ipv4tos(ip, 0));
 }
 
 static struct vpn_peer *get_peer_by_id(struct vpnserver *serv, uint8_t point_id)
@@ -224,25 +261,31 @@ static void socket_handler(void *ctx)
 	if (!res)
 		return;
 
-	log_ip_address(serv->ip_hash, &addr);
+	if (throttle_packet(serv, &addr))
+		return;
+
 	length = res;
 	point_id = buffer[--length];
 	peer = get_peer_by_id(serv, point_id);
 	if (!peer) {
 		log_mesg(LOG_NOTICE, "peer %u not found", point_id);
+		block_ip(serv, &addr);
 		return;
 	}
 	decrypt_packet(buffer, &length, peer->encrypt_key);
 	if (!check_signature(buffer, &length)) {
 		log_mesg(LOG_NOTICE, "bad packet signature");
+		block_ip(serv, &addr);
 		return;
 	}
 	if (!check_ipv4_packet(buffer, length, 0)) {
 		log_mesg(LOG_NOTICE, "invalid ipv4 packet from socket");
+		block_ip(serv, &addr);
 		return;
 	}
 	if (peer->private_ip != get_source_ip(buffer)) {
 		log_mesg(LOG_NOTICE, "wrong peer private ip address");
+		block_ip(serv, &addr);
 		return;
 	}
 	peer->last_update = get_unix_time();
@@ -348,16 +391,19 @@ static int add_peers(struct vpnserver *serv, struct config_section *cfg)
 
 static void free_server(struct vpnserver *serv)
 {
-	uint8_t i;
+	int i;
+
 	if (!serv)
 		return;
+
 	for (i = 0; i < serv->peers_count; i++) {
 		free(serv->peers[i]->encrypt_key);
 		free(serv->peers[i]);
 	}
 
-	delete_map(serv->vpn_ip_hash);
 	delete_map(serv->ip_hash);
+	delete_map(serv->vpn_ip_hash);
+	delete_map(serv->blocked_ip_hash);
 	free(serv);
 }
 
@@ -365,7 +411,7 @@ static struct vpnserver *create_server(const char *file)
 {
 	struct vpnserver *serv = NULL;
 	struct config_section *config;
-	int port, res;
+	int port, block_ip_ttl, res;
 	const char *ip, *tun_name, *tun_addr, *tun_netmask;
 
 	config = read_config(file);
@@ -373,6 +419,7 @@ static struct vpnserver *create_server(const char *file)
 		return NULL;
 
 	port = get_int_var(config, "port");
+	block_ip_ttl = get_int_var(config, "block_ip_ttl");
 	ip = get_str_var(config, "ip", MAX_IPV4_ADDR_LEN - 1);
 	if (!ip)
 		CONFIG_ERROR("ip var not set");
@@ -393,8 +440,11 @@ static struct vpnserver *create_server(const char *file)
 	serv->private_ip = inet_network(serv->tun_addr);
 	serv->private_mask = inet_network(serv->tun_netmask);
 	serv->port = port ? port : VPN_PORT;
-	serv->vpn_ip_hash = make_map();
+	serv->block_ip_ttl = block_ip_ttl;
+
 	serv->ip_hash = make_map();
+	serv->vpn_ip_hash = make_map();
+	serv->blocked_ip_hash = make_map();
 
 	res = add_peers(serv, config->next);
 	if (res < 0)
