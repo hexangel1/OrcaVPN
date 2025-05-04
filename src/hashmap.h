@@ -9,7 +9,7 @@
 #define HASHMAP_KEY_INT(hmkey, key) do { \
 	hmkey.data = (uint8_t *)&key; \
 	hmkey.len = sizeof(key); \
-} while (0);
+} while (0)
 
 typedef size_t hashmap_val;
 
@@ -29,6 +29,8 @@ typedef struct hashmap_st {
 hashmap *make_map(void);
 /* Delete hashmap */
 void delete_map(hashmap *hm);
+/* Clear hashmap */
+void clear_map(hashmap *hm);
 
 /* Insert key */
 void hashmap_insert(hashmap *hm, const hashmap_key *key, hashmap_val val);

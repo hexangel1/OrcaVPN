@@ -143,6 +143,19 @@ void delete_map(hashmap *hm)
 	free(hm);
 }
 
+void clear_map(hashmap *hm)
+{
+	size_t idx;
+
+	for (idx = 0; idx < hm->size; ++idx) {
+		if (is_key_valid(&hm->keys[idx]))
+			free(hm->keys[idx].data);
+		hm->keys[idx].data = NULL;
+		hm->keys[idx].len = 0;
+	}
+	hm->used = 0;
+}
+
 void hashmap_insert(hashmap *hm, const hashmap_key *key, hashmap_val val)
 {
 	size_t idx = hash_function(key) % hm->size;
