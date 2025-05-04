@@ -3,6 +3,9 @@
 
 #include "hashmap.h"
 
+#define HASH_MULTIPLIER 0x9c406bb5UL
+#define HASH_XOR_OP 0x12fade34UL
+
 static uint8_t DELETED;
 
 static const size_t hashmap_sizes[] = {
@@ -64,16 +67,13 @@ static size_t get_hashmap_size(size_t cur_size)
 
 static size_t hash_function(const hashmap_key *key)
 {
-	const size_t hash_multiplier = 0x9c406bb5;
-	const size_t hash_xor_op = 0x12fade34;
-
 	register size_t hash_sum = 15;
 	register size_t i;
 
 	for (i = 0; i < key->len; i++)
 		hash_sum ^= (((size_t)key->data[i]) << (8 * (i % 4)));
 
-	return hash_multiplier * (hash_sum ^ hash_xor_op);
+	return HASH_MULTIPLIER * (hash_sum ^ HASH_XOR_OP);
 }
 
 static void hashmap_evacuation(hashmap *hm)
@@ -95,6 +95,7 @@ static void hashmap_evacuation(hashmap *hm)
 		new_vals[new_idx] = hm->vals[idx];
 		new_used++;
 	}
+
 	free(hm->keys);
 	free(hm->vals);
 	hm->keys = new_keys;
@@ -128,12 +129,15 @@ hashmap *make_map(void)
 void delete_map(hashmap *hm)
 {
 	size_t idx;
+
 	if (!hm)
 		return;
+
 	for (idx = 0; idx < hm->size; ++idx) {
 		if (is_key_valid(&hm->keys[idx]))
 			free(hm->keys[idx].data);
 	}
+
 	free(hm->keys);
 	free(hm->vals);
 	free(hm);
@@ -146,10 +150,9 @@ void hashmap_insert(hashmap *hm, const hashmap_key *key, hashmap_val val)
 	while (is_key_valid(&hm->keys[idx]) && keys_differ(&hm->keys[idx], key))
 		idx = idx ? idx - 1 : hm->size - 1;
 
-	if (!hm->keys[idx].data)
-		hm->used++;
-
 	if (!is_key_valid(&hm->keys[idx])) {
+		if (!hm->keys[idx].data)
+			hm->used++;
 		hm->keys[idx].data = memdup(key->data, key->len);
 		hm->keys[idx].len = key->len;
 	}
@@ -169,6 +172,7 @@ void hashmap_delete(hashmap *hm, const hashmap_key *key)
 
 	if (!hm->keys[idx].data)
 		return;
+
 	free(hm->keys[idx].data);
 	hm->keys[idx].data = &DELETED;
 	hm->keys[idx].len = 0;
@@ -187,7 +191,7 @@ hashmap_val hashmap_inc(hashmap *hm, const hashmap_key *key, hashmap_val c)
 	hashmap_val *val_ptr = hashmap_get_ptr(hm, key);
 
 	if (val_ptr)
-		return (*val_ptr)++;
+		return ++(*val_ptr);
 
 	hashmap_insert(hm, key, c);
 	return c;
