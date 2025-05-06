@@ -13,6 +13,7 @@
 
 #define PEERS_LIMIT 256
 #define PEER_ADDR_EXPIRE 600
+#define HASH_SIZE_LIMIT 96000
 
 struct vpn_peer {
 	uint32_t private_ip;
@@ -48,19 +49,11 @@ struct vpnserver {
 	hashmap *blocked_ip_hash;
 };
 
-static void log_ip_address(hashmap *ip_hash, uint32_t ip_addr)
+static void clear_hash_if_large(hashmap *hash)
 {
-	hashmap_val counter;
-	hashmap_key ip_key;
-
-	HASHMAP_KEY_INT(ip_key, ip_addr);
-	counter = hashmap_inc(ip_hash, &ip_key, 1);
-	if (counter > 1) {
-		if (counter % 100000 == 0)
-			log_mesg(LOG_NOTICE, "received %lu packets from %s",
-				counter, ipv4tos(ip_addr, 0));
-	} else {
-		log_mesg(LOG_INFO, "received packet from %s", ipv4tos(ip_addr, 0));
+	if (hash->used > HASH_SIZE_LIMIT) {
+		clear_map(hash);
+		log_mesg(LOG_WARNING, "hash has grown too large and was cleared");
 	}
 }
 
@@ -68,19 +61,29 @@ static int throttle_packet(struct vpnserver *serv, struct sockaddr_in *addr)
 {
 	uint32_t ip = addr->sin_addr.s_addr;
 	hashmap_key ip_key;
-	hashmap_val val;
+	hashmap_val ip_val, ip_counter;
 
-	log_ip_address(serv->ip_hash, ip);
+	clear_hash_if_large(serv->ip_hash);
 
 	HASHMAP_KEY_INT(ip_key, ip);
-	val = hashmap_get(serv->blocked_ip_hash, &ip_key);
-	if (val == HASHMAP_MISS)
+	ip_counter = hashmap_inc(serv->ip_hash, &ip_key, 1);
+	if (ip_counter > 1) {
+		if (ip_counter % 100000 == 0)
+			log_mesg(LOG_NOTICE, "received %lu packets from %s",
+				ip_counter, ipv4tos(ip, 0));
+	} else {
+		log_mesg(LOG_INFO, "received packet from %s", ipv4tos(ip, 0));
+	}
+
+	ip_val = hashmap_get(serv->blocked_ip_hash, &ip_key);
+	if (ip_val == HASHMAP_MISS)
 		return 0;
 
-	if ((time_t)val > get_unix_time())
+	if ((time_t)ip_val > get_unix_time())
 		return 1;
 
 	hashmap_delete(serv->blocked_ip_hash, &ip_key);
+	log_mesg(LOG_NOTICE, "ip address %s is unblocked", ipv4tos(ip, 0));
 	return 0;
 }
 
@@ -88,15 +91,17 @@ static void block_ip(struct vpnserver *serv, struct sockaddr_in *addr)
 {
 	uint32_t ip = addr->sin_addr.s_addr;
 	hashmap_key ip_key;
-	hashmap_val val;
+	hashmap_val ip_val;
 
 	if (!serv->block_ip_ttl)
 		return;
 
+	clear_hash_if_large(serv->blocked_ip_hash);
+
 	HASHMAP_KEY_INT(ip_key, ip);
-	val = (hashmap_val)get_unix_time() + serv->block_ip_ttl;
-	hashmap_insert(serv->blocked_ip_hash, &ip_key, val);
-	log_mesg(LOG_NOTICE, "ip address %s blocked", ipv4tos(ip, 0));
+	ip_val = (hashmap_val)get_unix_time() + serv->block_ip_ttl;
+	hashmap_insert(serv->blocked_ip_hash, &ip_key, ip_val);
+	log_mesg(LOG_NOTICE, "ip address %s is blocked", ipv4tos(ip, 0));
 }
 
 static struct vpn_peer *get_peer_by_id(struct vpnserver *serv, uint8_t point_id)
@@ -258,10 +263,7 @@ static void socket_handler(void *ctx)
 		raise_panic(&serv->evsel, "reading udp socket");
 		return;
 	}
-	if (!res)
-		return;
-
-	if (throttle_packet(serv, &addr))
+	if (!res || throttle_packet(serv, &addr))
 		return;
 
 	length = res;
