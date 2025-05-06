@@ -27,6 +27,7 @@ port = 778
 tun_name = orca-gate  
 tun_addr = 10.80.80.1  
 tun_netmask = 255.255.255.0  
+block_ip_ttl = 60  
 [clientX]  
 private_ip = 10.80.80.2  
 point_id = 7  
