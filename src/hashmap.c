@@ -40,9 +40,7 @@ static const size_t hashmap_sizes[] = {
 static void *memdup(const void *mem, size_t len)
 {
 	void *copy = malloc(len);
-	if (!copy)
-		return NULL;
-	return memcpy(copy, mem, len);
+	return copy ? memcpy(copy, mem, len) : NULL;
 }
 
 static int is_key_valid(const hashmap_key *key)
@@ -189,7 +187,6 @@ void hashmap_delete(hashmap *hm, const hashmap_key *key)
 	free(hm->keys[idx].data);
 	hm->keys[idx].data = &DELETED;
 	hm->keys[idx].len = 0;
-	hm->vals[idx] = HASHMAP_MISS;
 }
 
 hashmap_val hashmap_get(const hashmap *hm, const hashmap_key *key)
