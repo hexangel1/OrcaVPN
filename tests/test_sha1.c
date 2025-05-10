@@ -24,12 +24,12 @@ static int test_sha1(const char *input, const char *expected_digest)
 	return !strcmp(hex_digest, expected_digest);
 }
 
-static void do_test(struct sha1_test_case *test)
+static void do_test(struct sha1_test_case *test, int test_no)
 {
 	int res = test_sha1(test->input, test->expected_digest);
 	if (!res)
 	   fail_test();
-	fprintf(stderr, "%s sha1(%s) %s %s\n", STATUS_PREFIX(res),
+	fprintf(stderr, "[%d] %s sha1(%s) %s %s\n", test_no, STATUS_PREFIX(res),
 		test->input, EQUAL_IF_OK(res), test->expected_digest);
 }
 

@@ -42,8 +42,9 @@ static int test_aes(
 	return 1;
 }
 
-static void do_test(struct aes_test_case *test)
+static void do_test(struct aes_test_case *test, int test_no)
 {
+	UNUSED(test_no);
 	if (!test_aes(test->key, test->key_bits, test->input, test->expected_out))
 	   fail_test();
 }

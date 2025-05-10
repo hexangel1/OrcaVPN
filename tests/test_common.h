@@ -11,7 +11,7 @@
 #define RUN_TESTS(tests) do { \
 	unsigned int i; \
 	for (i = 0; i < sizeof(tests) / sizeof(tests[0]); i++) \
-		do_test(&tests[i]); \
+		do_test(&tests[i], i); \
 	fprintf(stderr, "%s %s\n", STATUS_PREFIX(test_passed), argv[0]); \
 } while (0)
 
