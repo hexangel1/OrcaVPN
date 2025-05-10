@@ -1,5 +1,10 @@
 #!/bin/sh
 
+if [ "$(id -u)" -ne 0 ]; then
+    echo "Please run as root"
+    exit 1
+fi
+
 if [ $# -ne 1 ]; then
     echo "Select configuration mode: server or client"
     exit 1
