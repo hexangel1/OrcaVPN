@@ -145,7 +145,7 @@ const char *get_str_var(struct config_section *cfg, const char *var, int len)
 	const char *value = get_var_value(cfg, var);
 	if (!value)
 		return NULL;
-	return len < 0 || strlen(value) <= (size_t)len ? value : NULL;
+	return len < 0 || strlen(value) < (size_t)len ? value : NULL;
 }
 
 int get_int_var(struct config_section *cfg, const char *var)

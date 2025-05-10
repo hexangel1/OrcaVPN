@@ -26,7 +26,7 @@ struct vpn_peer {
 };
 
 struct vpnserver {
-	struct event_selector evsel;
+	struct event_listener loop;
 
 	unsigned short port;
 	char ip_addr[MAX_IPV4_ADDR_LEN];
@@ -210,12 +210,12 @@ static void log_drop_packet(const char *mesg, uint32_t src_ip, uint32_t dst_ip)
 }
 
 static void route_packet(struct vpnserver *serv, struct vpn_peer *src,
-	void *buf, size_t len)
+	void *buffer, size_t length)
 {
 	ssize_t res;
 	uint32_t dest_ip, src_ip = src->private_ip;
 
-	dest_ip = get_destination_ip(buf);
+	dest_ip = get_destination_ip(buffer);
 	if (is_private_peer(serv, dest_ip)) {
 		struct vpn_peer *dest = get_peer_by_addr(serv, dest_ip);
 		if (!dest || !dest->last_update) {
@@ -234,18 +234,18 @@ static void route_packet(struct vpnserver *serv, struct vpn_peer *src,
 			log_drop_packet("destination address expired", src_ip, dest_ip);
 			return;
 		}
-		len += PACKET_SIGNATURE_LEN;
-		encrypt_packet(buf, &len, dest->encrypt_key);
-		res = send_udp(serv->evsel.sockfd, buf, len, &dest->addr);
+		length += PACKET_SIGNATURE_LEN;
+		encrypt_packet(buffer, &length, dest->encrypt_key);
+		res = send_udp(serv->loop.sockfd, buffer, length, &dest->addr);
 	} else {
 		if (!src->inet_on && dest_ip != serv->private_ip) {
 			log_drop_packet("source inet disabled", src_ip, dest_ip);
 			return;
 		}
-		res = send_tun(serv->evsel.tunfd, buf, len);
+		res = send_tun(serv->loop.tunfd, buffer, length);
 	}
 	if (res < 0)
-		log_mesg(LOG_ERR, "forwarding client packet failed");
+		log_mesg(LOG_ERR, "forwarding packet from client failed");
 }
 
 static void socket_handler(void *ctx)
@@ -258,9 +258,9 @@ static void socket_handler(void *ctx)
 	size_t length;
 	uint8_t point_id;
 
-	res = recv_udp(serv->evsel.sockfd, buffer, MAX_UDP_PAYLOAD, &addr);
+	res = recv_udp(serv->loop.sockfd, buffer, MAX_UDP_PAYLOAD, &addr);
 	if (res < 0) {
-		raise_panic(&serv->evsel, "reading udp socket");
+		err_panic(&serv->loop, "reading udp socket");
 		return;
 	}
 	if (!res || throttle_packet(serv, &addr))
@@ -304,9 +304,9 @@ static void tun_if_handler(void *ctx)
 	size_t length;
 	uint32_t src_ip, dest_ip;
 
-	res = recv_tun(serv->evsel.tunfd, buffer, TUN_IF_MTU);
+	res = recv_tun(serv->loop.tunfd, buffer, TUN_IF_MTU);
 	if (res < 0) {
-		raise_panic(&serv->evsel, "reading tun device");
+		err_panic(&serv->loop, "reading tun device");
 		return;
 	}
 	if (!res)
@@ -334,9 +334,9 @@ static void tun_if_handler(void *ctx)
 	}
 	sign_packet(buffer, &length);
 	encrypt_packet(buffer, &length, peer->encrypt_key);
-	res = send_udp(serv->evsel.sockfd, buffer, length, &peer->addr);
+	res = send_udp(serv->loop.sockfd, buffer, length, &peer->addr);
 	if (res < 0)
-		log_mesg(LOG_ERR, "forwarding tun packet failed");
+		log_mesg(LOG_ERR, "forwarding packet from tun failed");
 }
 
 #define ADD_PEER_ERROR(message, peer) \
@@ -360,7 +360,7 @@ static int add_peers(struct vpnserver *serv, struct config_section *cfg)
 	for (peer = cfg; peer; peer = peer->next) {
 		int current_peer_ok = 1;
 		point_id = get_int_var(peer, "point_id");
-		private_ip = get_str_var(peer, "private_ip", MAX_IPV4_ADDR_LEN - 1);
+		private_ip = get_str_var(peer, "private_ip", MAX_IPV4_ADDR_LEN);
 		cipher_key = get_var_value(peer, "cipher_key");
 		inet = get_bool_var(peer, "inet");
 		lan = get_bool_var(peer, "lan");
@@ -422,17 +422,17 @@ static struct vpnserver *create_server(const char *file)
 
 	port = get_int_var(config, "port");
 	block_ip_ttl = get_int_var(config, "block_ip_ttl");
-	ip = get_str_var(config, "ip", MAX_IPV4_ADDR_LEN - 1);
+	ip = get_str_var(config, "ip", MAX_IPV4_ADDR_LEN);
 	if (!ip)
 		CONFIG_ERROR("ip var not set");
 
-	tun_name = get_str_var(config, "tun_name", MAX_IF_NAME_LEN - 1);
-	tun_addr = get_str_var(config, "tun_addr", MAX_IPV4_ADDR_LEN - 1);
-	tun_netmask = get_str_var(config, "tun_netmask", MAX_IPV4_ADDR_LEN - 1);
+	tun_name = get_str_var(config, "tun_name", MAX_IF_NAME_LEN);
+	tun_addr = get_str_var(config, "tun_addr", MAX_IPV4_ADDR_LEN);
+	tun_netmask = get_str_var(config, "tun_netmask", MAX_IPV4_ADDR_LEN);
 
 	serv = malloc(sizeof(struct vpnserver));
 	memset(serv, 0, sizeof(struct vpnserver));
-	init_event_selector(&serv->evsel);
+	init_event_listener(&serv->loop);
 
 	strcpy(serv->ip_addr, ip);
 	strcpy(serv->tun_name, tun_name ? tun_name : TUN_IF_NAME);
@@ -458,16 +458,16 @@ static struct vpnserver *create_server(const char *file)
 
 static void set_event_handlers(struct vpnserver *serv)
 {
-	struct event_selector *evsel = &serv->evsel;
+	struct event_listener *loop = &serv->loop;
 
-	evsel->tun_if_callback = tun_if_handler;
-	evsel->socket_callback = socket_handler;
-	evsel->ctx = serv;
+	loop->tun_if_callback = tun_if_handler;
+	loop->socket_callback = socket_handler;
+	loop->ctx = serv;
 }
 
 static int vpn_server_up(struct vpnserver *serv)
 {
-	struct event_selector *evsel = &serv->evsel;
+	struct event_listener *loop = &serv->loop;
 	int res;
 
 	res = create_tun_if(serv->tun_name);
@@ -475,7 +475,7 @@ static int vpn_server_up(struct vpnserver *serv)
 		log_mesg(LOG_EMERG, "Allocating interface failed");
 		return -1;
 	}
-	evsel->tunfd = res;
+	loop->tunfd = res;
 	res = setup_tun_if(serv->tun_name, serv->tun_addr, serv->tun_netmask);
 	if (res < 0) {
 		log_mesg(LOG_EMERG, "Setting up %s failed", serv->tun_name);
@@ -486,20 +486,20 @@ static int vpn_server_up(struct vpnserver *serv)
 		log_mesg(LOG_EMERG, "Create socket failed");
 		return -1;
 	}
-	evsel->sockfd = res;
+	loop->sockfd = res;
 	log_mesg(LOG_INFO, "Listen udp on %s:%u",
-		get_local_bind_addr(evsel->sockfd),
-		get_local_bind_port(evsel->sockfd));
-	set_max_sndbuf(evsel->sockfd);
-	set_max_rcvbuf(evsel->sockfd);
+		get_local_bind_addr(loop->sockfd),
+		get_local_bind_port(loop->sockfd));
+	set_max_sndbuf(loop->sockfd);
+	set_max_rcvbuf(loop->sockfd);
 	set_event_handlers(serv);
 	return 0;
 }
 
 static void vpn_server_down(struct vpnserver *serv)
 {
-	close(serv->evsel.tunfd);
-	close(serv->evsel.sockfd);
+	close(serv->loop.tunfd);
+	close(serv->loop.sockfd);
 	free_server(serv);
 }
 
@@ -519,9 +519,9 @@ reload_server:
 		log_mesg(LOG_EMERG, "Failed to bring server up");
 		return 1;
 	}
-	event_loop(&serv->evsel);
-	reload = serv->evsel.reload_flag;
-	status = serv->evsel.status_flag;
+	event_loop(&serv->loop);
+	reload = serv->loop.reload_flag;
+	status = serv->loop.status_flag;
 	vpn_server_down(serv);
 	if (reload) {
 		log_mesg(LOG_INFO, "Reloading configuration...");

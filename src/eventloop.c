@@ -12,83 +12,83 @@
 #include "logger.h"
 #include "helper.h"
 
-static void process_signal(struct event_selector *evsel)
+static void process_signal(struct event_listener *loop)
 {
 	switch (get_signal_event()) {
 	case sigevent_reload:
 		log_rotate();
-		evsel->reload_flag = 1;
+		loop->reload_flag = 1;
 		/* fallthrough */
 	case sigevent_stop:
-		evsel->exit_loop = 1;
+		loop->exit_loop = 1;
 	case sigevent_absent:
 		;
 	}
 }
 
-static void prepare_loop(struct event_selector *evsel, sigset_t *sigmask,
+static void prepare_loop(struct event_listener *loop, sigset_t *sigmask,
 	struct timespec **timeout, struct timespec *timeout_buf)
 {
-	set_nonblock_io(evsel->tunfd);
-	set_nonblock_io(evsel->sockfd);
+	set_nonblock_io(loop->tunfd);
+	set_nonblock_io(loop->sockfd);
 	setup_signal_events(sigmask);
-	*timeout = ms2timespec(timeout_buf, evsel->timeout);
+	*timeout = ms2timespec(timeout_buf, loop->timeout);
 	log_mesg(LOG_INFO, "Running event loop...");
 }
 
-static void terminate_loop(struct event_selector *evsel, sigset_t *sigmask)
+static void terminate_loop(struct event_listener *loop, sigset_t *sigmask)
 {
-	UNUSED(evsel);
+	UNUSED(loop);
 	restore_signal_mask(sigmask);
 	log_mesg(LOG_INFO, "Exiting event loop...");
 }
 
-void event_loop(struct event_selector *evsel)
+void event_loop(struct event_listener *loop)
 {
 	fd_set readfds;
 	sigset_t sigmask;
 	struct timespec timeout_buf, *timeout;
-	int res, nfds = MAX(evsel->tunfd, evsel->sockfd) + 1;
+	int res, nfds = MAX(loop->tunfd, loop->sockfd) + 1;
 
-	prepare_loop(evsel, &sigmask, &timeout, &timeout_buf);
+	prepare_loop(loop, &sigmask, &timeout, &timeout_buf);
 	FD_ZERO(&readfds);
 
-	while (!evsel->exit_loop) {
-		FD_SET(evsel->tunfd, &readfds);
-		FD_SET(evsel->sockfd, &readfds);
+	while (!loop->exit_loop) {
+		FD_SET(loop->tunfd, &readfds);
+		FD_SET(loop->sockfd, &readfds);
 		res = pselect(nfds, &readfds, NULL, NULL, timeout, &sigmask);
 		if (res < 0) {
 			if (errno != EINTR) {
 				log_perror("pselect");
-				raise_panic(evsel, "polling fds");
+				err_panic(loop, "polling fds");
 				break;
 			}
-			process_signal(evsel);
+			process_signal(loop);
 			continue;
 		}
-		if (res == 0 && evsel->timeout_callback) {
-			evsel->timeout_callback(evsel->ctx);
+		if (res == 0 && loop->timeout_callback) {
+			loop->timeout_callback(loop->ctx);
 			continue;
 		}
-		if (FD_ISSET(evsel->tunfd, &readfds))
-			evsel->tun_if_callback(evsel->ctx);
-		if (FD_ISSET(evsel->sockfd, &readfds))
-			evsel->socket_callback(evsel->ctx);
+		if (FD_ISSET(loop->tunfd, &readfds))
+			loop->tun_if_callback(loop->ctx);
+		if (FD_ISSET(loop->sockfd, &readfds))
+			loop->socket_callback(loop->ctx);
 	}
-	terminate_loop(evsel, &sigmask);
+	terminate_loop(loop, &sigmask);
 }
 
-void init_event_selector(struct event_selector *evsel)
+void init_event_listener(struct event_listener *loop)
 {
-	memset(evsel, 0, sizeof(struct event_selector));
-	evsel->tunfd = -1;
-	evsel->sockfd = -1;
-	evsel->timeout = -1;
+	memset(loop, 0, sizeof(struct event_listener));
+	loop->tunfd = -1;
+	loop->sockfd = -1;
+	loop->timeout = -1;
 }
 
-void raise_panic(struct event_selector *evsel, const char *mesg)
+void err_panic(struct event_listener *loop, const char *mesg)
 {
 	log_mesg(LOG_EMERG, "Fatal error %s, process terminating", mesg);
-	evsel->status_flag = 1;
-	evsel->exit_loop = 1;
+	loop->status_flag = 1;
+	loop->exit_loop = 1;
 }

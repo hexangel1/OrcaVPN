@@ -1,7 +1,7 @@
 #ifndef EVENTLOOP_H_SENTRY
 #define EVENTLOOP_H_SENTRY
 
-struct event_selector {
+struct event_listener {
 	int tunfd;
 	int sockfd;
 
@@ -17,10 +17,10 @@ struct event_selector {
 };
 
 /* Main loop */
-void event_loop(struct event_selector *evsel);
-/* Init event selector */
-void init_event_selector(struct event_selector *evsel);
+void event_loop(struct event_listener *loop);
+/* Init event listener */
+void init_event_listener(struct event_listener *loop);
 /* Exit event loop with error */
-void raise_panic(struct event_selector *evsel, const char *mesg);
+void err_panic(struct event_listener *loop, const char *mesg);
 
 #endif /* EVENTLOOP_H_SENTRY */
