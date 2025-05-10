@@ -60,3 +60,4 @@ tags
 logs
 tests/test_aes
 tests/test_sha1
+tests/test_hashmap

@@ -1,9 +1,9 @@
-BUILD_TESTS = test_aes test_sha1
+BUILD_TESTS = test_aes test_sha1 test_hashmap
 SOURCES_DIR = ../src/
 PROJECT = $(SOURCES_DIR)orcavpn
 LOCALLIBS = -lencrypt -L $(SOURCES_DIR)encrypt/
 INC_DIRS = -I $(SOURCES_DIR) -I $(SOURCES_DIR)encrypt/
-REQUIRED_MODULES = helper.c
+REQUIRED_MODULES = helper.c hashmap.c
 OBJECTS = $(addprefix $(SOURCES_DIR), $(REQUIRED_MODULES:.c=.o))
 CFLAGS = -Wall -Wextra -g
 CC = gcc
