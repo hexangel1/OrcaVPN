@@ -213,9 +213,9 @@ static void route_packet(struct vpnserver *serv, struct vpn_peer *src,
 	void *buffer, size_t length)
 {
 	ssize_t res;
-	uint32_t dest_ip, src_ip = src->private_ip;
+	uint32_t src_ip = src->private_ip;
+	uint32_t dest_ip = get_destination_ip(buffer);
 
-	dest_ip = get_destination_ip(buffer);
 	if (is_private_peer(serv, dest_ip)) {
 		struct vpn_peer *dest = get_peer_by_addr(serv, dest_ip);
 		if (!dest || !dest->last_update) {

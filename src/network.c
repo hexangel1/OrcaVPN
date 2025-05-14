@@ -218,9 +218,9 @@ static int set_if_qlen(const char *ifname, int qlen)
 
 static int set_if_address(const char *ifname, const char *address)
 {
-	int res;
-	struct sockaddr_in *addr;
 	struct ifreq ifr;
+	struct sockaddr_in *addr;
+	int res;
 
 	memset(&ifr, 0, sizeof(ifr));
 	addr = (struct sockaddr_in *)&ifr.ifr_addr;
@@ -235,9 +235,9 @@ static int set_if_address(const char *ifname, const char *address)
 
 static int set_if_netmask(const char *ifname, const char *netmask)
 {
-	int res;
-	struct sockaddr_in *addr;
 	struct ifreq ifr;
+	struct sockaddr_in *addr;
+	int res;
 
 	memset(&ifr, 0, sizeof(ifr));
 	addr = (struct sockaddr_in *)&ifr.ifr_netmask;
@@ -347,8 +347,7 @@ int setup_tun_if(const char *ifname, const char *addr, const char *mask)
 
 ssize_t send_tun(int tunfd, const void *buf, size_t len)
 {
-	ssize_t res;
-	res = write(tunfd, buf, len);
+	ssize_t res = write(tunfd, buf, len);
 	if (res < 0) {
 		log_perror("write tun device");
 		return -1;
@@ -358,8 +357,7 @@ ssize_t send_tun(int tunfd, const void *buf, size_t len)
 
 ssize_t recv_tun(int tunfd, void *buf, size_t len)
 {
-	ssize_t res;
-	res = read(tunfd, buf, len);
+	ssize_t res = read(tunfd, buf, len);
 	if (res < 0) {
 		if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
 			log_perror("read tun device");
