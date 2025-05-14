@@ -8,15 +8,15 @@
 #define SHA1_DIGEST_STRING_LENGTH (SHA1_DIGEST_LENGTH * 2 + 1)
 
 struct sha1_ctxt {
-	union {
+	union sha1_bytes8 {
 		uint8_t	 b8[8];
 		uint64_t b64;
 	} c;
-	union {
+	union sha1_bytes64 {
 		uint8_t	 b8[64];
 		uint32_t b32[16];
 	} m;
-	union {
+	union sha1_bytes20 {
 		uint8_t	 b8[20];
 		uint32_t b32[5];
 	} h;

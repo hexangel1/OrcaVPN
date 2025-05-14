@@ -25,7 +25,7 @@
 
 static struct sockaddr *get_sockaddr(int af, const char *ip, uint16_t port)
 {
-	static union {
+	static union ipv4_ipv6_sockaddr {
 		struct sockaddr  address;
 		struct sockaddr_in  ipv4;
 		struct sockaddr_in6 ipv6;
