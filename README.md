@@ -1,5 +1,16 @@
 # OrcaVPN
-VPN client server AES encrypted tunnel over UDP for Linux
+VPN client server encrypted tunnel over UDP for Linux
+
+* AES 128/192/256 bit CBC mode encryption
+* SHA-1 packet signature
+* UDP transport layer protocol
+* Multiple clients server-side support
+* Server protection by blocking IP
+* Easy setup configuration
+* Managed by systemd
+* Builds with Make
+* No dependencies on third-party libraries
+* Works under Linux with TUN/TAP device driver
 
 ## Installation & Setup
 
