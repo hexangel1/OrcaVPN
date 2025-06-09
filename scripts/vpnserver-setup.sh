@@ -10,7 +10,7 @@ RULE3="-t nat -s ${PRIVATE_NET} -o ${INET_DEV} -j MASQUERADE"
 RULE4="-i ${INET_DEV} --proto icmp --icmp-type echo-request -j DROP"
 
 set -x
-sysctl net.ipv4.ip_forward=1 >/dev/null
+sysctl -w net.ipv4.ip_forward=1 >/dev/null
 iptables -C FORWARD $RULE1 2>/dev/null || iptables -A FORWARD $RULE1
 iptables -C FORWARD $RULE2 2>/dev/null || iptables -A FORWARD $RULE2
 iptables -C POSTROUTING $RULE3 2>/dev/null || iptables -I POSTROUTING $RULE3
