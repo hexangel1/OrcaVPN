@@ -5,6 +5,7 @@
 #include "vpnclient.h"
 #include "eventloop.h"
 #include "network.h"
+#include "tunnel.h"
 #include "encryption.h"
 #include "configparser.h"
 #include "logger.h"

@@ -1,6 +1,6 @@
 PROJECT = orcavpn
 SOURCES = main.c vpnserver.c vpnclient.c eventloop.c sigevent.c \
-	network.c logger.c helper.c configparser.c hashmap.c
+	network.c tunnel.c logger.c helper.c configparser.c hashmap.c
 HEADERS = $(filter-out main.h, $(SOURCES:.c=.h))
 OBJECTS = $(SOURCES:.c=.o)
 
