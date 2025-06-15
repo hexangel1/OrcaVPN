@@ -18,9 +18,9 @@
 
 struct vpn_peer {
 	uint32_t private_ip;
-	uint8_t point_id;
-	uint8_t inet_on;
-	uint8_t lan_on;
+	unsigned char point_id;
+	int inet_on;
+	int lan_on;
 	void *encrypt_key;
 	time_t last_update;
 	struct sockaddr_in addr;
@@ -41,8 +41,8 @@ struct vpnserver {
 	uint32_t private_ip;
 	uint32_t private_mask;
 
-	uint8_t peers_count;
-	uint8_t point_id_map[PEERS_LIMIT];
+	int peers_count;
+	unsigned char point_id_map[PEERS_LIMIT];
 	struct vpn_peer *peers[PEERS_LIMIT];
 
 	hashmap *ip_hash;
@@ -105,12 +105,14 @@ static void block_ip(struct vpnserver *serv, struct sockaddr_in *addr)
 	log_mesg(LOG_NOTICE, "ip address %s is blocked", ipv4tos(ip, 0));
 }
 
-static struct vpn_peer *get_peer_by_id(struct vpnserver *serv, uint8_t point_id)
+static struct vpn_peer *
+get_peer_by_id(struct vpnserver *serv, unsigned char point_id)
 {
 	return serv->peers[serv->point_id_map[point_id]];
 }
 
-static struct vpn_peer *get_peer_by_addr(struct vpnserver *serv, uint32_t vpn_ip)
+static struct vpn_peer *
+get_peer_by_addr(struct vpnserver *serv, uint32_t vpn_ip)
 {
 	hashmap_val point_id;
 	hashmap_key ip_key;
@@ -123,13 +125,13 @@ static struct vpn_peer *get_peer_by_addr(struct vpnserver *serv, uint32_t vpn_ip
 }
 
 static struct vpn_peer *alloc_peer(
-	uint8_t point_id,
+	unsigned char point_id,
 	const char *ip,
 	const char *cipher_key,
-	uint8_t inet_on,
-	uint8_t lan_on)
+	int inet_on,
+	int lan_on)
 {
-	uint8_t bin_cipher_key[64];
+	unsigned char bin_cipher_key[64];
 	void *encrypt_key;
 	size_t keylen = strlen(cipher_key);
 	uint32_t private_ip;
@@ -164,7 +166,7 @@ static struct vpn_peer *alloc_peer(
 	return peer;
 }
 
-static int create_peer(struct vpnserver *serv, uint8_t point_id,
+static int create_peer(struct vpnserver *serv, unsigned char point_id,
 	const char *ip, const char *cipher_key, int inet, int lan)
 {
 	struct vpn_peer *peer;
@@ -252,12 +254,12 @@ static void route_packet(struct vpnserver *serv, struct vpn_peer *src,
 static void socket_handler(void *ctx)
 {
 	struct vpnserver *serv = ctx;
-	uint8_t buffer[PACKET_BUFFER_SIZE];
+	unsigned char buffer[PACKET_BUFFER_SIZE];
 	struct sockaddr_in addr;
 	struct vpn_peer *peer;
+	unsigned char point_id;
 	ssize_t res;
 	size_t length;
-	uint8_t point_id;
 
 	res = recv_udp(serv->loop.sockfd, buffer, MAX_UDP_PAYLOAD, &addr);
 	if (res < 0) {
@@ -299,7 +301,7 @@ static void socket_handler(void *ctx)
 static void tun_if_handler(void *ctx)
 {
 	struct vpnserver *serv = ctx;
-	uint8_t buffer[PACKET_BUFFER_SIZE];
+	unsigned char buffer[PACKET_BUFFER_SIZE];
 	struct vpn_peer *peer;
 	ssize_t res;
 	size_t length;
@@ -351,8 +353,7 @@ static int add_peers(struct vpnserver *serv, struct config_section *cfg)
 {
 	struct config_section *peer;
 	const char *private_ip, *cipher_key;
-	uint8_t point_id;
-	int res, inet, lan, has_errors = 0;
+	int res, point_id, inet, lan, has_errors = 0;
 
 	serv->peers_count = 0;
 	memset(serv->peers, 0, sizeof(serv->peers));
@@ -366,6 +367,8 @@ static int add_peers(struct vpnserver *serv, struct config_section *cfg)
 		inet = get_bool_var(peer, "inet");
 		lan = get_bool_var(peer, "lan");
 
+		if (point_id > 0xFF || point_id < 0)
+			ADD_PEER_ERROR("invalid point_id", peer);
 		if (!private_ip)
 			ADD_PEER_ERROR("private ip not set", peer);
 		if (!cipher_key)

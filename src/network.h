@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <sys/types.h>
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -22,7 +23,7 @@ struct icmp_echo_param {
 	uint16_t seq_no;
 	uint32_t src_ip;
 	uint32_t dst_ip;
-	uint8_t data[PING_DATA_LEN];
+	unsigned char data[PING_DATA_LEN];
 };
 
 /* Create udp socket & bind to local address [ipv4] */

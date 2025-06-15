@@ -19,7 +19,8 @@
 #include "network.h"
 #include "logger.h"
 
-static struct sockaddr *get_sockaddr(int af, const char *ip, uint16_t port)
+static struct sockaddr *
+get_sockaddr(int af, const char *ip, unsigned short port)
 {
 	static union ipv4_ipv6_sockaddr {
 		struct sockaddr  address;
@@ -54,7 +55,8 @@ static struct sockaddr *get_sockaddr(int af, const char *ip, uint16_t port)
 	return &addr.address;
 }
 
-static int create_socket_af(int af, int type, const char *ip, uint16_t port)
+static int
+create_socket_af(int af, int type, const char *ip, unsigned short port)
 {
 	int sockfd, res, opt = 1;
 	struct sockaddr *addr;
@@ -84,7 +86,8 @@ static int create_socket_af(int af, int type, const char *ip, uint16_t port)
 	return sockfd;
 }
 
-static int connect_socket_af(int af, int sockfd, const char *ip, uint16_t port)
+static int
+connect_socket_af(int af, int sockfd, const char *ip, unsigned short port)
 {
 	int res;
 	struct sockaddr *addr;
@@ -349,8 +352,8 @@ int write_icmp_echo(void *buf, const struct icmp_echo_param *param)
 {
 	struct iphdr *ip_header;
 	struct icmphdr *icmp_header;
-	uint8_t *echo_data;
-	uint16_t total_len;
+	unsigned char *echo_data;
+	unsigned short total_len;
 
 	ip_header = (void *)buf;
 	icmp_header = (void *)((char *)ip_header + sizeof(struct iphdr));

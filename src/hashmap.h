@@ -2,25 +2,24 @@
 #define HASHMAP_H_SENTRY
 
 #include <stddef.h>
-#include <stdint.h>
 #include <string.h>
 
 #define HASHMAP_MISS ((hashmap_val)-1)
 
 #define HASHMAP_KEY_INT(hmkey, key) do { \
-	hmkey.data = (uint8_t *)&key; \
+	hmkey.data = (unsigned char *)&key; \
 	hmkey.len = sizeof(key); \
 } while (0)
 
 #define HASHMAP_KEY_STR(hmkey, key) do { \
-	hmkey.data = (uint8_t *)key; \
+	hmkey.data = (unsigned char *)key; \
 	hmkey.len = strlen(key); \
 } while (0)
 
 typedef size_t hashmap_val;
 
 typedef struct hashmap_key_st {
-	uint8_t *data;
+	unsigned char *data;
 	size_t len;
 } hashmap_key;
 

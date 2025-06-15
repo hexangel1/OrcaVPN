@@ -6,7 +6,7 @@
 #define HASH_MULTIPLIER 0x9c406bb5UL
 #define HASH_XOR_OP 0x12fade34UL
 
-static uint8_t DELETED;
+static unsigned char DELETED;
 
 static const size_t hashmap_sizes[] = {
 	11,        /* > 8         */

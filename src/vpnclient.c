@@ -29,15 +29,15 @@ struct vpnclient {
 	uint32_t router_ip;
 
 	void *encrypt_key;
-	uint8_t point_id;
+	unsigned char point_id;
 
-	uint16_t sequance_id;
-	uint16_t sequance_no;
+	unsigned short sequance_id;
+	unsigned short sequance_no;
 };
 
 static void ping_vpn_router(struct vpnclient *clnt)
 {
-	uint8_t buffer[PACKET_BUFFER_SIZE];
+	unsigned char buffer[PACKET_BUFFER_SIZE];
 	struct icmp_echo_param icmp_echo;
 	ssize_t res;
 	size_t length;
@@ -64,7 +64,7 @@ static void timeout_handler(void *ctx)
 static void socket_handler(void *ctx)
 {
 	struct vpnclient *clnt = ctx;
-	uint8_t buffer[PACKET_BUFFER_SIZE];
+	unsigned char buffer[PACKET_BUFFER_SIZE];
 	ssize_t res;
 	size_t length;
 
@@ -98,7 +98,7 @@ static void socket_handler(void *ctx)
 static void tun_if_handler(void *ctx)
 {
 	struct vpnclient *clnt = ctx;
-	uint8_t buffer[PACKET_BUFFER_SIZE];
+	unsigned char buffer[PACKET_BUFFER_SIZE];
 	ssize_t res;
 	size_t length;
 
@@ -136,7 +136,7 @@ static struct vpnclient *create_client(const char *file)
 {
 	struct vpnclient *clnt;
 	struct config_section *config;
-	uint8_t bin_cipher_key[64];
+	unsigned char bin_cipher_key[64];
 	size_t keylen;
 	int port, server_port, point_id;
 	const char *ip_addr, *server_ip, *router_ip, *cipher_key;
