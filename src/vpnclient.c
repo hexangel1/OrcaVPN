@@ -188,7 +188,7 @@ static struct vpnclient *create_client(const char *file)
 	strcpy(clnt->ip_addr, ip_addr);
 	strcpy(clnt->server_ip, server_ip);
 	strcpy(clnt->tun_addr, tun_addr);
-	strcpy(clnt->tun_netmask, tun_netmask ? tun_netmask : TUN_IF_NETMASK);
+	strcpy(clnt->tun_netmask, tun_netmask ? tun_netmask : TUN_IF_MASK);
 	strcpy(clnt->tun_name, tun_name ? tun_name : TUN_IF_NAME);
 
 	clnt->port = port;

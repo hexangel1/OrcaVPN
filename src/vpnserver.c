@@ -438,7 +438,7 @@ static struct vpnserver *create_server(const char *file)
 	strcpy(serv->ip_addr, ip);
 	strcpy(serv->tun_name, tun_name ? tun_name : TUN_IF_NAME);
 	strcpy(serv->tun_addr, tun_addr ? tun_addr : TUN_IF_ADDR);
-	strcpy(serv->tun_netmask, tun_netmask ? tun_netmask : TUN_IF_NETMASK);
+	strcpy(serv->tun_netmask, tun_netmask ? tun_netmask : TUN_IF_MASK);
 
 	serv->private_ip = inet_network(serv->tun_addr);
 	serv->private_mask = inet_network(serv->tun_netmask);

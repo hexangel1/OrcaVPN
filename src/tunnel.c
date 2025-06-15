@@ -143,12 +143,12 @@ int setup_tun_if(const char *ifname, const char *addr, const char *mask)
 		log_mesg(LOG_ERR, "set dev %s qlen failed", ifname);
 		return -1;
 	}
-	res = set_if_address(ifname, addr);
+	res = set_if_address(ifname, addr ? addr : TUN_IF_ADDR);
 	if (res < 0) {
 		log_mesg(LOG_ERR, "set dev %s address failed", ifname);
 		return -1;
 	}
-	res = set_if_netmask(ifname, mask);
+	res = set_if_netmask(ifname, mask ? mask : TUN_IF_MASK);
 	if (res < 0) {
 		log_mesg(LOG_ERR, "set dev %s netmask failed", ifname);
 		return -1;
