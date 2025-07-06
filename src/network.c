@@ -47,7 +47,8 @@ get_sockaddr(int af, const char *ip, unsigned short port)
 			if (res <= 0)
 				return NULL;
 		} else {
-			memcpy(&addr.ipv6.sin6_addr, &in6addr_any, sizeof(in6addr_any));
+			memcpy(&addr.ipv6.sin6_addr, &in6addr_any,
+				sizeof(in6addr_any));
 		}
 	} else {
 		return NULL;
@@ -108,12 +109,13 @@ connect_socket_af(int af, int sockfd, const char *ip, unsigned short port)
 static ssize_t send_udp_af(int af, int sockfd, const void *buf, size_t len,
 	struct sockaddr *addr)
 {
+	socklen_t addrlen = addr ? AF_SOCKLEN(af) : 0;
 	ssize_t res;
 	int success;
 
 	do {
 		success = 1;
-		res = sendto(sockfd, buf, len, 0, addr, addr ? AF_SOCKLEN(af) : 0);
+		res = sendto(sockfd, buf, len, 0, addr, addrlen);
 		if (res < 0) {
 			if (errno == EAGAIN || errno == EWOULDBLOCK) {
 				block_for_write(sockfd);
@@ -342,7 +344,9 @@ int check_ipv4_packet(const void *buf, size_t len, int skip_sum)
 		return 0;
 	if (!skip_sum) {
 		unsigned int ihl = ip_header->ihl;
-		if (ihl < 5 || ihl > 15 || ip_checksum((uint16_t *)ip_header, ihl * 4))
+		if (ihl < 5 || ihl > 15)
+			return 0;
+		if (ip_checksum((uint16_t *)ip_header, ihl * 4))
 			return 0;
 	}
 	return 1;
@@ -358,7 +362,8 @@ int write_icmp_echo(void *buf, const struct icmp_echo_param *param)
 	ip_header = (void *)buf;
 	icmp_header = (void *)((char *)ip_header + sizeof(struct iphdr));
 	echo_data = (void *)((char *)icmp_header + sizeof(struct icmphdr));
-	total_len = sizeof(struct iphdr) + sizeof(struct icmphdr) + PING_DATA_LEN;
+	total_len = sizeof(struct iphdr) + sizeof(struct icmphdr) +
+		sizeof(param->data);
 
 	ip_header->ihl = 5;
 	ip_header->version = 4;
@@ -407,7 +412,8 @@ const char *ipv4tosb(uint32_t ip, int host_order, char *buf)
 	if (!host_order)
 		ip = ntohl(ip);
 	snprintf(buf, sizeof(ipv4_buffer), "%u.%u.%u.%u",
-		(ip >> 24) & 0xFF, (ip >> 16) & 0xFF, (ip >> 8) & 0xFF, ip & 0xFF);
+		(ip >> 24) & 0xff, (ip >> 16) & 0xff,
+		(ip >> 8)  & 0xff, (ip) & 0xff);
 	return buf;
 }
 

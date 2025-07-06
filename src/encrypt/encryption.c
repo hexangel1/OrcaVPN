@@ -108,7 +108,8 @@ void decrypt_packet(void *packet, size_t *len, const void *key)
 	padded_size -= AES_BLOCK_SIZE;
 	for (endoffs = padded_size; endoffs > 0; endoffs -= AES_BLOCK_SIZE) {
 		uint8_t *aes_block = data + endoffs - AES_BLOCK_SIZE;
-		iv = aes_block > data ? aes_block - AES_BLOCK_SIZE : data + padded_size;
+		iv = aes_block > data ?
+			aes_block - AES_BLOCK_SIZE : data + padded_size;
 		aes_decrypt(aes_block, aes_block, &w[DECRYPT]);
 		xor_with_iv(aes_block, iv);
 	}

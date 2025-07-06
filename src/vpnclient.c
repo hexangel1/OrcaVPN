@@ -174,7 +174,7 @@ static struct vpnclient *create_client(const char *file)
 	port = get_int_var(config, "port");
 	server_port = get_int_var(config, "server_port");
 	point_id = get_int_var(config, "point_id");
-	if (point_id > 0xFF || point_id < 0)
+	if (point_id > 0xff || point_id < 0)
 		CONFIG_ERROR("invalid point_id");
 
 	encrypt_key = gen_encrypt_key(bin_cipher_key, keylen / 2);

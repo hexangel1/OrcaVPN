@@ -64,13 +64,13 @@ struct timespec *ms2timespec(struct timespec *ts, long ms)
 
 char *hexlify(const void *bin, size_t len, int upper, char *res)
 {
-	const char *hex_digits = upper ? "0123456789ABCDEF" : "0123456789abcdef";
+	const char *xdigits = upper ? "0123456789ABCDEF" : "0123456789abcdef";
 	const unsigned char *bytes = bin;
 	size_t i;
 
 	for (i = 0; i < len; ++i) {
-		res[i * 2]     = hex_digits[bytes[i] >> 4];
-		res[i * 2 + 1] = hex_digits[bytes[i] & 0x0F];
+		res[i * 2]     = xdigits[bytes[i] >> 4];
+		res[i * 2 + 1] = xdigits[bytes[i] & 0x0f];
 	}
 	res[len * 2] = 0;
 	return res;

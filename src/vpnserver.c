@@ -52,10 +52,10 @@ struct vpnserver {
 
 static void clear_hash_if_large(hashmap *hash)
 {
-	if (hash->used > HASH_SIZE_LIMIT) {
-		clear_map(hash);
-		log_mesg(LOG_WARNING, "hash has grown too large and was cleared");
-	}
+	if (hash->used <= HASH_SIZE_LIMIT)
+		return;
+	clear_map(hash);
+	log_mesg(LOG_WARNING, "hash has grown too large and was cleared");
 }
 
 static int throttle_packet(struct vpnserver *serv, struct sockaddr_in *addr)
@@ -143,11 +143,11 @@ static struct vpn_peer *alloc_peer(
 		return NULL;
 	}
 	if (keylen > sizeof(bin_cipher_key) * 2) {
-		log_mesg(LOG_ERR, "peer %u: cipher key too long", point_id);
+		log_mesg(LOG_ERR, "peer %u: key too long", point_id);
 		return NULL;
 	}
 	if (!binarize(cipher_key, keylen, bin_cipher_key)) {
-		log_mesg(LOG_ERR, "peer %u: cipher key has not hex format", point_id);
+		log_mesg(LOG_ERR, "peer %u: key has not hex format", point_id);
 		return NULL;
 	}
 	encrypt_key = gen_encrypt_key(bin_cipher_key, keylen / 2);
@@ -176,8 +176,8 @@ static int create_peer(struct vpnserver *serv, unsigned char point_id,
 		log_mesg(LOG_ERR, "peer %u: too many peers", point_id);
 		return -1;
 	}
-	if (serv->point_id_map[point_id] != 0xFF) {
-		log_mesg(LOG_ERR, "peer %u: already exists, duplicated id", point_id);
+	if (serv->point_id_map[point_id] != 0xff) {
+		log_mesg(LOG_ERR, "peer %u: already exists", point_id);
 		return -1;
 	}
 
@@ -200,7 +200,7 @@ static int is_private_peer(struct vpnserver *serv, uint32_t ip)
 		ip_in_network(ip, private_net, serv->private_mask);
 }
 
-static void log_drop_packet(const char *mesg, uint32_t src_ip, uint32_t dst_ip)
+static void log_drop(const char *mesg, uint32_t src_ip, uint32_t dst_ip)
 {
 	char src_addr[MAX_IPV4_ADDR_LEN];
 	char dst_addr[MAX_IPV4_ADDR_LEN];
@@ -222,19 +222,19 @@ static void route_packet(struct vpnserver *serv, struct vpn_peer *src,
 	if (is_private_peer(serv, dest_ip)) {
 		struct vpn_peer *dest = get_peer_by_addr(serv, dest_ip);
 		if (!dest || !dest->last_update) {
-			log_drop_packet("destination not found", src_ip, dest_ip);
+			log_drop("destination not found", src_ip, dest_ip);
 			return;
 		}
 		if (!src->lan_on) {
-			log_drop_packet("source lan disabled", src_ip, dest_ip);
+			log_drop("source lan disabled", src_ip, dest_ip);
 			return;
 		}
 		if (!dest->lan_on) {
-			log_drop_packet("destination lan disabled", src_ip, dest_ip);
+			log_drop("destination lan disabled", src_ip, dest_ip);
 			return;
 		}
 		if (get_unix_time() > dest->last_update + PEER_ADDR_EXPIRE) {
-			log_drop_packet("destination address expired", src_ip, dest_ip);
+			log_drop("client address expired", src_ip, dest_ip);
 			return;
 		}
 		length += PACKET_SIGNATURE_LEN;
@@ -242,7 +242,7 @@ static void route_packet(struct vpnserver *serv, struct vpn_peer *src,
 		res = send_udp(serv->loop.sockfd, buffer, length, &dest->addr);
 	} else {
 		if (!src->inet_on && dest_ip != serv->private_ip) {
-			log_drop_packet("source inet disabled", src_ip, dest_ip);
+			log_drop("source inet disabled", src_ip, dest_ip);
 			return;
 		}
 		res = send_tun(serv->loop.tunfd, buffer, length);
@@ -324,15 +324,15 @@ static void tun_if_handler(void *ctx)
 	dest_ip = get_destination_ip(buffer);
 	peer = get_peer_by_addr(serv, dest_ip);
 	if (!peer || !peer->last_update) {
-		log_drop_packet("destination not found", src_ip, dest_ip);
+		log_drop("destination not found", src_ip, dest_ip);
 		return;
 	}
 	if (!peer->inet_on && src_ip != serv->private_ip) {
-		log_drop_packet("destination inet disabled", src_ip, dest_ip);
+		log_drop("destination inet disabled", src_ip, dest_ip);
 		return;
 	}
 	if (get_unix_time() > peer->last_update + PEER_ADDR_EXPIRE) {
-		log_drop_packet("destination address expired", src_ip, dest_ip);
+		log_drop("client address expired", src_ip, dest_ip);
 		return;
 	}
 	sign_packet(buffer, &length);
@@ -352,24 +352,24 @@ static void tun_if_handler(void *ctx)
 static int add_peers(struct vpnserver *serv, struct config_section *cfg)
 {
 	struct config_section *peer;
-	const char *private_ip, *cipher_key;
+	const char *ip, *cipher_key;
 	int res, point_id, inet, lan, has_errors = 0;
 
 	serv->peers_count = 0;
 	memset(serv->peers, 0, sizeof(serv->peers));
-	memset(serv->point_id_map, 0xFF, sizeof(serv->point_id_map));
+	memset(serv->point_id_map, 0xff, sizeof(serv->point_id_map));
 
 	for (peer = cfg; peer; peer = peer->next) {
 		int current_peer_ok = 1;
 		point_id = get_int_var(peer, "point_id");
-		private_ip = get_str_var(peer, "private_ip", MAX_IPV4_ADDR_LEN);
+		ip = get_str_var(peer, "private_ip", MAX_IPV4_ADDR_LEN);
 		cipher_key = get_var_value(peer, "cipher_key");
 		inet = get_bool_var(peer, "inet");
 		lan = get_bool_var(peer, "lan");
 
-		if (point_id > 0xFF || point_id < 0)
+		if (point_id > 0xff || point_id < 0)
 			ADD_PEER_ERROR("invalid point_id", peer);
-		if (!private_ip)
+		if (!ip)
 			ADD_PEER_ERROR("private ip not set", peer);
 		if (!cipher_key)
 			ADD_PEER_ERROR("cipher key not set", peer);
@@ -380,7 +380,7 @@ static int add_peers(struct vpnserver *serv, struct config_section *cfg)
 		if (!current_peer_ok)
 			continue;
 
-		res = create_peer(serv, point_id, private_ip, cipher_key, inet, lan);
+		res = create_peer(serv, point_id, ip, cipher_key, inet, lan);
 		if (res < 0)
 			ADD_PEER_ERROR("create peer failed", peer);
 	}

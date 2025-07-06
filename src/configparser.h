@@ -16,8 +16,6 @@ struct config_section {
 struct config_section *read_config(const char *file);
 /* Free config key-value pair section list */
 void free_config(struct config_section *cfg);
-/* Write key-value pair section list to stderr */
-void debug_config(struct config_section *cfg);
 
 /* Get raw value by key from section */
 const char *get_var_value(struct config_section *cfg, const char *var);

@@ -17,6 +17,9 @@
 #define H(n) (ctxt->h.b32[(n)])
 #define W(n) (ctxt->m.b32[(n)])
 
+#define Wnext(s) ROL(W(((s) + 13) & 0x0f) ^ W(((s) + 8) & 0x0f) ^ \
+	W(((s) + 2) & 0x0f) ^ W(s), 1)
+
 #define PUTPAD(x) \
 	do { \
 		ctxt->m.b8[ctxt->count++] = (x); \
@@ -54,7 +57,7 @@ static void sha1_step(struct sha1_ctxt *ctxt)
 	for (t = 0; t < 20; t++) {
 		s = t & 0x0f;
 		if (t >= 16)
-			W(s) = ROL(W((s + 13) & 0x0f) ^ W((s + 8) & 0x0f) ^ W((s + 2) & 0x0f) ^ W(s), 1);
+			W(s) = Wnext(s);
 		tmp = ROL(a, 5) + F0(b, c, d) + e + W(s) + K0;
 		e = d;
 		d = c;
@@ -64,7 +67,7 @@ static void sha1_step(struct sha1_ctxt *ctxt)
 	}
 	for (t = 20; t < 40; t++) {
 		s = t & 0x0f;
-		W(s) = ROL(W((s + 13) & 0x0f) ^ W((s + 8) & 0x0f) ^ W((s + 2) & 0x0f) ^ W(s), 1);
+		W(s) = Wnext(s);
 		tmp = ROL(a, 5) + F1(b, c, d) + e + W(s) + K1;
 		e = d;
 		d = c;
@@ -74,7 +77,7 @@ static void sha1_step(struct sha1_ctxt *ctxt)
 	}
 	for (t = 40; t < 60; t++) {
 		s = t & 0x0f;
-		W(s) = ROL(W((s + 13) & 0x0f) ^ W((s + 8) & 0x0f) ^ W((s + 2) & 0x0f) ^ W(s), 1);
+		W(s) = Wnext(s);
 		tmp = ROL(a, 5) + F2(b, c, d) + e + W(s) + K2;
 		e = d;
 		d = c;
@@ -84,7 +87,7 @@ static void sha1_step(struct sha1_ctxt *ctxt)
 	}
 	for (t = 60; t < 80; t++) {
 		s = t & 0x0f;
-		W(s) = ROL(W((s + 13) & 0x0f) ^ W((s + 8) & 0x0f) ^ W((s + 2) & 0x0f) ^ W(s), 1);
+		W(s) = Wnext(s);
 		tmp = ROL(a, 5) + F3(b, c, d) + e + W(s) + K3;
 		e = d;
 		d = c;

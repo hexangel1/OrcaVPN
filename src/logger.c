@@ -17,7 +17,7 @@ static struct logger_config {
 	int enable_time;
 } logger;
 
-static const char *current_timestamp(int local)
+static const char *get_timestamp(int local)
 {
 	static char buffer[64];
 	struct tm *now_tm;
@@ -72,7 +72,8 @@ void init_logger(const char *service, const char *filename,
 	}
 	if (logger.enable_syslog) {
 		int logmask = setlogmask(0);
-		setlogmask(logmask & ~(LOG_MASK(LOG_NOTICE) | LOG_MASK(LOG_DEBUG)));
+		logmask &= ~(LOG_MASK(LOG_NOTICE) | LOG_MASK(LOG_DEBUG));
+		setlogmask(logmask);
 		openlog(service, LOG_PID | LOG_CONS | LOG_NDELAY, LOG_DAEMON);
 		atexit(closelog);
 	}
@@ -95,7 +96,7 @@ void log_mesg(int level, const char *mesg, ...)
 	if (len < 0 || (size_t)len > sizeof(buffer)-1)
 		return;
 	if (logger.enable_time != LOG_NO_DATETIME)
-		ts = current_timestamp(logger.enable_time == LOG_LOCAL_DATETIME);
+		ts = get_timestamp(logger.enable_time == LOG_LOCAL_DATETIME);
 	fprintf(logger.log_file, "%s[%s] %s\n", ts, str_levels[level], buffer);
 	if (logger.enable_syslog)
 		syslog(level, "%s", buffer);

@@ -48,11 +48,11 @@ static int is_key_valid(const hashmap_key *key)
 	return key->data && key->data != &DELETED;
 }
 
-static int keys_differ(const hashmap_key *hmkey, const hashmap_key *key)
+static int keys_differ(const hashmap_key *hkey, const hashmap_key *key)
 {
-	if (!is_key_valid(hmkey))
+	if (!is_key_valid(hkey))
 		return 1;
-	return hmkey->len != key->len || memcmp(hmkey->data, key->data, key->len);
+	return hkey->len != key->len || memcmp(hkey->data, key->data, key->len);
 }
 
 static size_t get_hashmap_size(size_t cur_size)

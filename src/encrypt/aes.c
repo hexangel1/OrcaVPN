@@ -13,17 +13,33 @@
 } while (0)
 
 #define AESENC_ROUND(t, s, rk) do { \
-	(t ## 0) = Te0[(s ## 0) >> 24] ^ Te1[((s ## 1) >> 16) & 0xff] ^ Te2[((s ## 2) >> 8) & 0xff] ^ Te3[(s ## 3) & 0xff] ^ (rk)[0]; \
-	(t ## 1) = Te0[(s ## 1) >> 24] ^ Te1[((s ## 2) >> 16) & 0xff] ^ Te2[((s ## 3) >> 8) & 0xff] ^ Te3[(s ## 0) & 0xff] ^ (rk)[1]; \
-	(t ## 2) = Te0[(s ## 2) >> 24] ^ Te1[((s ## 3) >> 16) & 0xff] ^ Te2[((s ## 0) >> 8) & 0xff] ^ Te3[(s ## 1) & 0xff] ^ (rk)[2]; \
-	(t ## 3) = Te0[(s ## 3) >> 24] ^ Te1[((s ## 0) >> 16) & 0xff] ^ Te2[((s ## 1) >> 8) & 0xff] ^ Te3[(s ## 2) & 0xff] ^ (rk)[3]; \
+	(t ## 0) = \
+		Te0[(s ## 0) >> 24] ^ Te1[((s ## 1) >> 16) & 0xff] ^ \
+		Te2[((s ## 2) >> 8) & 0xff] ^ Te3[(s ## 3) & 0xff] ^ (rk)[0]; \
+	(t ## 1) = \
+		Te0[(s ## 1) >> 24] ^ Te1[((s ## 2) >> 16) & 0xff] ^ \
+		Te2[((s ## 3) >> 8) & 0xff] ^ Te3[(s ## 0) & 0xff] ^ (rk)[1]; \
+	(t ## 2) = \
+		Te0[(s ## 2) >> 24] ^ Te1[((s ## 3) >> 16) & 0xff] ^ \
+		Te2[((s ## 0) >> 8) & 0xff] ^ Te3[(s ## 1) & 0xff] ^ (rk)[2]; \
+	(t ## 3) = \
+		Te0[(s ## 3) >> 24] ^ Te1[((s ## 0) >> 16) & 0xff] ^ \
+		Te2[((s ## 1) >> 8) & 0xff] ^ Te3[(s ## 2) & 0xff] ^ (rk)[3]; \
 } while (0)
 
 #define AESDEC_ROUND(t, s, rk) do { \
-	(t ## 0) = Td0[(s ## 0) >> 24] ^ Td1[((s ## 3) >> 16) & 0xff] ^ Td2[((s ## 2) >> 8) & 0xff] ^ Td3[(s ## 1) & 0xff] ^ (rk)[0]; \
-	(t ## 1) = Td0[(s ## 1) >> 24] ^ Td1[((s ## 0) >> 16) & 0xff] ^ Td2[((s ## 3) >> 8) & 0xff] ^ Td3[(s ## 2) & 0xff] ^ (rk)[1]; \
-	(t ## 2) = Td0[(s ## 2) >> 24] ^ Td1[((s ## 1) >> 16) & 0xff] ^ Td2[((s ## 0) >> 8) & 0xff] ^ Td3[(s ## 3) & 0xff] ^ (rk)[2]; \
-	(t ## 3) = Td0[(s ## 3) >> 24] ^ Td1[((s ## 2) >> 16) & 0xff] ^ Td2[((s ## 1) >> 8) & 0xff] ^ Td3[(s ## 0) & 0xff] ^ (rk)[3]; \
+	(t ## 0) = \
+		Td0[(s ## 0) >> 24] ^ Td1[((s ## 3) >> 16) & 0xff] ^ \
+		Td2[((s ## 2) >> 8) & 0xff] ^ Td3[(s ## 1) & 0xff] ^ (rk)[0]; \
+	(t ## 1) = \
+		Td0[(s ## 1) >> 24] ^ Td1[((s ## 0) >> 16) & 0xff] ^ \
+		Td2[((s ## 3) >> 8) & 0xff] ^ Td3[(s ## 2) & 0xff] ^ (rk)[1]; \
+	(t ## 2) = \
+		Td0[(s ## 2) >> 24] ^ Td1[((s ## 1) >> 16) & 0xff] ^ \
+		Td2[((s ## 0) >> 8) & 0xff] ^ Td3[(s ## 3) & 0xff] ^ (rk)[2]; \
+	(t ## 3) = \
+		Td0[(s ## 3) >> 24] ^ Td1[((s ## 2) >> 16) & 0xff] ^ \
+		Td2[((s ## 1) >> 8) & 0xff] ^ Td3[(s ## 0) & 0xff] ^ (rk)[3]; \
 } while (0)
 
 static const uint32_t Te0[256] = {
@@ -701,10 +717,21 @@ int aes_set_decrypt_key(const uint8_t *cipher_key, int bits, aes_key *key)
 		return res;
 
 	for (i = 0, j = 4 * key->nrounds; i < j; i += 4, j -= 4) {
-		temp = rkeys[i    ]; rkeys[i    ] = rkeys[j    ]; rkeys[j    ] = temp;
-		temp = rkeys[i + 1]; rkeys[i + 1] = rkeys[j + 1]; rkeys[j + 1] = temp;
-		temp = rkeys[i + 2]; rkeys[i + 2] = rkeys[j + 2]; rkeys[j + 2] = temp;
-		temp = rkeys[i + 3]; rkeys[i + 3] = rkeys[j + 3]; rkeys[j + 3] = temp;
+		temp = rkeys[i];
+		rkeys[i] = rkeys[j];
+		rkeys[j] = temp;
+
+		temp = rkeys[i + 1];
+		rkeys[i + 1] = rkeys[j + 1];
+		rkeys[j + 1] = temp;
+
+		temp = rkeys[i + 2];
+		rkeys[i + 2] = rkeys[j + 2];
+		rkeys[j + 2] = temp;
+
+		temp = rkeys[i + 3];
+		rkeys[i + 3] = rkeys[j + 3];
+		rkeys[j + 3] = temp;
 	}
 
 	for (i = 1; i < key->nrounds; i++) {

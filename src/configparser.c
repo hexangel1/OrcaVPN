@@ -86,7 +86,7 @@ struct config_section *read_config(const char *file)
 		for (v_begin = k_end + 1; isspace(*v_begin); v_begin++);
 		v_end = strchr(v_begin, '\n');
 		if (!v_end)
-			CONFIG_ERROR("expected newline marker, end of line found");
+			CONFIG_ERROR("expected newline, end of line found");
 
 		for (k_end--; isspace(*k_end); k_end--);
 		for (v_end--; isspace(*v_end); v_end--);
@@ -118,18 +118,6 @@ void free_config(struct config_section *cfg)
 	}
 }
 
-void debug_config(struct config_section *cfg)
-{
-	size_t i;
-	struct config_section *tmp;
-
-	for (tmp = cfg; tmp; tmp = tmp->next) {
-		fprintf(stderr, "[%s]\n", tmp->scope);
-		for (i = 0; i < tmp->vars_count; i++)
-			fprintf(stderr, "%s = %s\n", tmp->keys[i], tmp->vals[i]);
-	}
-}
-
 const char *get_var_value(struct config_section *cfg, const char *var)
 {
 	size_t i;
@@ -156,7 +144,7 @@ int get_int_var(struct config_section *cfg, const char *var)
 
 int get_bool_var(struct config_section *cfg, const char *var)
 {
-	static const char *const boolean_values[] = {
+	static const char *const boolean_vals[] = {
 		"on", "off", "true", "false", "1", "0"
 	};
 	const char *value;
@@ -165,8 +153,8 @@ int get_bool_var(struct config_section *cfg, const char *var)
 	value = get_var_value(cfg, var);
 	if (!value)
 		return 0;
-	for (i = 0; i < sizeof(boolean_values) / sizeof(boolean_values[0]); i++) {
-		if (!strcmp(value, boolean_values[i]))
+	for (i = 0; i < sizeof(boolean_vals) / sizeof(boolean_vals[0]); i++) {
+		if (!strcmp(value, boolean_vals[i]))
 			return !(i % 2);
 	}
 	return -1;
