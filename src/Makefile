@@ -5,14 +5,15 @@ HEADERS = $(filter-out main.h, $(SOURCES:.c=.h))
 OBJECTS = $(SOURCES:.c=.o)
 
 LIBDEPEND = encrypt/libencrypt.a
-LOCALLIBS = -lencrypt -Lencrypt -lrt
+LOCALLIBS = -lencrypt -Lencrypt
+LDLIBS = $(LOCALLIBS) #-lrt glibc<2.17
 INC_DIRS = -I encrypt
 CFLAGS = -Wall -Wextra -ansi -pedantic -O2 -g
 CC = gcc
 CTAGS = ctags
 
 $(PROJECT): $(OBJECTS) $(LIBDEPEND)
-	$(CC) $(CFLAGS) -o $@ $(OBJECTS) $(LOCALLIBS)
+	$(CC) $(CFLAGS) -o $@ $(OBJECTS) $(LDLIBS)
 
 %.o: %.c
 	$(CC) $(CFLAGS) $(INC_DIRS) -c -o $@ $<
