@@ -12,6 +12,7 @@
 #include "helper.h"
 
 #define IDLE_TIMEOUT 30
+#define GET_PEER_ID(ip) ((ip) & 0xff)
 
 struct vpnclient {
 	struct event_listener loop;
@@ -29,7 +30,6 @@ struct vpnclient {
 	uint32_t router_ip;
 
 	void *encrypt_key;
-	unsigned char point_id;
 
 	unsigned short sequance_id;
 	unsigned short sequance_no;
@@ -50,7 +50,7 @@ static void ping_vpn_router(struct vpnclient *clnt)
 	length = write_icmp_echo(buffer, &icmp_echo);
 	sign_packet(buffer, &length);
 	encrypt_packet(buffer, &length, clnt->encrypt_key);
-	buffer[length++] = clnt->point_id;
+	buffer[length++] = GET_PEER_ID(clnt->private_ip);
 	res = send_udp(clnt->loop.sockfd, buffer, length, NULL);
 	if (res < 0)
 		log_mesg(LOG_ERR, "sending ping packet failed");
@@ -119,7 +119,7 @@ static void tun_if_handler(void *ctx)
 		return;
 	sign_packet(buffer, &length);
 	encrypt_packet(buffer, &length, clnt->encrypt_key);
-	buffer[length++] = clnt->point_id;
+	buffer[length++] = GET_PEER_ID(clnt->private_ip);
 	res = send_udp(clnt->loop.sockfd, buffer, length, NULL);
 	if (res < 0)
 		log_mesg(LOG_ERR, "sending packet to server failed");
@@ -138,7 +138,7 @@ static struct vpnclient *create_client(const char *file)
 	struct config_section *config;
 	unsigned char bin_cipher_key[64];
 	size_t keylen;
-	int port, server_port, point_id;
+	int port, server_port;
 	const char *ip_addr, *server_ip, *router_ip, *cipher_key;
 	const char *tun_addr, *tun_netmask, *tun_name;
 	void *encrypt_key;
@@ -173,9 +173,6 @@ static struct vpnclient *create_client(const char *file)
 	tun_name = get_str_var(config, "tun_name", MAX_IF_NAME_LEN);
 	port = get_int_var(config, "port");
 	server_port = get_int_var(config, "server_port");
-	point_id = get_int_var(config, "point_id");
-	if (point_id > 0xff || point_id < 0)
-		CONFIG_ERROR("invalid point_id");
 
 	encrypt_key = gen_encrypt_key(bin_cipher_key, keylen / 2);
 	if (!encrypt_key)
@@ -193,7 +190,6 @@ static struct vpnclient *create_client(const char *file)
 
 	clnt->port = port;
 	clnt->server_port = server_port ? server_port : VPN_PORT;
-	clnt->point_id = point_id;
 	clnt->router_ip = inet_network(router_ip);
 	clnt->private_ip = inet_network(clnt->tun_addr);
 	clnt->encrypt_key = encrypt_key;
