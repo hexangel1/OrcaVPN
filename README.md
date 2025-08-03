@@ -41,7 +41,6 @@ tun_netmask = 255.255.255.0
 block_ip_ttl = 60  
 [clientX]  
 private_ip = 10.80.80.2  
-point_id = 7  
 cipher_key = dca1a0e8781bce8d51db8edf90c32bb3b45cac663adf2581  
 inet = on  
 lan = on  
@@ -57,6 +56,5 @@ server_port = 778
 tun_name = orca-gate  
 tun_addr = 10.80.80.2  
 tun_netmask = 255.255.255.0  
-point_id = 7  
 cipher_key = dca1a0e8781bce8d51db8edf90c32bb3b45cac663adf2581
 ```
