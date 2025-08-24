@@ -136,8 +136,10 @@ static struct vpnclient *create_client(const char *file)
 	unsigned char bin_cipher_key[64];
 	size_t keylen;
 	int port, server_port;
-	const char *ip_addr, *server_ip, *router_ip, *cipher_key;
+	const char *ip_addr, *server_ip, *router_ip;
 	const char *tun_addr, *tun_netmask, *tun_name;
+	const char *cipher_key, *cipher_name;
+	crypto_key_type cipher;
 	void *encrypt_key;
 
 	config = read_config(file);
@@ -159,6 +161,9 @@ static struct vpnclient *create_client(const char *file)
 	cipher_key = get_var_value(config, "cipher_key");
 	if (!cipher_key)
 		CONFIG_ERROR("cipher key var not set");
+	cipher_name = get_var_value(config, "cipher");
+	if (!cipher_name)
+		CONFIG_ERROR("cipher var not set");
 
 	keylen = strlen(cipher_key);
 	if (keylen > sizeof(bin_cipher_key) * 2)
@@ -171,7 +176,10 @@ static struct vpnclient *create_client(const char *file)
 	port = get_int_var(config, "port");
 	server_port = get_int_var(config, "server_port");
 
-	encrypt_key = crypto_key_create(bin_cipher_key, keylen / 2);
+	cipher = crypto_key_parse_cipher(cipher_name);
+	if (cipher < 0)
+		CONFIG_ERROR("invalid cipher selected");
+	encrypt_key = crypto_key_create(bin_cipher_key, keylen / 2, cipher);
 	if (!encrypt_key)
 		CONFIG_ERROR("encryption key create failed");
 
