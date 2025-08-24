@@ -77,8 +77,7 @@ static void socket_handler(void *ctx)
 		return;
 
 	length = res;
-	decrypt_packet(buffer, &length, clnt->encrypt_key);
-	if (!check_signature(buffer, &length)) {
+	if (decrypt_packet2(buffer, &length, clnt->encrypt_key)) {
 		log_mesg(LOG_NOTICE, "bad packet signature");
 		return;
 	}
@@ -117,8 +116,7 @@ static void tun_if_handler(void *ctx)
 	}
 	if (clnt->private_ip != get_source_ip(buffer))
 		return;
-	sign_packet(buffer, &length);
-	encrypt_packet(buffer, &length, clnt->encrypt_key);
+	encrypt_packet2(buffer, &length, clnt->encrypt_key);
 	buffer[length++] = GET_PEER_ID(clnt->private_ip);
 	res = send_udp(clnt->loop.sockfd, buffer, length, NULL);
 	if (res < 0)
@@ -174,7 +172,7 @@ static struct vpnclient *create_client(const char *file)
 	port = get_int_var(config, "port");
 	server_port = get_int_var(config, "server_port");
 
-	encrypt_key = gen_encrypt_key(bin_cipher_key, keylen / 2);
+	encrypt_key = gen_encrypt_key2(bin_cipher_key, keylen / 2);
 	if (!encrypt_key)
 		CONFIG_ERROR("encrypt keygen failed");
 

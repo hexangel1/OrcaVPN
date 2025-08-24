@@ -144,7 +144,7 @@ static struct vpn_peer *alloc_peer(
 		log_mesg(LOG_ERR, "peer %s: key has not hex format", name);
 		return NULL;
 	}
-	encrypt_key = gen_encrypt_key(bin_cipher_key, keylen / 2);
+	encrypt_key = gen_encrypt_key2(bin_cipher_key, keylen / 2);
 	if (!encrypt_key) {
 		log_mesg(LOG_ERR, "peer %s: encrypt keygen failed", name);
 		return NULL;
@@ -225,8 +225,7 @@ static void route_packet(struct vpnserver *serv, struct vpn_peer *src,
 			log_drop("client address expired", src_ip, dest_ip);
 			return;
 		}
-		length += PACKET_SIGNATURE_LEN;
-		encrypt_packet(buffer, &length, dest->encrypt_key);
+		encrypt_packet2(buffer, &length, dest->encrypt_key);
 		res = send_udp(serv->loop.sockfd, buffer, length, &dest->addr);
 	} else {
 		if (dest_ip == (serv->private_ip & serv->private_mask)) {
@@ -269,8 +268,7 @@ static void socket_handler(void *ctx)
 		block_ip(serv, &addr);
 		return;
 	}
-	decrypt_packet(buffer, &length, peer->encrypt_key);
-	if (!check_signature(buffer, &length)) {
+	if (decrypt_packet2(buffer, &length, peer->encrypt_key)) {
 		log_mesg(LOG_NOTICE, "bad packet signature");
 		block_ip(serv, &addr);
 		return;
@@ -327,8 +325,7 @@ static void tun_if_handler(void *ctx)
 		log_drop("client address expired", src_ip, dest_ip);
 		return;
 	}
-	sign_packet(buffer, &length);
-	encrypt_packet(buffer, &length, peer->encrypt_key);
+	encrypt_packet2(buffer, &length, peer->encrypt_key);
 	res = send_udp(serv->loop.sockfd, buffer, length, &peer->addr);
 	if (res < 0)
 		log_mesg(LOG_ERR, "forwarding packet from tun failed");

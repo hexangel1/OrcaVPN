@@ -1,13 +1,13 @@
 LIBNAME = encrypt
 LIBFILE = lib$(LIBNAME).a
 
-SOURCES = encryption.c aes.c sha1.c
+SOURCES = encryption.c monocypher.c aes.c sha1.c
 HEADERS = $(SOURCES:.c=.h)
 OBJECTS = $(SOURCES:.c=.o)
 
 ARFLAGS = crs
 AR = ar
-CFLAGS = -Wall -Wextra -ansi -pedantic -O2 -funroll-loops -g
+CFLAGS = -Wall -Wextra -pedantic -O2 -funroll-loops -g
 CC = gcc
 CTAGS = ctags
 

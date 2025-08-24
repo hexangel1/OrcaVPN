@@ -19,6 +19,14 @@ void encrypt_packet(void *packet, size_t *len, const void *key);
 /* Decrypt packet */
 void decrypt_packet(void *packet, size_t *len, const void *key);
 
+/* Generate encryption round keys */
+void *gen_encrypt_key2(const void *cipher_key, unsigned char keylen);
+
+/* Encrypt packet */
+void encrypt_packet2(void *packet, size_t *len, const void *key);
+/* Decrypt packet */
+int decrypt_packet2(void *packet, size_t *len, const void *key);
+
 /* Append signature bytes to packet */
 void sign_packet(void *packet, size_t *len);
 /* Check and trim packet signature */

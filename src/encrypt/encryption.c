@@ -7,6 +7,7 @@
 #include <time.h>
 
 #include "encryption.h"
+#include "monocypher.h"
 #include "aes.h"
 #include "sha1.h"
 
@@ -73,6 +74,13 @@ void *gen_encrypt_key(const void *cipher_key, unsigned char keylen)
 	aes_set_encrypt_key(cipher_key, keylen * 8, &keys[ENCRYPT]);
 	aes_set_decrypt_key(cipher_key, keylen * 8, &keys[DECRYPT]);
 	return keys;
+}
+
+void *gen_encrypt_key2(const void *cipher_key, unsigned char keylen)
+{
+	uint8_t *key = malloc(keylen);
+	memcpy(key, cipher_key, keylen);
+	return key;
 }
 
 void encrypt_packet(void *packet, size_t *len, const void *key)
@@ -147,4 +155,38 @@ int check_signature(const void *packet, size_t *len)
 	sha1_result(&ctxt, digest);
 	*len -= SHA1_DIGEST_LENGTH;
 	return !memcmp(data + size, digest, sizeof(digest));
+}
+
+#define NONCE_LENGTH 24
+#define MAC_LENGTH 16
+
+void encrypt_packet2(void *packet, size_t *len, const void *key)
+{
+	uint8_t *data = packet;
+	size_t size = *len;
+
+	read_random(data + size, NONCE_LENGTH); /* read nounce */
+	crypto_aead_lock(data, data + size + NONCE_LENGTH, key, data + size,
+		NULL, 0, data, size);
+
+	size += NONCE_LENGTH + MAC_LENGTH;
+	*len = size;
+}
+
+int decrypt_packet2(void *packet, size_t *len, const void *key)
+{
+	uint8_t *data = packet;
+	size_t size = *len;
+	int res;
+
+	if (size <= NONCE_LENGTH + MAC_LENGTH)
+		return 1;
+
+	size -= NONCE_LENGTH + MAC_LENGTH;
+
+	res = crypto_aead_unlock(data, data + size + NONCE_LENGTH, key, data + size,
+		NULL, 0, data, size);
+
+	*len = size;
+	return res;
 }
