@@ -128,12 +128,14 @@ static struct vpn_peer *alloc_peer(
 	const char *name,
 	uint32_t private_ip,
 	const char *cipher_key,
+	const char *cipher_name,
 	int inet_on,
 	int lan_on)
 {
 	unsigned char bin_cipher_key[64];
 	void *encrypt_key;
 	size_t keylen = strlen(cipher_key);
+	crypto_key_type cipher;
 	struct vpn_peer *peer;
 
 	if (keylen > sizeof(bin_cipher_key) * 2) {
@@ -144,7 +146,14 @@ static struct vpn_peer *alloc_peer(
 		log_mesg(LOG_ERR, "peer %s: key has not hex format", name);
 		return NULL;
 	}
-	encrypt_key = crypto_key_create(bin_cipher_key, keylen / 2);
+
+	cipher = crypto_key_parse_cipher(cipher_name);
+	if (cipher < 0) {
+		log_mesg(LOG_ERR, "peer %s: invalid cipher: %s", name,
+			cipher_name);
+		return NULL;
+	}
+	encrypt_key = crypto_key_create(bin_cipher_key, keylen / 2, cipher);
 	if (!encrypt_key) {
 		log_mesg(LOG_ERR, "peer %s: encrypt key create failed", name);
 		return NULL;
@@ -160,7 +169,8 @@ static struct vpn_peer *alloc_peer(
 }
 
 static int create_peer(struct vpnserver *serv, const char *name,
-	const char *ip, const char *cipher_key, int inet, int lan)
+	const char *ip, const char *cipher_key, const char *cipher,
+	int inet, int lan)
 {
 	struct vpn_peer *peer;
 	uint32_t private_ip;
@@ -179,7 +189,7 @@ static int create_peer(struct vpnserver *serv, const char *name,
 		return -1;
 	}
 
-	peer = alloc_peer(name, private_ip, cipher_key, inet, lan);
+	peer = alloc_peer(name, private_ip, cipher_key, cipher, inet, lan);
 	if (!peer)
 		return -1;
 
@@ -341,7 +351,7 @@ static void tun_if_handler(void *ctx)
 static int add_peers(struct vpnserver *serv, struct config_section *cfg)
 {
 	struct config_section *peer;
-	const char *ip, *key;
+	const char *ip, *key, *cipher;
 	int res, inet, lan, has_errors = 0;
 
 	serv->peers_count = 0;
@@ -352,6 +362,7 @@ static int add_peers(struct vpnserver *serv, struct config_section *cfg)
 		int current_peer_ok = 1;
 		ip = get_str_var(peer, "private_ip", MAX_IPV4_ADDR_LEN);
 		key = get_var_value(peer, "cipher_key");
+		cipher = get_var_value(peer, "cipher");
 		inet = get_bool_var(peer, "inet");
 		lan = get_bool_var(peer, "lan");
 
@@ -359,6 +370,8 @@ static int add_peers(struct vpnserver *serv, struct config_section *cfg)
 			ADD_PEER_ERROR("private ip not set", peer);
 		if (!key)
 			ADD_PEER_ERROR("cipher key not set", peer);
+		if (!cipher)
+			ADD_PEER_ERROR("cipher not set", peer);
 		if (inet < 0)
 			ADD_PEER_ERROR("bad inet option value", peer);
 		if (lan < 0)
@@ -366,7 +379,8 @@ static int add_peers(struct vpnserver *serv, struct config_section *cfg)
 		if (!current_peer_ok)
 			continue;
 
-		res = create_peer(serv, peer->scope, ip, key, inet, lan);
+		res = create_peer(serv, peer->scope,
+			ip, key, cipher, inet, lan);
 		if (res < 0)
 			ADD_PEER_ERROR("create peer failed", peer);
 	}
