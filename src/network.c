@@ -77,11 +77,13 @@ create_socket_af(int af, int type, const char *ip, unsigned short port)
 	res = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 	if (res < 0) {
 		log_perror("setsockopt");
+		close(sockfd);
 		return -1;
 	}
 	res = bind(sockfd, addr, AF_SOCKLEN(af));
 	if (res < 0) {
 		log_perror("bind");
+		close(sockfd);
 		return -1;
 	}
 	return sockfd;

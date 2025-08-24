@@ -229,6 +229,10 @@ static void route_packet(struct vpnserver *serv, struct vpn_peer *src,
 		encrypt_packet(buffer, &length, dest->encrypt_key);
 		res = send_udp(serv->loop.sockfd, buffer, length, &dest->addr);
 	} else {
+		if (dest_ip == (serv->private_ip & serv->private_mask)) {
+			log_drop("destination not found", src_ip, dest_ip);
+			return;
+		}
 		if (!src->inet_on && dest_ip != serv->private_ip) {
 			log_drop("source inet disabled", src_ip, dest_ip);
 			return;
