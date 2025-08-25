@@ -3,7 +3,7 @@
 
 #include <stddef.h>
 
-#define PACKET_SIGNATURE_LEN 20
+typedef struct crypto_key_st crypto_key;
 
 /* Init encryption module */
 void init_encryption(void);
@@ -11,17 +11,12 @@ void init_encryption(void);
 /* Read random bytes from /dev/urandom to buffer */
 int read_random(void *buf, size_t len);
 
-/* Generate encryption round keys */
-void *gen_encrypt_key(const void *cipher_key, unsigned char keylen);
+/* Allocate crypto key */
+crypto_key *crypto_key_create(const void *cipher_key, int keylen);
 
-/* Encrypt packet */
-void encrypt_packet(void *packet, size_t *len, const void *key);
-/* Decrypt packet */
-void decrypt_packet(void *packet, size_t *len, const void *key);
-
-/* Append signature bytes to packet */
-void sign_packet(void *packet, size_t *len);
-/* Check and trim packet signature */
-int check_signature(const void *packet, size_t *len);
+/* Encrypt message */
+void encrypt_message(void *mesg, size_t *len, const crypto_key *crkey);
+/* Decrypt message */
+int decrypt_message(void *mesg, size_t *len, const crypto_key *crkey);
 
 #endif /* ENCRYPTION_H_SENTRY */

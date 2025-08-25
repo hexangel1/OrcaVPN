@@ -48,8 +48,7 @@ static void ping_vpn_router(struct vpnclient *clnt)
 	icmp_echo.seq_no = clnt->sequance_no++;
 	read_random(icmp_echo.data, PING_DATA_LEN);
 	length = write_icmp_echo(buffer, &icmp_echo);
-	sign_packet(buffer, &length);
-	encrypt_packet(buffer, &length, clnt->encrypt_key);
+	encrypt_message(buffer, &length, clnt->encrypt_key);
 	buffer[length++] = GET_PEER_ID(clnt->private_ip);
 	res = send_udp(clnt->loop.sockfd, buffer, length, NULL);
 	if (res < 0)
@@ -77,9 +76,8 @@ static void socket_handler(void *ctx)
 		return;
 
 	length = res;
-	decrypt_packet(buffer, &length, clnt->encrypt_key);
-	if (!check_signature(buffer, &length)) {
-		log_mesg(LOG_NOTICE, "bad packet signature");
+	if (decrypt_message(buffer, &length, clnt->encrypt_key)) {
+		log_mesg(LOG_NOTICE, "decrypt packet failed");
 		return;
 	}
 	if (check_ipv4_packet(buffer, length, 0)) {
@@ -117,8 +115,7 @@ static void tun_if_handler(void *ctx)
 	}
 	if (clnt->private_ip != get_source_ip(buffer))
 		return;
-	sign_packet(buffer, &length);
-	encrypt_packet(buffer, &length, clnt->encrypt_key);
+	encrypt_message(buffer, &length, clnt->encrypt_key);
 	buffer[length++] = GET_PEER_ID(clnt->private_ip);
 	res = send_udp(clnt->loop.sockfd, buffer, length, NULL);
 	if (res < 0)
@@ -174,9 +171,9 @@ static struct vpnclient *create_client(const char *file)
 	port = get_int_var(config, "port");
 	server_port = get_int_var(config, "server_port");
 
-	encrypt_key = gen_encrypt_key(bin_cipher_key, keylen / 2);
+	encrypt_key = crypto_key_create(bin_cipher_key, keylen / 2);
 	if (!encrypt_key)
-		CONFIG_ERROR("encrypt keygen failed");
+		CONFIG_ERROR("encryption key create failed");
 
 	clnt = malloc(sizeof(struct vpnclient));
 	memset(clnt, 0, sizeof(struct vpnclient));
