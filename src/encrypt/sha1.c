@@ -179,3 +179,41 @@ void sha1_result(struct sha1_ctxt *ctxt, uint8_t *digest)
 	TO_BIG_ENDIAN32(digest, ctxt->h.b8, 20);
 #endif
 }
+
+void hmac_sha1(const uint8_t *text, size_t text_len,
+	const uint8_t *key, size_t key_len, uint8_t hmac[20])
+{
+	unsigned char k_ipad[SHA1_BLOCK_SIZE];
+	unsigned char k_opad[SHA1_BLOCK_SIZE];
+	unsigned char k_hash[SHA1_DIGEST_LENGTH];
+	struct sha1_ctxt ctx;
+	int i;
+
+	if (key_len > SHA1_BLOCK_SIZE) {
+		sha1_init(&ctx);
+		sha1_loop(&ctx, key, key_len);
+		sha1_result(&ctx, k_hash);
+		key_len = SHA1_DIGEST_LENGTH;
+		key = k_hash;
+	}
+
+	memset(k_ipad, 0, sizeof(k_ipad));
+	memset(k_opad, 0, sizeof(k_opad));
+	memcpy(k_ipad, key, key_len);
+	memcpy(k_opad, key, key_len);
+	for (i = 0; i < SHA1_BLOCK_SIZE; i++) {
+		k_ipad[i] ^= 0x36;
+		k_opad[i] ^= 0x5c;
+	}
+
+	/* inner */
+	sha1_init(&ctx);
+	sha1_loop(&ctx, k_ipad, SHA1_BLOCK_SIZE);
+	sha1_loop(&ctx, text, text_len);
+	sha1_result(&ctx, hmac);
+	/* outer */
+	sha1_init(&ctx);
+	sha1_loop(&ctx, k_opad, SHA1_BLOCK_SIZE);
+	sha1_loop(&ctx, hmac, SHA1_DIGEST_LENGTH);
+	sha1_result(&ctx, hmac);
+}
