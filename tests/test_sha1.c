@@ -28,7 +28,7 @@ static void do_test(struct sha1_test_case *test, int test_no)
 {
 	int res = test_sha1(test->input, test->expected_digest);
 	if (!res)
-	   fail_test();
+		fail_test();
 	fprintf(stderr, "[%d] %s sha1(%s) %s %s\n", test_no, STATUS_PREFIX(res),
 		test->input, EQUAL_IF_OK(res), test->expected_digest);
 }
