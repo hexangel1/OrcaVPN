@@ -2,7 +2,7 @@
 VPN client server encrypted tunnel over UDP for Linux
 
 * AES 128/192/256 bit CBC mode encryption
-* SHA-1 packet signature
+* HMAC-SHA1 packet signature
 * UDP transport layer protocol
 * Multiple clients server-side support
 * Server protection by blocking IP
