@@ -81,6 +81,11 @@ crypto_key *crypto_key_create(const void *cipher_key, int keylen)
 	return crkey;
 }
 
+void crypto_key_destroy(crypto_key *crkey)
+{
+	free(crkey);
+}
+
 void encrypt_message(void *mesg, size_t *len, const crypto_key *crkey)
 {
 	uint8_t *data = mesg;

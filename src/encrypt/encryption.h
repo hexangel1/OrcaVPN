@@ -13,6 +13,8 @@ int read_random(void *buf, size_t len);
 
 /* Allocate crypto key */
 crypto_key *crypto_key_create(const void *cipher_key, int keylen);
+/* Free crypto key */
+void crypto_key_destroy(crypto_key *crkey);
 
 /* Encrypt message */
 void encrypt_message(void *mesg, size_t *len, const crypto_key *crkey);

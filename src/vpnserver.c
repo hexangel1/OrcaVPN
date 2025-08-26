@@ -389,7 +389,7 @@ static void free_server(struct vpnserver *serv)
 		return;
 
 	for (i = 0; i < serv->peers_count; i++) {
-		free(serv->peers[i]->encrypt_key);
+		crypto_key_destroy(serv->peers[i]->encrypt_key);
 		free(serv->peers[i]);
 	}
 

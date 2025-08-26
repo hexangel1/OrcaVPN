@@ -249,7 +249,7 @@ static void vpn_client_down(struct vpnclient *clnt)
 {
 	close(clnt->loop.tunfd);
 	close(clnt->loop.sockfd);
-	free(clnt->encrypt_key);
+	crypto_key_destroy(clnt->encrypt_key);
 	free(clnt);
 }
 
