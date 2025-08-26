@@ -341,17 +341,17 @@ int check_ipv4_packet(const void *buf, size_t len, int skip_sum)
 	const struct iphdr *ip_header = buf;
 
 	if (len < sizeof(struct iphdr))
-		return 0;
+		return 1;
 	if (ip_header->version != 4 || (size_t)ntohs(ip_header->tot_len) != len)
-		return 0;
+		return 1;
 	if (!skip_sum) {
 		unsigned int ihl = ip_header->ihl;
 		if (ihl < 5 || ihl > 15)
-			return 0;
+			return 1;
 		if (ip_checksum((uint16_t *)ip_header, ihl * 4))
-			return 0;
+			return 1;
 	}
-	return 1;
+	return 0;
 }
 
 int write_icmp_echo(void *buf, const struct icmp_echo_param *param)

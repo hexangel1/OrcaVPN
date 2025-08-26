@@ -82,7 +82,7 @@ static void socket_handler(void *ctx)
 		log_mesg(LOG_NOTICE, "bad packet signature");
 		return;
 	}
-	if (!check_ipv4_packet(buffer, length, 0)) {
+	if (check_ipv4_packet(buffer, length, 0)) {
 		log_mesg(LOG_NOTICE, "bad ipv4 packet from socket");
 		return;
 	}
@@ -111,7 +111,7 @@ static void tun_if_handler(void *ctx)
 		return;
 
 	length = res;
-	if (!check_ipv4_packet(buffer, length, 1)) {
+	if (check_ipv4_packet(buffer, length, 1)) {
 		log_mesg(LOG_NOTICE, "bad ipv4 packet from tun");
 		return;
 	}
