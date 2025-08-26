@@ -162,13 +162,12 @@ void sha1_loop(struct sha1_ctxt *ctxt, const uint8_t *input, size_t len)
 	for (offs = 0; offs < len; offs += written) {
 		written = (64 < len - offs) ? 64 : len - offs;
 		memcpy(ctxt->m.b8, input + offs, written);
-		ctxt->c.b64 += written;
+		ctxt->c.b64 += written << 3;
 		ctxt->count += written;
 		ctxt->count &= 63;
 		if (ctxt->count == 0)
 			sha1_step(ctxt);
 	}
-	ctxt->c.b64 <<= 3;
 }
 
 void sha1_result(struct sha1_ctxt *ctxt, uint8_t *digest)
