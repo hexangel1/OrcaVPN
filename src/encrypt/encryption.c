@@ -7,12 +7,11 @@
 #include <time.h>
 
 #include "encryption.h"
-#include "endianess.h"
-#include "memzero.h"
-#include "aes.h"
-#include "sha1.h"
 #include "chacha20.h"
 #include "poly1305.h"
+#include "aes.h"
+#include "sha1.h"
+#include "memzero.h"
 
 struct crypto_key_st {
 	uint8_t key[32];
@@ -21,12 +20,6 @@ struct crypto_key_st {
 	aes_key expanded_ekey;
 	aes_key expanded_dkey;
 };
-
-#define xor_with_iv(block, iv) do { \
-	uint8_t i; \
-	for (i = 0; i < AES_BLOCK_SIZE; i++) \
-		(block)[i] ^= (iv)[i]; \
-} while (0)
 
 /* AES HMAC-SHA1 */
 
@@ -44,6 +37,12 @@ static crypto_key *init_aes_hmac_sha1(const void *cipher_key, int keylen)
 	aes_set_decrypt_key(cipher_key, keylen * 8, &crkey->expanded_dkey);
 	return crkey;
 }
+
+#define xor_with_iv(block, iv) do { \
+	uint8_t i; \
+	for (i = 0; i < AES_BLOCK_SIZE; i++) \
+		(block)[i] ^= (iv)[i]; \
+} while (0)
 
 static void
 encrypt_aes_hmac_sha1(void *mesg, size_t *len, const crypto_key *crkey)
@@ -100,7 +99,7 @@ decrypt_aes_hmac_sha1(void *mesg, size_t *len, const crypto_key *crkey)
 	if (!padding || padding > AES_BLOCK_SIZE)
 		return 1;
 
-	*len -= padding + AES_BLOCK_SIZE + SHA1_DIGEST_LENGTH;
+	*len = padded_size - padding;
 	return 0;
 }
 
@@ -126,7 +125,7 @@ encrypt_xchacha20_poly1305(void *mesg, size_t *len, const crypto_key *crkey)
 	uint8_t *data  = mesg;
 	uint8_t *nonce = data  + text_size;
 	uint8_t *mac   = nonce + CHACHA20_X_NONCE_LENGTH;
-	crypto_aead_ctx ctx;
+	crypto_aead_ctxt ctx;
 
 	read_random(nonce, CHACHA20_X_NONCE_LENGTH);
 	crypto_aead_init_x(&ctx, crkey->key, nonce);
@@ -141,10 +140,10 @@ decrypt_xchacha20_poly1305(void *mesg, size_t *len, const crypto_key *crkey)
 	size_t text_size, total_len = *len;
 	uint8_t *data = mesg;
 	uint8_t *nonce, *mac;
-	crypto_aead_ctx ctx;
+	crypto_aead_ctxt ctx;
 	int result;
 
-	if (total_len <= CHACHA20_X_NONCE_LENGTH + POLY1305_MAC_LENGTH)
+	if (total_len < CHACHA20_X_NONCE_LENGTH + POLY1305_MAC_LENGTH)
 		return 1;
 
 	text_size = total_len - CHACHA20_X_NONCE_LENGTH - POLY1305_MAC_LENGTH;

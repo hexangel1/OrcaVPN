@@ -18,8 +18,8 @@ int aes_set_encrypt_key(const uint8_t *cipher_key, int bits, aes_key *key);
 int aes_set_decrypt_key(const uint8_t *cipher_key, int bits, aes_key *key);
 
 /* AES encrypt block operation */
-void aes_encrypt(const uint8_t *in, uint8_t *out, const aes_key *key);
+void aes_encrypt(const uint8_t in[16], uint8_t out[16], const aes_key *key);
 /* AES decrypt block operation */
-void aes_decrypt(const uint8_t *in, uint8_t *out, const aes_key *key);
+void aes_decrypt(const uint8_t in[16], uint8_t out[16], const aes_key *key);
 
 #endif /* AES_H_SENTRY */

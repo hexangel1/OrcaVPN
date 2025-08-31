@@ -42,7 +42,7 @@ static int test_aead_write(
 	uint8_t *mac = stobin(mac_hex, &mac_len);
 	uint8_t *cipher_text_res = malloc(plain_text_len);
 	uint8_t *mac_res = malloc(mac_len);
-	crypto_aead_ctx ctx;
+	crypto_aead_ctxt ctx;
 	int cipher_ok, mac_ok;
 
 	crypto_aead_init_x(&ctx, key, nonce);

@@ -7,21 +7,21 @@
 #define POLY1305_MAC_LENGTH 16
 #define POLY1305_MAC_HEX_LENGTH (POLY1305_MAC_LENGTH * 2 + 1)
 
-typedef struct poly1305_ctx_st {
+struct poly1305_ctxt {
 	uint8_t c[16];
 	size_t  c_idx;
 	uint32_t r[4];
 	uint32_t pad[4];
 	uint32_t h[5];
-} poly1305_ctx;
+};
 
 /* Init poly1305 context */
-void poly1305_init(poly1305_ctx *ctx, const uint8_t key[32]);
+void poly1305_init(struct poly1305_ctxt *ctx, const uint8_t key[32]);
 /* Evaluate poly1305 hash */
-void poly1305_loop(poly1305_ctx *ctx,
+void poly1305_loop(struct poly1305_ctxt *ctx,
 	const uint8_t *message, size_t message_size);
 /* Write poly1305 hash result */
-void poly1305_result(poly1305_ctx *ctx, uint8_t mac[16]);
+void poly1305_result(struct poly1305_ctxt *ctx, uint8_t mac[16]);
 
 /* AUTH POLY1305 */
 void auth_poly1305(uint8_t mac[16], const uint8_t auth_key[32],

@@ -23,6 +23,15 @@ static inline size_t gap(size_t x, size_t pow_2)
 	return (~x + 1) & (pow_2 - 1);
 }
 
+static inline u32 load32_be(const u8 s[4])
+{
+	return
+		((u32)s[0] << 24) |
+		((u32)s[1] << 16) |
+		((u32)s[2] <<  8) |
+		((u32)s[3] <<  0);
+}
+
 static inline u32 load32_le(const u8 s[4])
 {
 	return
@@ -35,6 +44,14 @@ static inline u32 load32_le(const u8 s[4])
 static inline u64 load64_le(const u8 s[8])
 {
 	return load32_le(s) | ((u64)load32_le(s+4) << 32);
+}
+
+static inline void store32_be(u8 out[4], u32 in)
+{
+	out[0] = (in >> 24) & 0xff;
+	out[1] = (in >> 16) & 0xff;
+	out[2] = (in >>  8) & 0xff;
+	out[3] = (in >>  0) & 0xff;
 }
 
 static inline void store32_le(u8 out[4], u32 in)

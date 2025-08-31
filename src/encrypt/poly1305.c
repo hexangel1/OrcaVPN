@@ -2,12 +2,13 @@
 
 #include "poly1305.h"
 #include "endianess.h"
+#include "memzero.h"
 
 #define MIN(a, b) ((a) <= (b) ? (a) : (b))
 
 static const u8 zeros[128];
 
-static void poly_blocks(poly1305_ctx *ctx, const uint8_t *in,
+static void poly_blocks(struct poly1305_ctxt *ctx, const uint8_t *in,
 	size_t nb_blocks, unsigned end)
 {
 	const u32 r0 = ctx->r[0];
@@ -64,7 +65,7 @@ static void poly_blocks(poly1305_ctx *ctx, const uint8_t *in,
 	ctx->h[4] = h4;
 }
 
-void poly1305_init(poly1305_ctx *ctx, const uint8_t key[32])
+void poly1305_init(struct poly1305_ctxt *ctx, const uint8_t key[32])
 {
 	memset(ctx->h, 0, sizeof(ctx->h));
 	ctx->c_idx = 0;
@@ -76,7 +77,7 @@ void poly1305_init(poly1305_ctx *ctx, const uint8_t key[32])
 	ctx->r[3] &= 0x0ffffffc;
 }
 
-void poly1305_loop(poly1305_ctx *ctx,
+void poly1305_loop(struct poly1305_ctxt *ctx,
 	const uint8_t *message, size_t message_size)
 {
 	size_t i, aligned, nb_blocks;
@@ -107,7 +108,7 @@ void poly1305_loop(poly1305_ctx *ctx,
 	}
 }
 
-void poly1305_result(poly1305_ctx *ctx, uint8_t mac[16])
+void poly1305_result(struct poly1305_ctxt *ctx, uint8_t mac[16])
 {
 	u64 c = 5;
 	int i;
@@ -130,13 +131,14 @@ void poly1305_result(poly1305_ctx *ctx, uint8_t mac[16])
 		store32_le(mac + i * 4, (u32)c);
 		c = c >> 32;
 	}
+	secure_memzero(ctx, sizeof(struct poly1305_ctxt));
 }
 
 void auth_poly1305(uint8_t mac[16], const uint8_t auth_key[32],
 	const uint8_t *ad, size_t ad_size,
 	const uint8_t *cipher_text, size_t text_size)
 {
-	poly1305_ctx poly_ctx;
+	struct poly1305_ctxt poly_ctx;
 	u8 sizes[16];
 
 	store64_le(sizes + 0, ad_size);

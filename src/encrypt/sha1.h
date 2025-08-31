@@ -6,7 +6,7 @@
 
 #define SHA1_BLOCK_SIZE 64
 #define SHA1_DIGEST_LENGTH 20
-#define SHA1_DIGEST_STRING_LENGTH (SHA1_DIGEST_LENGTH * 2 + 1)
+#define SHA1_DIGEST_HEX_LENGTH (SHA1_DIGEST_LENGTH * 2 + 1)
 
 struct sha1_ctxt {
 	union sha1_bytes8 {
@@ -29,7 +29,7 @@ void sha1_init(struct sha1_ctxt *ctx);
 /* Evaluate sha1 hash */
 void sha1_loop(struct sha1_ctxt *ctx, const uint8_t *input, size_t len);
 /* Write sha1 hash result */
-void sha1_result(struct sha1_ctxt *ctx, uint8_t *digest);
+void sha1_result(struct sha1_ctxt *ctx, uint8_t digest[20]);
 
 /* HMAC-SHA1 */
 void hmac_sha1(const uint8_t *text, size_t text_len,

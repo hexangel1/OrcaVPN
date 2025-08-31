@@ -15,7 +15,7 @@ static int test_sha1(const char *input, const char *expected_digest)
 {
 	struct sha1_ctxt ctxt;
 	uint8_t digest[SHA1_DIGEST_LENGTH];
-	char hex_digest[SHA1_DIGEST_STRING_LENGTH];
+	char hex_digest[SHA1_DIGEST_HEX_LENGTH];
 
 	sha1_init(&ctxt);
 	sha1_loop(&ctxt, (const uint8_t *)input, strlen(input));
