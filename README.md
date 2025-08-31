@@ -33,7 +33,7 @@ VPN client server encrypted tunnel over UDP for Linux
 ## Server config example
 ```
 [server]  
-ip = 192.168.1.1  
+ip = 198.51.100.49  
 port = 778  
 tun_name = orca-gate  
 tun_addr = 10.80.80.1  
@@ -52,7 +52,7 @@ lan = on
 ## Client config example
 ```
 [client]  
-server_ip = 192.168.1.1  
+server_ip = 198.51.100.49  
 server_port = 778  
 tun_name = orca-gate  
 tun_addr = 10.80.80.2  
