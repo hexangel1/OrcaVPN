@@ -60,5 +60,7 @@ tags
 logs
 tests/test_aes
 tests/test_sha1
-tests/test_hashmap
 tests/test_hmac_sha1
+tests/test_xchacha20
+tests/test_aead_write
+tests/test_hashmap

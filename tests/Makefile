@@ -1,4 +1,5 @@
-BUILD_TESTS = test_aes test_sha1 test_hmac_sha1 test_hashmap
+BUILD_TESTS = test_aes test_sha1 test_hmac_sha1 test_xchacha20 \
+	test_aead_write test_hashmap
 SOURCES_DIR = ../src/
 PROJECT = $(SOURCES_DIR)orcavpn
 LOCALLIBS = -lencrypt -L $(SOURCES_DIR)encrypt/
