@@ -40,8 +40,8 @@ tun_addr = 10.80.80.1
 tun_netmask = 255.255.255.0  
 block_ip_ttl = 60  
 [clientX]  
-private_ip = 10.80.80.2  
-cipher_key = 9f840f9cedc92e3968ef6c86cfc62f3400b1334a60e27799573d733b1038b28d  
+ip = 10.80.80.2  
+key = 9f840f9cedc92e3968ef6c86cfc62f3400b1334a60e27799573d733b1038b28d  
 cipher = xchacha20-poly1305  
 inet = on  
 lan = on  
@@ -57,6 +57,6 @@ server_port = 778
 tun_name = orca-gate  
 tun_addr = 10.80.80.2  
 tun_netmask = 255.255.255.0  
-cipher_key = 9f840f9cedc92e3968ef6c86cfc62f3400b1334a60e27799573d733b1038b28d  
+key = 9f840f9cedc92e3968ef6c86cfc62f3400b1334a60e27799573d733b1038b28d  
 cipher = xchacha20-poly1305
 ```

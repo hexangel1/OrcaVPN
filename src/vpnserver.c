@@ -19,7 +19,7 @@
 
 struct vpn_peer {
 	uint32_t private_ip;
-	void *encrypt_key;
+	crypto_key *encrypt_key;
 	int inet_on;
 	int lan_on;
 	time_t last_update;
@@ -127,22 +127,23 @@ static int is_private_peer(struct vpnserver *serv, uint32_t ip)
 static struct vpn_peer *alloc_peer(
 	const char *name,
 	uint32_t private_ip,
-	const char *cipher_key,
+	const char *hex_key,
 	const char *cipher_name,
 	int inet_on,
 	int lan_on)
 {
-	unsigned char bin_cipher_key[64];
-	void *encrypt_key;
-	size_t keylen = strlen(cipher_key);
+	unsigned char bin_key[64];
+	crypto_key *encrypt_key;
+	size_t hex_keylen = strlen(hex_key);
+	size_t keylen = hex_keylen / 2;
 	crypto_key_type cipher;
 	struct vpn_peer *peer;
 
-	if (keylen > sizeof(bin_cipher_key) * 2) {
+	if (keylen > sizeof(bin_key)) {
 		log_mesg(LOG_ERR, "peer %s: key too long", name);
 		return NULL;
 	}
-	if (!binarize(cipher_key, keylen, bin_cipher_key)) {
+	if (!binarize(hex_key, hex_keylen, bin_key)) {
 		log_mesg(LOG_ERR, "peer %s: key has not hex format", name);
 		return NULL;
 	}
@@ -153,7 +154,7 @@ static struct vpn_peer *alloc_peer(
 			cipher_name);
 		return NULL;
 	}
-	encrypt_key = crypto_key_create(bin_cipher_key, keylen / 2, cipher);
+	encrypt_key = crypto_key_create(bin_key, keylen, cipher);
 	if (!encrypt_key) {
 		log_mesg(LOG_ERR, "peer %s: encrypt key create failed", name);
 		return NULL;
@@ -169,7 +170,7 @@ static struct vpn_peer *alloc_peer(
 }
 
 static int create_peer(struct vpnserver *serv, const char *name,
-	const char *ip, const char *cipher_key, const char *cipher,
+	const char *ip, const char *key, const char *cipher,
 	int inet, int lan)
 {
 	struct vpn_peer *peer;
@@ -189,7 +190,7 @@ static int create_peer(struct vpnserver *serv, const char *name,
 		return -1;
 	}
 
-	peer = alloc_peer(name, private_ip, cipher_key, cipher, inet, lan);
+	peer = alloc_peer(name, private_ip, key, cipher, inet, lan);
 	if (!peer)
 		return -1;
 
@@ -360,18 +361,18 @@ static int add_peers(struct vpnserver *serv, struct config_section *cfg)
 
 	for (peer = cfg; peer; peer = peer->next) {
 		int current_peer_ok = 1;
-		ip = get_str_var(peer, "private_ip", MAX_IPV4_ADDR_LEN);
-		key = get_var_value(peer, "cipher_key");
+		ip     = get_str_var(peer, "ip", MAX_IPV4_ADDR_LEN);
+		key    = get_var_value(peer, "key");
 		cipher = get_var_value(peer, "cipher");
-		inet = get_bool_var(peer, "inet");
-		lan = get_bool_var(peer, "lan");
+		inet   = get_bool_var(peer, "inet");
+		lan    = get_bool_var(peer, "lan");
 
 		if (!ip)
-			ADD_PEER_ERROR("private ip not set", peer);
+			ADD_PEER_ERROR("ip param not set", peer);
 		if (!key)
-			ADD_PEER_ERROR("cipher key not set", peer);
+			ADD_PEER_ERROR("key param not set", peer);
 		if (!cipher)
-			ADD_PEER_ERROR("cipher not set", peer);
+			ADD_PEER_ERROR("cipher param not set", peer);
 		if (inet < 0)
 			ADD_PEER_ERROR("bad inet option value", peer);
 		if (lan < 0)
@@ -423,28 +424,36 @@ static struct vpnserver *create_server(const char *file)
 	if (!config)
 		return NULL;
 
-	port = get_int_var(config, "port");
+	ip           = get_str_var(config, "ip", MAX_IPV4_ADDR_LEN);
+	port         = get_int_var(config, "port");
 	block_ip_ttl = get_int_var(config, "block_ip_ttl");
-	ip = get_str_var(config, "ip", MAX_IPV4_ADDR_LEN);
+	tun_name     = get_str_var(config, "tun_name", MAX_IF_NAME_LEN);
+	tun_addr     = get_str_var(config, "tun_addr", MAX_IPV4_ADDR_LEN);
+	tun_netmask  = get_str_var(config, "tun_netmask", MAX_IPV4_ADDR_LEN);
+
 	if (!ip)
 		CONFIG_ERROR("ip var not set");
-
-	tun_name = get_str_var(config, "tun_name", MAX_IF_NAME_LEN);
-	tun_addr = get_str_var(config, "tun_addr", MAX_IPV4_ADDR_LEN);
-	tun_netmask = get_str_var(config, "tun_netmask", MAX_IPV4_ADDR_LEN);
+	if (!port)
+		port = VPN_PORT;
+	if (!tun_name)
+		tun_name = TUN_IF_NAME;
+	if (!tun_addr)
+		tun_addr = TUN_IF_ADDR;
+	if (!tun_netmask)
+		tun_netmask = TUN_IF_MASK;
 
 	serv = malloc(sizeof(struct vpnserver));
 	memset(serv, 0, sizeof(struct vpnserver));
 	init_event_listener(&serv->loop);
 
 	strcpy(serv->ip_addr, ip);
-	strcpy(serv->tun_name, tun_name ? tun_name : TUN_IF_NAME);
-	strcpy(serv->tun_addr, tun_addr ? tun_addr : TUN_IF_ADDR);
-	strcpy(serv->tun_netmask, tun_netmask ? tun_netmask : TUN_IF_MASK);
+	strcpy(serv->tun_name, tun_name);
+	strcpy(serv->tun_addr, tun_addr);
+	strcpy(serv->tun_netmask, tun_netmask);
 
 	serv->private_ip = inet_network(serv->tun_addr);
 	serv->private_mask = inet_network(serv->tun_netmask);
-	serv->port = port ? port : VPN_PORT;
+	serv->port = port;
 	serv->block_ip_ttl = block_ip_ttl;
 
 	serv->ip_hash = make_map();

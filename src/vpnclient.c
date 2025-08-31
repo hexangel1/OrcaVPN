@@ -29,7 +29,7 @@ struct vpnclient {
 	uint32_t private_ip;
 	uint32_t router_ip;
 
-	void *encrypt_key;
+	crypto_key *encrypt_key;
 
 	unsigned short sequance_id;
 	unsigned short sequance_no;
@@ -133,12 +133,12 @@ static struct vpnclient *create_client(const char *file)
 {
 	struct vpnclient *clnt;
 	struct config_section *config;
-	unsigned char bin_cipher_key[64];
-	size_t keylen;
+	unsigned char bin_key[64];
+	size_t keylen, hex_keylen;
 	int port, server_port;
-	const char *ip_addr, *server_ip, *router_ip;
+	const char *ip, *server_ip, *router_ip;
 	const char *tun_addr, *tun_netmask, *tun_name;
-	const char *cipher_key, *cipher_name;
+	const char *hex_key, *cipher_name;
 	crypto_key_type cipher;
 	void *encrypt_key;
 
@@ -146,57 +146,67 @@ static struct vpnclient *create_client(const char *file)
 	if (!config)
 		return NULL;
 
-	ip_addr = get_str_var(config, "ip", MAX_IPV4_ADDR_LEN);
-	if (!ip_addr)
-		ip_addr = "0.0.0.0";
-	router_ip = get_str_var(config, "router_ip", MAX_IPV4_ADDR_LEN);
+	ip          = get_str_var(config, "ip", MAX_IPV4_ADDR_LEN);
+	port        = get_int_var(config, "port");
+	server_ip   = get_str_var(config, "server_ip", MAX_IPV4_ADDR_LEN);
+	server_port = get_int_var(config, "server_port");
+	router_ip   = get_str_var(config, "router_ip", MAX_IPV4_ADDR_LEN);
+
+	tun_addr    = get_str_var(config, "tun_addr", MAX_IPV4_ADDR_LEN);
+	tun_netmask = get_str_var(config, "tun_netmask", MAX_IPV4_ADDR_LEN);
+	tun_name    = get_str_var(config, "tun_name", MAX_IF_NAME_LEN);
+
+	hex_key     = get_var_value(config, "key");
+	cipher_name = get_var_value(config, "cipher");
+
+	if (!ip)
+		ip = "0.0.0.0";
+	if (!server_ip)
+		CONFIG_ERROR("server_ip param not set");
+	if (!server_port)
+		server_port = VPN_PORT;
 	if (!router_ip)
 		router_ip = TUN_IF_ADDR;
-	server_ip = get_str_var(config, "server_ip", MAX_IPV4_ADDR_LEN);
-	if (!server_ip)
-		CONFIG_ERROR("server_ip var not set");
-	tun_addr = get_str_var(config, "tun_addr", MAX_IPV4_ADDR_LEN);
+	if (!tun_name)
+		tun_netmask = TUN_IF_NAME;
 	if (!tun_addr)
-		CONFIG_ERROR("tun_addr var not set");
-	cipher_key = get_var_value(config, "cipher_key");
-	if (!cipher_key)
-		CONFIG_ERROR("cipher key var not set");
-	cipher_name = get_var_value(config, "cipher");
+		CONFIG_ERROR("tun_addr param not set");
+	if (!tun_netmask)
+		tun_netmask = TUN_IF_MASK;
+
+	if (!hex_key)
+		CONFIG_ERROR("key param not set");
 	if (!cipher_name)
-		CONFIG_ERROR("cipher var not set");
+		CONFIG_ERROR("cipher param not set");
 
-	keylen = strlen(cipher_key);
-	if (keylen > sizeof(bin_cipher_key) * 2)
-		CONFIG_ERROR("cipher key too long");
-	if (!binarize(cipher_key, keylen, bin_cipher_key))
-		CONFIG_ERROR("cipher key has not hex format");
-
-	tun_netmask = get_str_var(config, "tun_netmask", MAX_IPV4_ADDR_LEN);
-	tun_name = get_str_var(config, "tun_name", MAX_IF_NAME_LEN);
-	port = get_int_var(config, "port");
-	server_port = get_int_var(config, "server_port");
+	hex_keylen = strlen(hex_key);
+	keylen = hex_keylen / 2;
+	if (keylen > sizeof(bin_key))
+		CONFIG_ERROR("key too long");
+	if (!binarize(hex_key, hex_keylen, bin_key))
+		CONFIG_ERROR("key has not hex format");
 
 	cipher = crypto_key_parse_cipher(cipher_name);
 	if (cipher < 0)
 		CONFIG_ERROR("invalid cipher selected");
-	encrypt_key = crypto_key_create(bin_cipher_key, keylen / 2, cipher);
+	encrypt_key = crypto_key_create(bin_key, keylen, cipher);
 	if (!encrypt_key)
-		CONFIG_ERROR("encryption key create failed");
+		CONFIG_ERROR("encrypt key create failed");
 
 	clnt = malloc(sizeof(struct vpnclient));
 	memset(clnt, 0, sizeof(struct vpnclient));
 	init_event_listener(&clnt->loop);
 
-	strcpy(clnt->ip_addr, ip_addr);
+	strcpy(clnt->ip_addr, ip);
 	strcpy(clnt->server_ip, server_ip);
+	strcpy(clnt->tun_name, tun_name);
 	strcpy(clnt->tun_addr, tun_addr);
-	strcpy(clnt->tun_netmask, tun_netmask ? tun_netmask : TUN_IF_MASK);
-	strcpy(clnt->tun_name, tun_name ? tun_name : TUN_IF_NAME);
+	strcpy(clnt->tun_netmask, tun_netmask);
 
 	clnt->port = port;
-	clnt->server_port = server_port ? server_port : VPN_PORT;
+	clnt->server_port = server_port;
 	clnt->router_ip = inet_network(router_ip);
-	clnt->private_ip = inet_network(clnt->tun_addr);
+	clnt->private_ip = inet_network(tun_addr);
 	clnt->encrypt_key = encrypt_key;
 	clnt->sequance_id = (0xffff & getpid());
 	clnt->sequance_no = 0;
