@@ -6,7 +6,7 @@
 #include "helper.h"
 #include "sha1.h"
 
-struct hmac_sha1_test_case {
+struct test_case {
 	const char *input;
 	const char *key;
 	const char *expected_mac;
@@ -21,7 +21,7 @@ static int test_hmac_sha1(const char *input, const char *key, const char *expect
 	return !strcmp(hmac_hex, expected_mac);
 }
 
-static void do_test(struct hmac_sha1_test_case *test, int test_no)
+static void do_test(struct test_case *test, int test_no)
 {
 	int res = test_hmac_sha1(test->input, test->key, test->expected_mac);
 	if (!res)
@@ -32,7 +32,7 @@ static void do_test(struct hmac_sha1_test_case *test, int test_no)
 
 int main(int argc, char **argv)
 {
-	struct hmac_sha1_test_case tests[] = {
+	struct test_case tests[] = {
 		{"Test SHA1-HMAC", "p0hSgbzHGeNJYdCWz3a0tVXHspcsszaF", "9e131c4c4629282ca56d3d5f43b783303d2d0ef6"},
 		{"Test with very long key...", "NTXj3wGdFD22SNTjhxA1bD9fmgIfxufcrxvo9JC5xhNIbGQseCQKooYIMVD5ivEIAUv2qAUWbBwUfTVWPRY34cK0oDw1YZycz1Tn3iMiWvruN4IVaLaciBuAwBsucsao", "3b42d72904142ef369a3e9dfee0712e96f67c371"},
 		{"At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpa qui officia deserunt mollitia animi, id est laborum et dolorum fuga. Et harum quidem rerum facilis est et expedita distinctio. Nam libero tempore, cum soluta nobis est eligendi optio cumque nihil impedit quo minus id quod maxime placeat facere possimus, omnis voluptas assumenda est, omnis dolor repellendus. Temporibus autem quibusdam et aut officiis debitis aut rerum necessitatibus saepe eveniet ut et voluptates repudiandae sint et molestiae non recusandae. Itaque earum rerum hic tenetur a sapiente delectus, ut aut reiciendis voluptatibus maiores alias consequatur aut perferendis doloribus asperiores repellat", "sssssssssssss", "fe01ba7d8ad605c1637795a1b85d210eafac4faa"},

@@ -9,7 +9,7 @@
 #define INSERT_KEYS_COUNT 200000
 #define RANDOM_SEED 1000
 
-struct hashmap_test_case {
+struct test_case {
 	void (*fill)(hashmap *);
 	int (*check)(const hashmap *);
 };
@@ -164,7 +164,7 @@ static int check_hashmap4(const hashmap *hm)
 	return 1;
 }
 
-static void do_test(struct hashmap_test_case *test, int test_no)
+static void do_test(struct test_case *test, int test_no)
 {
 	int res;
 	hashmap *hm = make_map();
@@ -172,14 +172,14 @@ static void do_test(struct hashmap_test_case *test, int test_no)
 	test->fill(hm);
 	res = test->check(hm);
 	if (!res)
-	   fail_test();
+		fail_test();
 	fprintf(stderr, "[%d] %s\n", test_no, STATUS_PREFIX(res));
 	delete_map(hm);
 }
 
 int main(int argc, char **argv)
 {
-	struct hashmap_test_case tests[] = {
+	struct test_case tests[] = {
 		{fill_hashmap,  check_hashmap},
 		{fill_hashmap2, check_hashmap2},
 		{fill_hashmap3, check_hashmap3},
