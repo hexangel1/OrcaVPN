@@ -18,11 +18,6 @@ typedef uint8_t  u8;
 typedef uint32_t u32;
 typedef uint64_t u64;
 
-static inline size_t gap(size_t x, size_t pow_2)
-{
-	return (~x + 1) & (pow_2 - 1);
-}
-
 static inline u32 load32_be(const u8 s[4])
 {
 	return
@@ -43,7 +38,7 @@ static inline u32 load32_le(const u8 s[4])
 
 static inline u64 load64_le(const u8 s[8])
 {
-	return load32_le(s) | ((u64)load32_le(s+4) << 32);
+	return load32_le(s) | ((u64)load32_le(s + 4) << 32);
 }
 
 static inline void store32_be(u8 out[4], u32 in)

@@ -8,6 +8,11 @@
 
 static const u8 zeros[128];
 
+static size_t gap(size_t x, size_t pow_2)
+{
+	return (~x + 1) & (pow_2 - 1);
+}
+
 static void poly_blocks(struct poly1305_ctxt *ctx, const uint8_t *in,
 	size_t nb_blocks, unsigned end)
 {
@@ -81,6 +86,7 @@ void poly1305_loop(struct poly1305_ctxt *ctx,
 	const uint8_t *message, size_t message_size)
 {
 	size_t i, aligned, nb_blocks;
+
 	if (message_size == 0)
 		return;
 
