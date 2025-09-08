@@ -157,7 +157,7 @@ void sha1_init(struct sha1_ctxt *ctx)
 	H(4) = 0xc3d2e1f0;
 }
 
-void sha1_loop(struct sha1_ctxt *ctx, const uint8_t *input, size_t len)
+void sha1_loop(struct sha1_ctxt *ctx, const u8 *input, size_t len)
 {
 	size_t offs, written;
 
@@ -172,7 +172,7 @@ void sha1_loop(struct sha1_ctxt *ctx, const uint8_t *input, size_t len)
 	}
 }
 
-void sha1_result(struct sha1_ctxt *ctx, uint8_t digest[20])
+void sha1_result(struct sha1_ctxt *ctx, u8 digest[20])
 {
 	sha1_pad(ctx);
 #ifdef WORDS_BIGENDIAN
@@ -183,8 +183,8 @@ void sha1_result(struct sha1_ctxt *ctx, uint8_t digest[20])
 	secure_memzero(ctx, sizeof(struct sha1_ctxt));
 }
 
-void hmac_sha1(const uint8_t *text, size_t text_len,
-	const uint8_t *key, size_t key_len, uint8_t hmac[20])
+void hmac_sha1(const u8 *text, size_t text_len,
+	const u8 *key, size_t key_len, u8 hmac[20])
 {
 	u8 k_ipad[SHA1_BLOCK_SIZE];
 	u8 k_opad[SHA1_BLOCK_SIZE];

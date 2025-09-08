@@ -610,7 +610,7 @@ static const u32 rcon[] = {
 	0x1B000000, 0x36000000,
 };
 
-int aes_set_encrypt_key(const uint8_t *cipher_key, int bits, aes_key *key)
+int aes_set_encrypt_key(const u8 *cipher_key, int bits, aes_key *key)
 {
 	u32 *rkeys = key->round_keys;
 	u32 temp;
@@ -695,7 +695,7 @@ int aes_set_encrypt_key(const uint8_t *cipher_key, int bits, aes_key *key)
 	return 0;
 }
 
-int aes_set_decrypt_key(const uint8_t *cipher_key, int bits, aes_key *key)
+int aes_set_decrypt_key(const u8 *cipher_key, int bits, aes_key *key)
 {
 	u32 *rkeys = key->round_keys;
 	u32 temp;
@@ -749,7 +749,7 @@ int aes_set_decrypt_key(const uint8_t *cipher_key, int bits, aes_key *key)
 	return 0;
 }
 
-void aes_encrypt(const uint8_t in[16], uint8_t out[16], const aes_key *key)
+void aes_encrypt(const u8 in[16], u8 out[16], const aes_key *key)
 {
 	const u32 *rkeys = key->round_keys;
 	u32 s0, s1, s2, s3, t0, t1, t2, t3;
@@ -814,7 +814,7 @@ void aes_encrypt(const uint8_t in[16], uint8_t out[16], const aes_key *key)
 	store32_be(out + 12, s3);
 }
 
-void aes_decrypt(const uint8_t in[16], uint8_t out[16], const aes_key *key)
+void aes_decrypt(const u8 in[16], u8 out[16], const aes_key *key)
 {
 	const u32 *rkeys = key->round_keys;
 	u32 s0, s1, s2, s3, t0, t1, t2, t3;

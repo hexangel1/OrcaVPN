@@ -62,9 +62,9 @@ static void crypto_chacha20_h(u8 out[32], const u8 key[32], const u8 in[16])
 
 static const u8 zeros[128];
 
-uint64_t crypto_chacha20_djb(uint8_t *cipher_text,
-	const uint8_t *plain_text, size_t text_size,
-	const uint8_t key[32], const uint8_t nonce[8], uint64_t ctr)
+u64 crypto_chacha20_djb(u8 *cipher_text,
+	const u8 *plain_text, size_t text_size,
+	const u8 key[32], const u8 nonce[8], u64 ctr)
 {
 	u32 input[16];
 	u32 pool[16];
@@ -117,18 +117,18 @@ uint64_t crypto_chacha20_djb(uint8_t *cipher_text,
 	return ctr;
 }
 
-uint32_t crypto_chacha20_ietf(uint8_t *cipher_text,
-	const uint8_t *plain_text, size_t text_size,
-	const uint8_t key[32], const uint8_t nonce[12], uint32_t ctr)
+u32 crypto_chacha20_ietf(u8 *cipher_text,
+	const u8 *plain_text, size_t text_size,
+	const u8 key[32], const u8 nonce[12], u32 ctr)
 {
 	u64 big_ctr = ctr + ((u64)load32_le(nonce) << 32);
 	return (u32)crypto_chacha20_djb(cipher_text, plain_text, text_size,
 		key, nonce + 4, big_ctr);
 }
 
-uint64_t crypto_chacha20_x(uint8_t *cipher_text,
-	const uint8_t *plain_text, size_t text_size,
-	const uint8_t key[32], const uint8_t nonce[24], uint64_t ctr)
+u64 crypto_chacha20_x(u8 *cipher_text,
+	const u8 *plain_text, size_t text_size,
+	const u8 key[32], const u8 nonce[24], u64 ctr)
 {
 	u8 sub_key[32];
 	crypto_chacha20_h(sub_key, key, nonce);
@@ -139,7 +139,7 @@ uint64_t crypto_chacha20_x(uint8_t *cipher_text,
 }
 
 void crypto_aead_init_djb(crypto_aead_ctxt *ctx,
-	const uint8_t key[32], const uint8_t nonce[8])
+	const u8 key[32], const u8 nonce[8])
 {
 	memcpy(ctx->key  , key  , 32);
 	memcpy(ctx->nonce, nonce,  8);
@@ -147,7 +147,7 @@ void crypto_aead_init_djb(crypto_aead_ctxt *ctx,
 }
 
 void crypto_aead_init_ietf(crypto_aead_ctxt *ctx,
-	const uint8_t key[32], const uint8_t nonce[12])
+	const u8 key[32], const u8 nonce[12])
 {
 	memcpy(ctx->key  , key      , 32);
 	memcpy(ctx->nonce, nonce + 4,  8);
@@ -155,17 +155,15 @@ void crypto_aead_init_ietf(crypto_aead_ctxt *ctx,
 }
 
 void crypto_aead_init_x(crypto_aead_ctxt *ctx,
-	const uint8_t key[32], const uint8_t nonce[24])
+	const u8 key[32], const u8 nonce[24])
 {
 	crypto_chacha20_h(ctx->key, key, nonce);
 	memcpy(ctx->nonce, nonce + 16, 8);
 	ctx->counter = 0;
 }
 
-void crypto_aead_write(crypto_aead_ctxt *ctx,
-	uint8_t *cipher_text, uint8_t mac[16],
-	const uint8_t *ad, size_t ad_size,
-	const uint8_t *plain_text, size_t text_size)
+void crypto_aead_write(crypto_aead_ctxt *ctx, u8 *cipher_text, u8 mac[16],
+	const u8 *ad, size_t ad_size, const u8 *plain_text, size_t text_size)
 {
 	u8 auth_key[64];
 	crypto_chacha20_djb(auth_key, NULL, 64,
@@ -177,10 +175,8 @@ void crypto_aead_write(crypto_aead_ctxt *ctx,
 	secure_memzero(auth_key, sizeof(auth_key));
 }
 
-int crypto_aead_read(crypto_aead_ctxt *ctx,
-	uint8_t *plain_text, const uint8_t mac[16],
-	const uint8_t *ad, size_t ad_size,
-	const uint8_t *cipher_text, size_t text_size)
+int crypto_aead_read(crypto_aead_ctxt *ctx, u8 *plain_text, const u8 mac[16],
+	const u8 *ad, size_t ad_size, const u8 *cipher_text, size_t text_size)
 {
 	u8 auth_key[64];
 	u8 real_mac[16];

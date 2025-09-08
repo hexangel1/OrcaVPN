@@ -1,8 +1,7 @@
 #ifndef ENDIANESS_H_SENTRY
 #define ENDIANESS_H_SENTRY
 
-#include <stddef.h>
-#include <stdint.h>
+#include "fwi_types.h"
 
 #if __STDC_VERSION__ >= 199901L
 /* inline keyword is present */
@@ -13,10 +12,6 @@
 /* simply ignore it */
 #define inline
 #endif
-
-typedef uint8_t  u8;
-typedef uint32_t u32;
-typedef uint64_t u64;
 
 static inline u32 load32_be(const u8 s[4])
 {
