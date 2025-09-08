@@ -8,18 +8,18 @@
 
 struct test_case {
 	int key_bits;
-	uint8_t key[32];
-	uint8_t input[16];
-	uint8_t expected_out[16];
+	u8 key[32];
+	u8 input[16];
+	u8 expected_out[16];
 };
 
 static int test_aes(
-	const uint8_t *key,
+	const u8 *key,
 	int key_bits,
-	const uint8_t *input,
-	const uint8_t *expected_out)
+	const u8 *input,
+	const u8 *expected_out)
 {
-	uint8_t output[16];
+	u8 output[16];
 	aes_key enc_key, dec_key;
 
 	aes_set_encrypt_key(key, key_bits, &enc_key);

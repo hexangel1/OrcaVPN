@@ -16,7 +16,7 @@ static int test_hmac_sha1(const char *input, const char *key, const char *expect
 {
 	unsigned char hmac[SHA1_DIGEST_LENGTH];
 	char hmac_hex[SHA1_DIGEST_HEX_LENGTH];
-	hmac_sha1((uint8_t *)input, strlen(input), (uint8_t *)key, strlen(key), hmac);
+	hmac_sha1((u8 *)input, strlen(input), (u8 *)key, strlen(key), hmac);
 	hexlify(hmac, sizeof(hmac), 0, hmac_hex);
 	return !strcmp(hmac_hex, expected_mac);
 }

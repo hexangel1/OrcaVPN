@@ -11,7 +11,7 @@ struct test_case {
 	const char *key;
 	const char *nonce;
 	const char *cipher_text;
-	uint64_t counter;
+	u64 counter;
 };
 
 unsigned char *stobin(const char *hex_s, size_t *bin_len)
@@ -28,14 +28,14 @@ static int test_xchacha20(
 	const char *key_hex,
 	const char *nonce_hex,
 	const char *cipher_text_hex,
-	uint64_t counter)
+	u64 counter)
 {
 	size_t plain_text_len, key_len, nonce_len, cipher_text_len;
-	uint8_t *plain_text = stobin(plain_text_hex, &plain_text_len);
-	uint8_t *key = stobin(key_hex, &key_len);
-	uint8_t *nonce = stobin(nonce_hex, &nonce_len);
-	uint8_t *cipher_text = stobin(cipher_text_hex, &cipher_text_len);
-	uint8_t *cipher_text_res = malloc(plain_text_len);
+	u8 *plain_text = stobin(plain_text_hex, &plain_text_len);
+	u8 *key = stobin(key_hex, &key_len);
+	u8 *nonce = stobin(nonce_hex, &nonce_len);
+	u8 *cipher_text = stobin(cipher_text_hex, &cipher_text_len);
+	u8 *cipher_text_res = malloc(plain_text_len);
 	int cipher_ok;
 
 	crypto_chacha20_x(cipher_text_res, plain_text, plain_text_len, key, nonce, counter);
