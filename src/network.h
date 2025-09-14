@@ -19,10 +19,10 @@
 	sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6)))
 
 struct icmp_echo_param {
-	uint16_t seq_id;
-	uint16_t seq_no;
 	uint32_t src_ip;
 	uint32_t dst_ip;
+	unsigned short seq_id;
+	unsigned short seq_no;
 	unsigned char data[PING_DATA_LEN];
 };
 
@@ -71,7 +71,7 @@ int set_nonblock_io(int fd);
 void block_for_write(int fd);
 
 /* Evaluate IP packet checksum */
-uint16_t ip_checksum(const uint16_t *addr, unsigned int count);
+unsigned short ip_checksum(const unsigned short *addr, unsigned int count);
 /* Validate IPv4 packet */
 int check_ipv4_packet(const void *buf, size_t len, int skip_sum);
 /* Write IPv4 icmp echo packet data to buffer */

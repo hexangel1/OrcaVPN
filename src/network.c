@@ -318,7 +318,7 @@ void block_for_write(int fd)
 	select(fd + 1, NULL, &writefds, NULL, NULL);
 }
 
-uint16_t ip_checksum(const uint16_t *addr, unsigned int count)
+unsigned short ip_checksum(const unsigned short *addr, unsigned int count)
 {
 	register unsigned long sum = 0;
 
@@ -348,7 +348,7 @@ int check_ipv4_packet(const void *buf, size_t len, int skip_sum)
 		unsigned int ihl = ip_header->ihl;
 		if (ihl < 5 || ihl > 15)
 			return 1;
-		if (ip_checksum((uint16_t *)ip_header, ihl * 4))
+		if (ip_checksum((unsigned short *)ip_header, ihl * 4))
 			return 1;
 	}
 	return 0;
@@ -387,9 +387,9 @@ int write_icmp_echo(void *buf, const struct icmp_echo_param *param)
 
 	memcpy(echo_data, param->data, PING_DATA_LEN);
 
-	ip_header->check = ip_checksum((uint16_t *)ip_header,
+	ip_header->check = ip_checksum((unsigned short *)ip_header,
 		sizeof(struct iphdr));
-	icmp_header->checksum = ip_checksum((uint16_t *)icmp_header,
+	icmp_header->checksum = ip_checksum((unsigned short *)icmp_header,
 		sizeof(struct icmphdr) + PING_DATA_LEN);
 
 	return total_len;
