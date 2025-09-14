@@ -212,7 +212,7 @@ static void log_drop(const char *mesg, uint32_t src_ip, uint32_t dst_ip)
 }
 
 static void route_packet(struct vpnserver *serv, struct vpn_peer *src,
-	void *buffer, size_t length)
+	unsigned char *buffer, size_t length)
 {
 	ssize_t res;
 	uint32_t src_ip = src->private_ip;
@@ -236,6 +236,7 @@ static void route_packet(struct vpnserver *serv, struct vpn_peer *src,
 			log_drop("client address expired", src_ip, dest_ip);
 			return;
 		}
+		write_timestamp(buffer, &length);
 		encrypt_message(buffer, &length, dest->encrypt_key);
 		res = send_udp(serv->loop.sockfd, buffer, length, &dest->addr);
 	} else {
@@ -281,6 +282,11 @@ static void socket_handler(void *ctx)
 	}
 	if (decrypt_message(buffer, &length, peer->encrypt_key)) {
 		log_mesg(LOG_NOTICE, "decrypt packet failed");
+		block_ip(serv, &addr);
+		return;
+	}
+	if (check_timestamp(buffer, &length, 5)) {
+		log_mesg(LOG_NOTICE, "packet ttl expired");
 		block_ip(serv, &addr);
 		return;
 	}
@@ -336,6 +342,7 @@ static void tun_if_handler(void *ctx)
 		log_drop("client address expired", src_ip, dest_ip);
 		return;
 	}
+	write_timestamp(buffer, &length);
 	encrypt_message(buffer, &length, peer->encrypt_key);
 	res = send_udp(serv->loop.sockfd, buffer, length, &peer->addr);
 	if (res < 0)

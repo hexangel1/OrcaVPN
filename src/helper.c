@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <time.h>
 #include <sys/stat.h>
+#include <netinet/in.h>
 
 #include "helper.h"
 
@@ -51,6 +52,35 @@ time_t get_unix_time(void)
 	struct timespec ts;
 	clock_gettime(CLOCK_REALTIME, &ts);
 	return ts.tv_sec;
+}
+
+void write_timestamp(unsigned char *buf, size_t *buf_size)
+{
+	uint32_t ts = htonl((uint32_t)get_unix_time());
+	buf[*buf_size + 0] = (ts >> 24) & 0xff;
+	buf[*buf_size + 1] = (ts >> 16) & 0xff;
+	buf[*buf_size + 2] = (ts >>  8) & 0xff;
+	buf[*buf_size + 3] = (ts >>  0) & 0xff;
+	*buf_size += 4;
+}
+
+int check_timestamp(unsigned char *buf, size_t *buf_size, int ttl)
+{
+	uint32_t ts, real_ts;
+
+	if (*buf_size < 4)
+		return 1;
+	*buf_size -= 4;
+
+	real_ts = get_unix_time();
+	ts = ntohl(
+		((uint32_t)buf[*buf_size + 0] << 24) |
+		((uint32_t)buf[*buf_size + 1] << 16) |
+		((uint32_t)buf[*buf_size + 2] <<  8) |
+		((uint32_t)buf[*buf_size + 3] <<  0)
+	);
+
+	return MAX(real_ts, ts) - MIN(real_ts, ts) > (uint32_t)ttl;
 }
 
 struct timespec *ms2timespec(struct timespec *ts, long ms)
