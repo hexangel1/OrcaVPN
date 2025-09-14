@@ -6,6 +6,7 @@
 #include <time.h>
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 #define IS_XDIGIT(c) (\
 	((c) >= '0' && (c) <= '9') || \
@@ -26,6 +27,9 @@ void daemonize(const char *pidfile);
 time_t get_unix_time(void);
 /* Write time in milliseconds to struct timespec */
 struct timespec *ms2timespec(struct timespec *ts, long ms);
+
+void write_timestamp(unsigned char *buf, size_t *buf_size);
+int check_timestamp(unsigned char *buf, size_t *buf_size);
 
 /* Hexlify binary data */
 char *hexlify(const void *data, size_t len, int upper, char *res);

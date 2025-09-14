@@ -80,6 +80,10 @@ static void socket_handler(void *ctx)
 		log_mesg(LOG_NOTICE, "decrypt packet failed");
 		return;
 	}
+	if (check_timestamp(buffer, &length)) {
+		log_mesg(LOG_NOTICE, "packet timestamp expired");
+		return;
+	}
 	if (check_ipv4_packet(buffer, length, 0)) {
 		log_mesg(LOG_NOTICE, "bad ipv4 packet from socket");
 		return;
@@ -115,6 +119,7 @@ static void tun_if_handler(void *ctx)
 	}
 	if (clnt->private_ip != get_source_ip(buffer))
 		return;
+	write_timestamp(buffer, &length);
 	encrypt_message(buffer, &length, clnt->encrypt_key);
 	buffer[length++] = GET_PEER_ID(clnt->private_ip);
 	res = send_udp(clnt->loop.sockfd, buffer, length, NULL);
