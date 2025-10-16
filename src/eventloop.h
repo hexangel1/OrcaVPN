@@ -10,7 +10,7 @@ struct event_listener {
 	int status_flag;
 	long timeout;
 
-	void (*tun_if_callback)(void *);
+	void (*tundev_callback)(void *);
 	void (*socket_callback)(void *);
 	void (*timeout_callback)(void *);
 	void *ctx;

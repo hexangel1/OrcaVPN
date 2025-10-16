@@ -93,7 +93,7 @@ static void socket_handler(void *ctx)
 		log_mesg(LOG_ERR, "sending packet to tun failed");
 }
 
-static void tun_if_handler(void *ctx)
+static void tundev_handler(void *ctx)
 {
 	struct vpnclient *clnt = ctx;
 	unsigned char buffer[PACKET_BUFFER_SIZE];
@@ -219,7 +219,7 @@ static void set_event_handlers(struct vpnclient *clnt)
 {
 	struct event_listener *loop = &clnt->loop;
 
-	loop->tun_if_callback = tun_if_handler;
+	loop->tundev_callback = tundev_handler;
 	loop->socket_callback = socket_handler;
 	loop->timeout_callback = timeout_handler;
 	loop->timeout = IDLE_TIMEOUT * 1000;

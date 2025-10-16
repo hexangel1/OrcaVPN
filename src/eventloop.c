@@ -71,7 +71,7 @@ void event_loop(struct event_listener *loop)
 			continue;
 		}
 		if (FD_ISSET(loop->tunfd, &readfds))
-			loop->tun_if_callback(loop->ctx);
+			loop->tundev_callback(loop->ctx);
 		if (FD_ISSET(loop->sockfd, &readfds))
 			loop->socket_callback(loop->ctx);
 	}
