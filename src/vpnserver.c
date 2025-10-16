@@ -432,7 +432,7 @@ static struct vpnserver *create_server(const char *file)
 	tun_netmask  = get_str_var(config, "tun_netmask", MAX_IPV4_ADDR_LEN);
 
 	if (!ip)
-		CONFIG_ERROR("ip var not set");
+		ip = "0.0.0.0";
 	if (!port)
 		port = VPN_PORT;
 	if (!tun_name)
