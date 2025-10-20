@@ -83,6 +83,10 @@ static void write_buffer(struct config_parser *fsm, int c)
 		set_error(fsm, "parser buffer overflow");
 		return;
 	}
+	if (c == '=') {
+		set_error(fsm, "unexpected '='");
+		return;
+	}
 	fsm->buffer[fsm->used++] = c;
 }
 
