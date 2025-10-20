@@ -1,14 +1,12 @@
 #ifndef CONFIGPARSER_H_SENTRY
 #define CONFIGPARSER_H_SENTRY
 
-#include <stddef.h>
-
 struct config_section {
 	char *scope;
 	char **keys;
 	char **vals;
-	size_t vars_count;
-	size_t vars_alloc;
+	int vars_count;
+	int vars_alloc;
 	struct config_section *next;
 };
 
@@ -20,7 +18,7 @@ void free_config(struct config_section *cfg);
 /* Get raw value by key from section */
 const char *get_var_value(struct config_section *cfg, const char *var);
 /* Get string value by key from section */
-const char *get_str_var(struct config_section *cfg, const char *var, int len);
+const char *get_str_var(struct config_section *cfg, const char *var, int max);
 /* Get integer value by key from section */
 int get_int_var(struct config_section *cfg, const char *var);
 /* Get boolean value by key from section */
