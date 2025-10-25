@@ -70,10 +70,12 @@ int set_nonblock_io(int fd);
 /* Block until write to fd is possible */
 void block_for_write(int fd);
 
-/* Evaluate IP packet checksum */
+/* Evaluate IP header checksum */
 unsigned short ip_checksum(const unsigned short *addr, unsigned int count);
-/* Validate IPv4 packet */
-int check_ipv4_packet(const void *buf, size_t len, int skip_sum);
+/* Get IP protocol version */
+int get_ip_version(const void *buf, size_t len);
+/* Validate IPv4 header */
+int check_header_ipv4(const void *buf, size_t len, int skip_sum);
 /* Write IPv4 icmp echo packet data to buffer */
 int write_icmp_echo(void *buf, const struct icmp_echo_param *param);
 

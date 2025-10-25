@@ -80,11 +80,11 @@ static void socket_handler(void *ctx)
 		log_mesg(LOG_NOTICE, "decrypt packet failed");
 		return;
 	}
-	if (check_ipv4_packet(buffer, length, 0)) {
-		log_mesg(LOG_NOTICE, "bad ipv4 packet from socket");
+	if (check_header_ipv4(buffer, length, 0)) {
+		log_mesg(LOG_NOTICE, "udp packet with bad ip header");
 		return;
 	}
-	if (clnt->private_ip != get_destination_ip(buffer)) {
+	if (get_destination_ip(buffer) != clnt->private_ip) {
 		log_mesg(LOG_NOTICE, "bad destination ip address");
 		return;
 	}
@@ -109,12 +109,15 @@ static void tundev_handler(void *ctx)
 		return;
 
 	length = res;
-	if (check_ipv4_packet(buffer, length, 1)) {
-		log_mesg(LOG_NOTICE, "bad ipv4 packet from tun");
+	if (get_ip_version(buffer, length) != 4)
+		return;
+	if (get_source_ip(buffer) != clnt->private_ip)
+		return;
+	if (check_header_ipv4(buffer, length, 1)) {
+		log_mesg(LOG_NOTICE, "tun packet with bad ip header");
 		return;
 	}
-	if (clnt->private_ip != get_source_ip(buffer))
-		return;
+
 	encrypt_message(buffer, &length, clnt->encrypt_key);
 	buffer[length++] = GET_PEER_ID(clnt->private_ip);
 	res = send_udp(clnt->loop.sockfd, buffer, length, NULL);

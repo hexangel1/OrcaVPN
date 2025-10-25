@@ -284,12 +284,12 @@ static void socket_handler(void *ctx)
 		block_ip(serv, &addr);
 		return;
 	}
-	if (check_ipv4_packet(buffer, length, 0)) {
-		log_mesg(LOG_NOTICE, "invalid ipv4 packet from socket");
+	if (check_header_ipv4(buffer, length, 0)) {
+		log_mesg(LOG_NOTICE, "udp packet with bad ip header");
 		block_ip(serv, &addr);
 		return;
 	}
-	if (peer->private_ip != get_source_ip(buffer)) {
+	if (get_source_ip(buffer) != peer->private_ip) {
 		log_mesg(LOG_NOTICE, "wrong peer private ip address");
 		block_ip(serv, &addr);
 		return;
@@ -317,10 +317,13 @@ static void tundev_handler(void *ctx)
 		return;
 
 	length = res;
-	if (check_ipv4_packet(buffer, length, 1)) {
-		log_mesg(LOG_NOTICE, "bad ipv4 packet from tun");
+	if (get_ip_version(buffer, length) != 4)
+		return;
+	if (check_header_ipv4(buffer, length, 1)) {
+		log_mesg(LOG_NOTICE, "tun packet with bad ip header");
 		return;
 	}
+
 	src_ip = get_source_ip(buffer);
 	dest_ip = get_destination_ip(buffer);
 	peer = get_peer_by_addr(serv, dest_ip);

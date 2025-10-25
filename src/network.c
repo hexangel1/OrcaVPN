@@ -336,7 +336,16 @@ unsigned short ip_checksum(const unsigned short *addr, unsigned int count)
 	return sum;
 }
 
-int check_ipv4_packet(const void *buf, size_t len, int skip_sum)
+int get_ip_version(const void *buf, size_t len)
+{
+	const struct iphdr *ip_header = buf;
+
+	if (len < sizeof(struct iphdr))
+		return -1;
+	return ip_header->version;
+}
+
+int check_header_ipv4(const void *buf, size_t len, int skip_sum)
 {
 	const struct iphdr *ip_header = buf;
 
