@@ -29,9 +29,21 @@ static void process_signal(struct event_listener *loop)
 static void prepare_loop(struct event_listener *loop, sigset_t *sigmask,
 	struct timespec **timeout, struct timespec *timeout_buf)
 {
-	set_nonblock_io(loop->tunfd);
-	set_nonblock_io(loop->sockfd);
-	setup_signal_events(sigmask);
+	int res = setup_signal_events(sigmask);
+	if (res < 0) {
+		err_panic(loop, "setting signal handlers");
+		return;
+	}
+	res = set_nonblock_io(loop->tunfd);
+	if (res < 0) {
+		err_panic(loop, "setting tundev nonblock");
+		return;
+	}
+	res = set_nonblock_io(loop->sockfd);
+	if (res < 0) {
+		err_panic(loop, "setting socket nonblock");
+		return;
+	}
 	*timeout = ms2timespec(timeout_buf, loop->timeout);
 	log_mesg(LOG_INFO, "Running event loop...");
 }
@@ -50,8 +62,9 @@ void event_loop(struct event_listener *loop)
 	struct timespec timeout_buf, *timeout;
 	int res, nfds = MAX(loop->tunfd, loop->sockfd) + 1;
 
-	prepare_loop(loop, &sigmask, &timeout, &timeout_buf);
 	FD_ZERO(&readfds);
+	sigemptyset(&sigmask);
+	prepare_loop(loop, &sigmask, &timeout, &timeout_buf);
 
 	while (!loop->exit_loop) {
 		FD_SET(loop->tunfd, &readfds);
