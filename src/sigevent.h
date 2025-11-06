@@ -10,7 +10,7 @@ typedef enum sigevent_status {
 } sigevent_status_t;
 
 /* Set signal handlers and sigmask */
-void setup_signal_events(sigset_t *origmask);
+int setup_signal_events(sigset_t *origmask);
 /* Set original signal mask */
 void restore_signal_mask(const sigset_t *origmask);
 /* Get signal event */

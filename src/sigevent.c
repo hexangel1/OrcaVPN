@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "sigevent.h"
+#include "logger.h"
 
 static volatile sig_atomic_t sigevent_flag = sigevent_absent;
 
@@ -14,35 +15,51 @@ static void signal_handler(int signum)
 		sigevent_flag = sigevent_stop;
 }
 
-static void register_sigactions(void)
+static int set_action(int signum, const struct sigaction *sa, sigset_t *mask)
+{
+	int res = sigaction(signum, sa, NULL);
+	if (res < 0) {
+		log_perror("sigaction");
+		return -1;
+	}
+	if (mask)
+		sigaddset(mask, signum);
+	return 0;
+}
+
+static int register_sigactions(sigset_t *origmask)
 {
 	struct sigaction sa;
+	sigset_t mask;
+
 	memset(&sa, 0, sizeof(sa));
 	sigfillset(&sa.sa_mask);
-	sa.sa_handler = SIG_IGN;
-	sigaction(SIGPIPE, &sa, NULL);
-	sa.sa_handler = signal_handler;
-	sigaction(SIGHUP, &sa, NULL);
-	sigaction(SIGTERM, &sa, NULL);
-	sigaction(SIGUSR1, &sa, NULL);
-	sigaction(SIGUSR2, &sa, NULL);
-}
-
-static void set_signal_mask(sigset_t *origmask)
-{
-	sigset_t mask;
 	sigemptyset(&mask);
-	sigaddset(&mask, SIGHUP);
-	sigaddset(&mask, SIGTERM);
-	sigaddset(&mask, SIGUSR1);
-	sigaddset(&mask, SIGUSR2);
-	sigprocmask(SIG_BLOCK, &mask, origmask);
+
+	sa.sa_handler = SIG_IGN;
+	if (set_action(SIGPIPE, &sa, NULL) < 0)
+		return -1;
+
+	sa.sa_handler = signal_handler;
+	if (set_action(SIGHUP,  &sa, &mask) < 0)
+		return -1;
+	if (set_action(SIGTERM, &sa, &mask) < 0)
+		return -1;
+	if (set_action(SIGUSR1, &sa, &mask) < 0)
+		return -1;
+	if (set_action(SIGUSR2, &sa, &mask) < 0)
+		return -1;
+
+	if (sigprocmask(SIG_BLOCK, &mask, origmask) < 0) {
+		log_perror("sigprocmask");
+		return -1;
+	}
+	return 0;
 }
 
-void setup_signal_events(sigset_t *origmask)
+int setup_signal_events(sigset_t *origmask)
 {
-	register_sigactions();
-	set_signal_mask(origmask);
+	return register_sigactions(origmask);
 }
 
 void restore_signal_mask(const sigset_t *origmask)
