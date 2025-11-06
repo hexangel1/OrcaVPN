@@ -55,7 +55,7 @@ static void ping_vpn_router(struct vpnclient *clnt)
 		log_mesg(LOG_ERR, "sending ping packet failed");
 }
 
-static void timeout_handler(void *ctx)
+static void alarm_handler(void *ctx)
 {
 	ping_vpn_router((struct vpnclient *)ctx);
 }
@@ -224,8 +224,8 @@ static void set_event_handlers(struct vpnclient *clnt)
 
 	loop->tundev_callback = tundev_handler;
 	loop->socket_callback = socket_handler;
-	loop->timeout_callback = timeout_handler;
-	loop->timeout = IDLE_TIMEOUT * 1000;
+	loop->alarm_callback = alarm_handler;
+	loop->alarm_interval = IDLE_TIMEOUT * 1000;
 	loop->ctx = clnt;
 }
 

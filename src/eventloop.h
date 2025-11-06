@@ -8,11 +8,11 @@ struct event_listener {
 	int exit_loop;
 	int reload_flag;
 	int status_flag;
-	long timeout;
+	unsigned long alarm_interval;
 
 	void (*tundev_callback)(void *);
 	void (*socket_callback)(void *);
-	void (*timeout_callback)(void *);
+	void (*alarm_callback)(void *);
 	void *ctx;
 };
 
