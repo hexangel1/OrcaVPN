@@ -10,7 +10,7 @@ static volatile sig_atomic_t sigevent_flag = sigevent_absent;
 
 static void signal_handler(int signum)
 {
-	if (signum == SIGALRM)
+	if (signum == SIGALRM && sigevent_flag == sigevent_absent)
 		sigevent_flag = sigevent_alarm;
 	else if (signum == SIGHUP || signum == SIGUSR1)
 		sigevent_flag = sigevent_reload;
