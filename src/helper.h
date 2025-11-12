@@ -24,8 +24,6 @@ void daemonize(const char *pidfile);
 
 /* Get current unix time */
 time_t get_unix_time(void);
-/* Write time in milliseconds to struct timespec */
-struct timespec *ms2timespec(struct timespec *ts, long ms);
 
 /* Hexlify binary data */
 char *hexlify(const void *data, size_t len, int upper, char *res);
