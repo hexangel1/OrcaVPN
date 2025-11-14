@@ -10,8 +10,9 @@
 
 #define PACKET_BUFFER_SIZE 1536
 #define MAX_UDP_PAYLOAD 1472
-#define MAX_IPV4_ADDR_LEN 16
 #define MAX_IF_NAME_LEN 16
+#define MAX_IPV4_ADDR_LEN 16
+#define MAX_IPV4_CONN_LEN (MAX_IPV4_ADDR_LEN + sizeof(":65535") - 1)
 #define PING_DATA_LEN 24
 #define VPN_PORT 778
 
@@ -55,10 +56,10 @@ ssize_t recv_udp(int sockfd, void *buf, size_t len,
 ssize_t recv_udp6(int sockfd, void *buf, size_t len,
 	struct sockaddr_in6 *addr);
 
-/* Get local binded address string [ipv4] */
-const char *get_local_bind_addr(int sockfd);
-/* Get local binded port number [ipv4] */
-int get_local_bind_port(int sockfd);
+/* Get local socket address string [ipv4] */
+const char *get_local_addr(int sockfd);
+/* Get remote socket address string [ipv4] */
+const char *get_remote_addr(int sockfd);
 
 /* Set max udp send buffer size */
 int set_max_sndbuf(int sockfd);
@@ -88,6 +89,8 @@ uint32_t get_source_ip(const void *buf);
 const char *ipv4tosb(uint32_t ip, int host_order, char *buf);
 /* Convert IPv4 address to string, use static buffer for return value */
 const char *ipv4tos(uint32_t ip, int host_order);
+/* Write IPv4 address to buf in format <ip>:<port> */
+char *addr_to_str(const struct sockaddr_in *addr, char *buf, size_t len);
 /* Check IPv4 address belongs to network */
 int ip_in_network(uint32_t ip, uint32_t network, uint32_t mask);
 

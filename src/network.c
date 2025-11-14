@@ -206,8 +206,9 @@ ssize_t recv_udp6(int sockfd, void *buf, size_t len,
 	return recv_udp_af(AF_INET6, sockfd, buf, len, (struct sockaddr *)addr);
 }
 
-const char *get_local_bind_addr(int sockfd)
+const char *get_local_addr(int sockfd)
 {
+	static char buffer[MAX_IPV4_CONN_LEN];
 	struct sockaddr_in addr;
 	socklen_t addrlen = sizeof(struct sockaddr_in);
 	int res;
@@ -217,21 +218,22 @@ const char *get_local_bind_addr(int sockfd)
 		log_perror("getsockname");
 		return "";
 	}
-	return ipv4tos(addr.sin_addr.s_addr, 0);
+	return addr_to_str(&addr, buffer, sizeof(buffer));
 }
 
-int get_local_bind_port(int sockfd)
+const char *get_remote_addr(int sockfd)
 {
+	static char buffer[MAX_IPV4_CONN_LEN];
 	struct sockaddr_in addr;
 	socklen_t addrlen = sizeof(struct sockaddr_in);
 	int res;
 
-	res = getsockname(sockfd, (struct sockaddr *)&addr, &addrlen);
+	res = getpeername(sockfd, (struct sockaddr *)&addr, &addrlen);
 	if (res < 0) {
-		log_perror("getsockname");
-		return -1;
+		log_perror("getpeername");
+		return "";
 	}
-	return ntohs(addr.sin_port);
+	return addr_to_str(&addr, buffer, sizeof(buffer));
 }
 
 int set_max_sndbuf(int sockfd)
@@ -431,6 +433,15 @@ const char *ipv4tosb(uint32_t ip, int host_order, char *buf)
 const char *ipv4tos(uint32_t ip, int host_order)
 {
 	return ipv4tosb(ip, host_order, NULL);
+}
+
+char *addr_to_str(const struct sockaddr_in *addr, char *buf, size_t len)
+{
+	char ipv4_buffer[MAX_IPV4_ADDR_LEN];
+
+	ipv4tosb(addr->sin_addr.s_addr, 0, ipv4_buffer);
+	snprintf(buf, len, "%s:%u", ipv4_buffer, ntohs(addr->sin_port));
+	return buf;
 }
 
 int ip_in_network(uint32_t ip, uint32_t network, uint32_t mask)

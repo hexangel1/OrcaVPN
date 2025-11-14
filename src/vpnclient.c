@@ -256,10 +256,8 @@ static int vpn_client_up(struct vpnclient *clnt)
 		log_mesg(LOG_EMERG, "Connection failed");
 		return -1;
 	}
-	log_mesg(LOG_INFO, "Connected from %s:%u to %s:%u",
-		get_local_bind_addr(loop->sockfd),
-		get_local_bind_port(loop->sockfd),
-		clnt->server_ip, clnt->server_port);
+	log_mesg(LOG_INFO, "Connected from %s to %s",
+		get_local_addr(loop->sockfd), get_remote_addr(loop->sockfd));
 	set_max_sndbuf(loop->sockfd);
 	set_max_rcvbuf(loop->sockfd);
 	set_event_handlers(clnt);

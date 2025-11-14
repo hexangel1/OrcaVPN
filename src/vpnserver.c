@@ -501,9 +501,7 @@ static int vpn_server_up(struct vpnserver *serv)
 		return -1;
 	}
 	loop->sockfd = res;
-	log_mesg(LOG_INFO, "Listen udp on %s:%u",
-		get_local_bind_addr(loop->sockfd),
-		get_local_bind_port(loop->sockfd));
+	log_mesg(LOG_INFO, "Listen udp on %s", get_local_addr(loop->sockfd));
 	set_max_sndbuf(loop->sockfd);
 	set_max_rcvbuf(loop->sockfd);
 	set_event_handlers(serv);
