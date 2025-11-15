@@ -11,7 +11,7 @@ typedef enum crypto_key_type_en {
 } crypto_key_type;
 
 /* Init encryption module */
-void init_encryption(void);
+int init_encryption(void);
 
 /* Read random bytes from /dev/urandom to buffer */
 int read_random(void *buf, size_t len);

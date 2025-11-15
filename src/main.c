@@ -81,8 +81,13 @@ int main(int argc, char **argv)
 	}
 	if (daemon_state)
 		daemonize(pid_file);
-	init_logger("orcavpnd", log_file, daemon_state, log_file ? 2 : 0);
-	init_encryption();
+	init_logger("orcavpnd", log_file, daemon_state,
+		log_file ? LOG_LOCAL_DATETIME : LOG_NO_DATETIME);
+	res = init_encryption();
+	if (res < 0) {
+		log_mesg(LOG_EMERG, "Failed to init encryption lib");
+		exit(EXIT_FAILURE);
+	}
 	switch (working_mode) {
 	case VPNSERVER_MODE:
 		if (!config_file)

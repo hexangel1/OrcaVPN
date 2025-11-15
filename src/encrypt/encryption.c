@@ -178,12 +178,13 @@ static void close_urandom_fd(void)
 	close(get_urandom_fd());
 }
 
-void init_encryption(void)
+int init_encryption(void)
 {
 	srand((unsigned int)time(NULL));
 	if (get_urandom_fd() < 0)
-		exit(EXIT_FAILURE);
+		return -1;
 	atexit(close_urandom_fd);
+	return 0;
 }
 
 int read_random(void *buf, size_t len)
