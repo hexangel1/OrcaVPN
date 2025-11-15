@@ -41,8 +41,11 @@ static void open_logfile(void)
 
 static void close_logfile(void)
 {
+	if (!logger.log_file)
+		return;
 	fflush(logger.log_file);
 	fclose(logger.log_file);
+	logger.log_file = NULL;
 }
 
 static void limit_filesize(size_t max_size)
