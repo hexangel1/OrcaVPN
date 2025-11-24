@@ -147,7 +147,7 @@ static ssize_t recv_udp_af(int af, int sockfd, void *buf, size_t len,
 		res = 0;
 	}
 	if (!res)
-		log_mesg(LOG_NOTICE, "received no data on udp socket");
+		log_mesg(LOG_NOTICE, "recvfrom: received no data on socket");
 	return res;
 }
 

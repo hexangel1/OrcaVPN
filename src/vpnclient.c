@@ -236,13 +236,14 @@ static int vpn_client_up(struct vpnclient *clnt)
 
 	res = create_tun_if(clnt->tun_name);
 	if (res < 0) {
-		log_mesg(LOG_EMERG, "Allocating interface failed");
+		log_mesg(LOG_EMERG, "Create tun if failed");
 		return -1;
 	}
 	loop->tunfd = res;
+	log_mesg(LOG_INFO, "Created tun if %s", clnt->tun_name);
 	res = setup_tun_if(clnt->tun_name, clnt->tun_addr, clnt->tun_netmask);
 	if (res < 0) {
-		log_mesg(LOG_EMERG, "Setting up %s failed", clnt->tun_name);
+		log_mesg(LOG_EMERG, "Setup tun if failed");
 		return -1;
 	}
 	res = create_udp_socket(clnt->ip_addr, clnt->port);
@@ -253,7 +254,7 @@ static int vpn_client_up(struct vpnclient *clnt)
 	loop->sockfd = res;
 	res = connect_socket(loop->sockfd, clnt->server_ip, clnt->server_port);
 	if (res < 0) {
-		log_mesg(LOG_EMERG, "Connection failed");
+		log_mesg(LOG_EMERG, "Connection to server failed");
 		return -1;
 	}
 	log_mesg(LOG_INFO, "Connected from %s to %s",

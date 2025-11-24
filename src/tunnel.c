@@ -36,7 +36,6 @@ static int tuntap_alloc(char *ifname, int flags)
 		return -1;
 	}
 	strcpy(ifname, ifr.ifr_name);
-	log_mesg(LOG_INFO, "Created dev %s", ifname);
 	return fd;
 }
 
@@ -130,27 +129,27 @@ int setup_tun_if(const char *ifname, const char *addr, const char *mask)
 	int res;
 	res = set_if_up(ifname, IFF_NOARP);
 	if (res < 0) {
-		log_mesg(LOG_ERR, "set dev %s up failed", ifname);
+		log_mesg(LOG_ERR, "set tun %s up failed", ifname);
 		return -1;
 	}
 	res = set_if_mtu(ifname, TUN_IF_MTU);
 	if (res < 0) {
-		log_mesg(LOG_ERR, "set dev %s mtu failed", ifname);
+		log_mesg(LOG_ERR, "set tun %s mtu failed", ifname);
 		return -1;
 	}
 	res = set_if_qlen(ifname, TUN_IF_QLEN);
 	if (res < 0) {
-		log_mesg(LOG_ERR, "set dev %s qlen failed", ifname);
+		log_mesg(LOG_ERR, "set tun %s qlen failed", ifname);
 		return -1;
 	}
 	res = set_if_address(ifname, addr ? addr : TUN_IF_ADDR);
 	if (res < 0) {
-		log_mesg(LOG_ERR, "set dev %s address failed", ifname);
+		log_mesg(LOG_ERR, "set tun %s address failed", ifname);
 		return -1;
 	}
 	res = set_if_netmask(ifname, mask ? mask : TUN_IF_MASK);
 	if (res < 0) {
-		log_mesg(LOG_ERR, "set dev %s netmask failed", ifname);
+		log_mesg(LOG_ERR, "set tun %s netmask failed", ifname);
 		return -1;
 	}
 	return 0;
@@ -160,7 +159,7 @@ ssize_t send_tun(int tunfd, const void *buf, size_t len)
 {
 	ssize_t res = write(tunfd, buf, len);
 	if (res < 0) {
-		log_perror("write tun device");
+		log_perror("send_tun");
 		return -1;
 	}
 	return res;
@@ -171,12 +170,12 @@ ssize_t recv_tun(int tunfd, void *buf, size_t len)
 	ssize_t res = read(tunfd, buf, len);
 	if (res < 0) {
 		if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
-			log_perror("read tun device");
+			log_perror("recv_tun");
 			return -1;
 		}
 		res = 0;
 	}
 	if (!res)
-		log_mesg(LOG_NOTICE, "received no data on tun device");
+		log_mesg(LOG_NOTICE, "recv_tun: received no data on tun");
 	return res;
 }

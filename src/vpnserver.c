@@ -486,13 +486,14 @@ static int vpn_server_up(struct vpnserver *serv)
 
 	res = create_tun_if(serv->tun_name);
 	if (res < 0) {
-		log_mesg(LOG_EMERG, "Allocating interface failed");
+		log_mesg(LOG_EMERG, "Create tun if failed");
 		return -1;
 	}
 	loop->tunfd = res;
+	log_mesg(LOG_INFO, "Created tun if %s", serv->tun_name);
 	res = setup_tun_if(serv->tun_name, serv->tun_addr, serv->tun_netmask);
 	if (res < 0) {
-		log_mesg(LOG_EMERG, "Setting up %s failed", serv->tun_name);
+		log_mesg(LOG_EMERG, "Setup tun if failed");
 		return -1;
 	}
 	res = create_udp_socket(serv->ip_addr, serv->port);
