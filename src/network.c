@@ -8,13 +8,12 @@
 #include <errno.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#include <sys/socket.h>
 #include <sys/select.h>
-#include <arpa/inet.h>
+#include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
-
-#include <linux/icmp.h>
+#include <netinet/ip_icmp.h>
+#include <arpa/inet.h>
 
 #include "network.h"
 #include "logger.h"
