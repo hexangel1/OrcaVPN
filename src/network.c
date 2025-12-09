@@ -243,13 +243,13 @@ int set_max_sndbuf(int sockfd)
 
 	fp = fopen("/proc/sys/net/core/wmem_max", "r");
 	if (!fp) {
-		log_mesg(log_lvl_normal, "wmem_max value not found");
+		log_mesg(log_lvl_warn, "wmem_max value not found");
 		return -1;
 	}
 	res = fscanf(fp, "%d", &snd_bufsize);
 	fclose(fp);
 	if (res < 1) {
-		log_mesg(log_lvl_normal, "invalid wmem_max value");
+		log_mesg(log_lvl_warn, "invalid wmem_max value");
 		return -1;
 	}
 	res = setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, &snd_bufsize, optlen);
@@ -274,13 +274,13 @@ int set_max_rcvbuf(int sockfd)
 
 	fp = fopen("/proc/sys/net/core/rmem_max", "r");
 	if (!fp) {
-		log_mesg(log_lvl_normal, "rmem_max value not found");
+		log_mesg(log_lvl_warn, "rmem_max value not found");
 		return -1;
 	}
 	res = fscanf(fp, "%d", &rcv_bufsize);
 	fclose(fp);
 	if (res < 1) {
-		log_mesg(log_lvl_normal, "invalid rmem_max value");
+		log_mesg(log_lvl_warn, "invalid rmem_max value");
 		return -1;
 	}
 	res = setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, &rcv_bufsize, optlen);
