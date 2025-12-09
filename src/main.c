@@ -85,7 +85,7 @@ int main(int argc, char **argv)
 		log_file ? LOG_LOCAL_DATETIME : LOG_NO_DATETIME);
 	res = init_encryption();
 	if (res < 0) {
-		log_mesg(LOG_EMERG, "Failed to init encryption lib");
+		log_mesg(log_lvl_fatal, "Failed to init encryption lib");
 		exit(EXIT_FAILURE);
 	}
 	switch (working_mode) {
@@ -100,10 +100,10 @@ int main(int argc, char **argv)
 		status = run_vpnclient(config_file);
 		break;
 	default:
-		log_mesg(LOG_EMERG, "Unknown working mode");
+		log_mesg(log_lvl_fatal, "Unknown working mode");
 		exit(EXIT_FAILURE);
 	}
 	if (!status)
-		log_mesg(LOG_INFO, "Gracefully finished");
+		log_mesg(log_lvl_info, "Gracefully finished");
 	return status;
 }

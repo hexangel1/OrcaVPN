@@ -217,7 +217,8 @@ struct config_section *read_config(const char *file)
 
 	FILE *fp = fopen(file, "r");
 	if (!fp) {
-		log_mesg(LOG_ERR, "Config not opened: %s", strerror(errno));
+		log_mesg(log_lvl_err, "Config not opened: %s",
+			strerror(errno));
 		return NULL;
 	}
 
@@ -227,7 +228,7 @@ struct config_section *read_config(const char *file)
 	fclose(fp);
 
 	if (fsm_parser_check(&fsm)) {
-		log_mesg(LOG_ERR, "Read config failed: %s",
+		log_mesg(log_lvl_err, "Read config failed: %s",
 			fsm_parser_error(&fsm));
 		fsm_parser_destroy(&fsm);
 		return NULL;

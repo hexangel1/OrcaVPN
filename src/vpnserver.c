@@ -54,7 +54,7 @@ static void clear_hash_if_large(hashmap *hash)
 	if (hash->used <= HASH_SIZE_LIMIT)
 		return;
 	clear_map(hash);
-	log_mesg(LOG_WARNING, "hash has grown too large and was cleared");
+	log_mesg(log_lvl_warn, "hash has grown too large and was cleared");
 }
 
 static int throttle_packet(struct vpnserver *serv, struct sockaddr_in *addr)
@@ -67,12 +67,12 @@ static int throttle_packet(struct vpnserver *serv, struct sockaddr_in *addr)
 
 	HASHMAP_KEY_INT(ip_key, ip);
 	ip_counter = hashmap_inc(serv->ip_hash, &ip_key, 1);
-	if (ip_counter > 1) {
-		if (ip_counter % 100000 == 0)
-			log_mesg(LOG_NOTICE, "received %lu packets from %s",
-				ip_counter, ipv4tos(ip, 0));
-	} else {
-		log_mesg(LOG_INFO, "received packet from %s", ipv4tos(ip, 0));
+	if (ip_counter % 100000 == 0) {
+		log_mesg(log_lvl_normal, "received %lu packets from %s",
+			ip_counter, ipv4tos(ip, 0));
+	} else if (ip_counter == 1) {
+		log_mesg(log_lvl_info, "received packet from %s",
+			ipv4tos(ip, 0));
 	}
 
 	ip_val = hashmap_get(serv->blocked_ip_hash, &ip_key);
@@ -83,7 +83,7 @@ static int throttle_packet(struct vpnserver *serv, struct sockaddr_in *addr)
 		return 1;
 
 	hashmap_delete(serv->blocked_ip_hash, &ip_key);
-	log_mesg(LOG_NOTICE, "ip address %s is unblocked", ipv4tos(ip, 0));
+	log_mesg(log_lvl_normal, "ip address %s is unblocked", ipv4tos(ip, 0));
 	return 0;
 }
 
@@ -101,7 +101,7 @@ static void block_ip(struct vpnserver *serv, struct sockaddr_in *addr)
 	HASHMAP_KEY_INT(ip_key, ip);
 	ip_val = (hashmap_val)get_unix_time() + serv->block_ip_ttl;
 	hashmap_insert(serv->blocked_ip_hash, &ip_key, ip_val);
-	log_mesg(LOG_NOTICE, "ip address %s is blocked", ipv4tos(ip, 0));
+	log_mesg(log_lvl_normal, "ip address %s is blocked", ipv4tos(ip, 0));
 }
 
 static struct vpn_peer *
@@ -140,23 +140,24 @@ static struct vpn_peer *alloc_peer(
 	struct vpn_peer *peer;
 
 	if (keylen > sizeof(bin_key)) {
-		log_mesg(LOG_ERR, "peer %s: key too long", name);
+		log_mesg(log_lvl_err, "peer %s: key too long", name);
 		return NULL;
 	}
 	if (!binarize(hex_key, hex_keylen, bin_key)) {
-		log_mesg(LOG_ERR, "peer %s: key has not hex format", name);
+		log_mesg(log_lvl_err, "peer %s: key has not hex format", name);
 		return NULL;
 	}
 
 	cipher = crypto_key_parse_cipher(cipher_name);
 	if (cipher < 0) {
-		log_mesg(LOG_ERR, "peer %s: invalid cipher: %s", name,
-			cipher_name);
+		log_mesg(log_lvl_err, "peer %s: invalid cipher: %s",
+			name, cipher_name);
 		return NULL;
 	}
 	encrypt_key = crypto_key_create(bin_key, keylen, cipher);
 	if (!encrypt_key) {
-		log_mesg(LOG_ERR, "peer %s: encrypt key create failed", name);
+		log_mesg(log_lvl_err, "peer %s: cipher %s key create failed",
+			name, cipher_name);
 		return NULL;
 	}
 
@@ -178,15 +179,15 @@ static int create_peer(struct vpnserver *serv, const char *name,
 
 	private_ip = inet_network(ip);
 	if (!is_private_peer(serv, private_ip)) {
-		log_mesg(LOG_ERR, "peer %s: invalid private ip: %s", name, ip);
+		log_mesg(log_lvl_err, "peer %s: invalid tun ip: %s", name, ip);
 		return -1;
 	}
 	if (serv->peers_count == PEERS_LIMIT - 1) {
-		log_mesg(LOG_ERR, "peer %s: too many peers", name);
+		log_mesg(log_lvl_err, "peer %s: too many peers", name);
 		return -1;
 	}
 	if (serv->peer_id_map[GET_PEER_ID(private_ip)] != 0xff) {
-		log_mesg(LOG_ERR, "peer %s: already exists", name);
+		log_mesg(log_lvl_err, "peer %s: already exists", name);
 		return -1;
 	}
 
@@ -207,7 +208,7 @@ static void log_drop(const char *mesg, uint32_t src_ip, uint32_t dst_ip)
 	ipv4tosb(src_ip, 1, src_addr);
 	ipv4tosb(dst_ip, 1, dst_addr);
 
-	log_mesg(LOG_NOTICE, "packet from %s to %s dropped: %s",
+	log_mesg(log_lvl_normal, "packet from %s to %s dropped: %s",
 		src_addr, dst_addr, mesg);
 }
 
@@ -250,7 +251,7 @@ static void route_packet(struct vpnserver *serv, struct vpn_peer *src,
 		res = send_tun(serv->loop.tunfd, buffer, length);
 	}
 	if (res < 0)
-		log_mesg(LOG_ERR, "forwarding packet from client failed");
+		log_mesg(log_lvl_err, "forwarding packet from client failed");
 }
 
 static void socket_handler(void *ctx)
@@ -275,22 +276,22 @@ static void socket_handler(void *ctx)
 	peer_id = buffer[--length];
 	peer = get_peer_by_id(serv, peer_id);
 	if (!peer) {
-		log_mesg(LOG_NOTICE, "peer %u not found", peer_id);
+		log_mesg(log_lvl_normal, "peer %u not found", peer_id);
 		block_ip(serv, &addr);
 		return;
 	}
 	if (decrypt_message(buffer, &length, peer->encrypt_key)) {
-		log_mesg(LOG_NOTICE, "decrypt packet failed");
+		log_mesg(log_lvl_normal, "decrypt packet failed");
 		block_ip(serv, &addr);
 		return;
 	}
 	if (check_header_ipv4(buffer, length, 0)) {
-		log_mesg(LOG_NOTICE, "udp packet with bad ip header");
+		log_mesg(log_lvl_normal, "udp packet with bad ip header");
 		block_ip(serv, &addr);
 		return;
 	}
 	if (get_source_ip(buffer) != peer->private_ip) {
-		log_mesg(LOG_NOTICE, "wrong peer private ip address");
+		log_mesg(log_lvl_normal, "wrong peer private ip address");
 		block_ip(serv, &addr);
 		return;
 	}
@@ -320,7 +321,7 @@ static void tundev_handler(void *ctx)
 	if (get_ip_version(buffer, length) != 4)
 		return;
 	if (check_header_ipv4(buffer, length, 1)) {
-		log_mesg(LOG_NOTICE, "tun packet with bad ip header");
+		log_mesg(log_lvl_normal, "tun packet with bad ip header");
 		return;
 	}
 
@@ -342,14 +343,14 @@ static void tundev_handler(void *ctx)
 	encrypt_message(buffer, &length, peer->encrypt_key);
 	res = send_udp(serv->loop.sockfd, buffer, length, &peer->addr);
 	if (res < 0)
-		log_mesg(LOG_ERR, "forwarding packet from tun failed");
+		log_mesg(log_lvl_err, "forwarding packet from tun failed");
 }
 
 #define ADD_PEER_ERROR(message, peer) \
 	do { \
 		has_errors = 1; \
 		current_peer_ok = 0; \
-		log_mesg(LOG_ERR, "[%s] " message, (peer)->scope); \
+		log_mesg(log_lvl_err, "[%s] " message, (peer)->scope); \
 	} while (0)
 
 static int add_peers(struct vpnserver *serv, struct config_section *cfg)
@@ -395,7 +396,7 @@ static int add_peers(struct vpnserver *serv, struct config_section *cfg)
 	do { \
 		free_server(serv); \
 		free_config(config); \
-		log_mesg(LOG_ERR, message); \
+		log_mesg(log_lvl_err, message); \
 		return NULL; \
 	} while (0)
 
@@ -486,23 +487,24 @@ static int vpn_server_up(struct vpnserver *serv)
 
 	res = create_tun_if(serv->tun_name);
 	if (res < 0) {
-		log_mesg(LOG_EMERG, "Create tun if failed");
+		log_mesg(log_lvl_fatal, "Create tun if failed");
 		return -1;
 	}
 	loop->tunfd = res;
-	log_mesg(LOG_INFO, "Created tun if %s", serv->tun_name);
+	log_mesg(log_lvl_info, "Created tun if %s", serv->tun_name);
 	res = setup_tun_if(serv->tun_name, serv->tun_addr, serv->tun_netmask);
 	if (res < 0) {
-		log_mesg(LOG_EMERG, "Setup tun if failed");
+		log_mesg(log_lvl_fatal, "Setup tun if failed");
 		return -1;
 	}
 	res = create_udp_socket(serv->ip_addr, serv->port);
 	if (res < 0) {
-		log_mesg(LOG_EMERG, "Create socket failed");
+		log_mesg(log_lvl_fatal, "Create socket failed");
 		return -1;
 	}
 	loop->sockfd = res;
-	log_mesg(LOG_INFO, "Listen udp on %s", get_local_addr(loop->sockfd));
+	log_mesg(log_lvl_info, "Listen udp on %s",
+		get_local_addr(loop->sockfd));
 	set_max_sndbuf(loop->sockfd);
 	set_max_rcvbuf(loop->sockfd);
 	set_event_handlers(serv);
@@ -524,12 +526,12 @@ int run_vpnserver(const char *config)
 reload_server:
 	serv = create_server(config);
 	if (!serv) {
-		log_mesg(LOG_EMERG, "Failed to create server configuration");
+		log_mesg(log_lvl_fatal, "Failed to create server");
 		return 1;
 	}
 	res = vpn_server_up(serv);
 	if (res < 0) {
-		log_mesg(LOG_EMERG, "Failed to bring server up");
+		log_mesg(log_lvl_fatal, "Failed to bring server up");
 		return 1;
 	}
 	event_loop(&serv->loop);
@@ -537,7 +539,7 @@ reload_server:
 	status = serv->loop.status_flag;
 	vpn_server_down(serv);
 	if (reload) {
-		log_mesg(LOG_INFO, "Reloading configuration...");
+		log_mesg(log_lvl_info, "Reloading configuration...");
 		goto reload_server;
 	}
 	return status;

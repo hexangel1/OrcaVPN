@@ -52,7 +52,7 @@ static void ping_vpn_router(struct vpnclient *clnt)
 	buffer[length++] = GET_PEER_ID(clnt->private_ip);
 	res = send_udp(clnt->loop.sockfd, buffer, length, NULL);
 	if (res < 0)
-		log_mesg(LOG_ERR, "sending ping packet failed");
+		log_mesg(log_lvl_err, "sending ping packet failed");
 }
 
 static void alarm_handler(void *ctx)
@@ -77,20 +77,20 @@ static void socket_handler(void *ctx)
 
 	length = res;
 	if (decrypt_message(buffer, &length, clnt->encrypt_key)) {
-		log_mesg(LOG_NOTICE, "decrypt packet failed");
+		log_mesg(log_lvl_normal, "decrypt packet failed");
 		return;
 	}
 	if (check_header_ipv4(buffer, length, 0)) {
-		log_mesg(LOG_NOTICE, "udp packet with bad ip header");
+		log_mesg(log_lvl_normal, "udp packet with bad ip header");
 		return;
 	}
 	if (get_destination_ip(buffer) != clnt->private_ip) {
-		log_mesg(LOG_NOTICE, "bad destination ip address");
+		log_mesg(log_lvl_normal, "bad destination ip address");
 		return;
 	}
 	res = send_tun(clnt->loop.tunfd, buffer, length);
 	if (res < 0)
-		log_mesg(LOG_ERR, "sending packet to tun failed");
+		log_mesg(log_lvl_err, "sending packet to tun failed");
 }
 
 static void tundev_handler(void *ctx)
@@ -114,7 +114,7 @@ static void tundev_handler(void *ctx)
 	if (get_source_ip(buffer) != clnt->private_ip)
 		return;
 	if (check_header_ipv4(buffer, length, 1)) {
-		log_mesg(LOG_NOTICE, "tun packet with bad ip header");
+		log_mesg(log_lvl_normal, "tun packet with bad ip header");
 		return;
 	}
 
@@ -122,13 +122,13 @@ static void tundev_handler(void *ctx)
 	buffer[length++] = GET_PEER_ID(clnt->private_ip);
 	res = send_udp(clnt->loop.sockfd, buffer, length, NULL);
 	if (res < 0)
-		log_mesg(LOG_ERR, "sending packet to server failed");
+		log_mesg(log_lvl_err, "sending packet to server failed");
 }
 
 #define CONFIG_ERROR(message) \
 	do { \
 		free_config(config); \
-		log_mesg(LOG_ERR, message); \
+		log_mesg(log_lvl_err, message); \
 		return NULL; \
 	} while (0)
 
@@ -236,28 +236,28 @@ static int vpn_client_up(struct vpnclient *clnt)
 
 	res = create_tun_if(clnt->tun_name);
 	if (res < 0) {
-		log_mesg(LOG_EMERG, "Create tun if failed");
+		log_mesg(log_lvl_fatal, "Create tun if failed");
 		return -1;
 	}
 	loop->tunfd = res;
-	log_mesg(LOG_INFO, "Created tun if %s", clnt->tun_name);
+	log_mesg(log_lvl_info, "Created tun if %s", clnt->tun_name);
 	res = setup_tun_if(clnt->tun_name, clnt->tun_addr, clnt->tun_netmask);
 	if (res < 0) {
-		log_mesg(LOG_EMERG, "Setup tun if failed");
+		log_mesg(log_lvl_fatal, "Setup tun if failed");
 		return -1;
 	}
 	res = create_udp_socket(clnt->ip_addr, clnt->port);
 	if (res < 0) {
-		log_mesg(LOG_EMERG, "Create socket failed");
+		log_mesg(log_lvl_fatal, "Create socket failed");
 		return -1;
 	}
 	loop->sockfd = res;
 	res = connect_socket(loop->sockfd, clnt->server_ip, clnt->server_port);
 	if (res < 0) {
-		log_mesg(LOG_EMERG, "Connection to server failed");
+		log_mesg(log_lvl_fatal, "Connection to server failed");
 		return -1;
 	}
-	log_mesg(LOG_INFO, "Connected from %s to %s",
+	log_mesg(log_lvl_info, "Connected from %s to %s",
 		get_local_addr(loop->sockfd), get_remote_addr(loop->sockfd));
 	set_max_sndbuf(loop->sockfd);
 	set_max_rcvbuf(loop->sockfd);
@@ -281,12 +281,12 @@ int run_vpnclient(const char *config)
 reload_client:
 	clnt = create_client(config);
 	if (!clnt) {
-		log_mesg(LOG_EMERG, "Failed to create client configuration");
+		log_mesg(log_lvl_fatal, "Failed to create client");
 		return 1;
 	}
 	res = vpn_client_up(clnt);
 	if (res < 0) {
-		log_mesg(LOG_EMERG, "Failed to bring client up");
+		log_mesg(log_lvl_fatal, "Failed to bring client up");
 		return 1;
 	}
 	event_loop(&clnt->loop);
@@ -294,7 +294,7 @@ reload_client:
 	status = clnt->loop.status_flag;
 	vpn_client_down(clnt);
 	if (reload) {
-		log_mesg(LOG_INFO, "Reloading configuration...");
+		log_mesg(log_lvl_info, "Reloading configuration...");
 		goto reload_client;
 	}
 	return status;

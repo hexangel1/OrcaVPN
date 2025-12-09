@@ -29,6 +29,44 @@ static const char *get_timestamp(int local)
 	return buffer;
 }
 
+static const char *get_prio_level_name(enum log_mesg_prio_level level)
+{
+	switch (level) {
+	case log_lvl_debug:
+		return "debug";
+	case log_lvl_info:
+		return "info";
+	case log_lvl_normal:
+		return "notice";
+	case log_lvl_warn:
+		return "warn";
+	case log_lvl_err:
+		return "err";
+	case log_lvl_fatal:
+		return "emerg";
+	}
+	return "unknown";
+}
+
+static int prio_level_to_sys(enum log_mesg_prio_level level)
+{
+	switch (level) {
+	case log_lvl_debug:
+		return LOG_DEBUG;
+	case log_lvl_info:
+		return LOG_INFO;
+	case log_lvl_normal:
+		return LOG_NOTICE;
+	case log_lvl_warn:
+		return LOG_WARNING;
+	case log_lvl_err:
+		return LOG_ERR;
+	case log_lvl_fatal:
+		return LOG_EMERG;
+	}
+	return -1;
+}
+
 static void open_logfile(void)
 {
 	logger.log_file = fopen(logger.log_file_path, "a");
@@ -84,11 +122,7 @@ void init_logger(const char *service, const char *filename,
 
 void log_mesg(int level, const char *mesg, ...)
 {
-	static const char *const str_levels[] = {
-		"emerg", "alert",  "crit", "err",
-		"warn",  "notice", "info", "debug",
-	};
-	const char *ts = "";
+	const char *prioname, *ts = "";
 	char buffer[1024];
 	int len;
 	va_list args;
@@ -98,11 +132,13 @@ void log_mesg(int level, const char *mesg, ...)
 	va_end(args);
 	if (len < 0 || (size_t)len > sizeof(buffer)-1)
 		return;
+
 	if (logger.enable_time != LOG_NO_DATETIME)
 		ts = get_timestamp(logger.enable_time == LOG_LOCAL_DATETIME);
-	fprintf(logger.log_file, "%s[%s] %s\n", ts, str_levels[level], buffer);
+	prioname = get_prio_level_name(level);
+	fprintf(logger.log_file, "%s[%s] %s\n", ts, prioname, buffer);
 	if (logger.enable_syslog)
-		syslog(level, "%s", buffer);
+		syslog(prio_level_to_sys(level), "%s", buffer);
 }
 
 void log_perror(const char *mesg)
@@ -112,7 +148,7 @@ void log_perror(const char *mesg)
 
 	if (!err)
 		err = "unknown error occurred";
-	log_mesg(LOG_ERR, "%s: %s", mesg, err);
+	log_mesg(log_lvl_err, "%s: %s", mesg, err);
 	errno = save_errno;
 }
 

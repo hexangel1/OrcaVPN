@@ -91,7 +91,7 @@ static int set_if_address(const char *ifname, const char *address)
 	addr->sin_family = AF_INET;
 	res = inet_pton(AF_INET, address, &addr->sin_addr);
 	if (res <= 0) {
-		log_mesg(LOG_ERR, "inet_pton: Invalid IPv4 address");
+		log_mesg(log_lvl_err, "inet_pton: Invalid IPv4 address");
 		return -1;
 	}
 	return set_if_option(ifname, &ifr, SIOCSIFADDR);
@@ -108,7 +108,7 @@ static int set_if_netmask(const char *ifname, const char *netmask)
 	addr->sin_family = AF_INET;
 	res = inet_pton(AF_INET, netmask, &addr->sin_addr);
 	if (res <= 0) {
-		log_mesg(LOG_ERR, "inet_pton: Invalid IPv4 netmask");
+		log_mesg(log_lvl_err, "inet_pton: Invalid IPv4 netmask");
 		return -1;
 	}
 	return set_if_option(ifname, &ifr, SIOCSIFNETMASK);
@@ -129,27 +129,27 @@ int setup_tun_if(const char *ifname, const char *addr, const char *mask)
 	int res;
 	res = set_if_up(ifname, IFF_NOARP);
 	if (res < 0) {
-		log_mesg(LOG_ERR, "set tun %s up failed", ifname);
+		log_mesg(log_lvl_err, "set tun %s up failed", ifname);
 		return -1;
 	}
 	res = set_if_mtu(ifname, TUN_IF_MTU);
 	if (res < 0) {
-		log_mesg(LOG_ERR, "set tun %s mtu failed", ifname);
+		log_mesg(log_lvl_err, "set tun %s mtu failed", ifname);
 		return -1;
 	}
 	res = set_if_qlen(ifname, TUN_IF_QLEN);
 	if (res < 0) {
-		log_mesg(LOG_ERR, "set tun %s qlen failed", ifname);
+		log_mesg(log_lvl_err, "set tun %s qlen failed", ifname);
 		return -1;
 	}
 	res = set_if_address(ifname, addr ? addr : TUN_IF_ADDR);
 	if (res < 0) {
-		log_mesg(LOG_ERR, "set tun %s address failed", ifname);
+		log_mesg(log_lvl_err, "set tun %s address failed", ifname);
 		return -1;
 	}
 	res = set_if_netmask(ifname, mask ? mask : TUN_IF_MASK);
 	if (res < 0) {
-		log_mesg(LOG_ERR, "set tun %s netmask failed", ifname);
+		log_mesg(log_lvl_err, "set tun %s netmask failed", ifname);
 		return -1;
 	}
 	return 0;
@@ -176,6 +176,6 @@ ssize_t recv_tun(int tunfd, void *buf, size_t len)
 		res = 0;
 	}
 	if (!res)
-		log_mesg(LOG_NOTICE, "recv_tun: received no data on tun");
+		log_mesg(log_lvl_normal, "recv_tun: received no data on tun");
 	return res;
 }

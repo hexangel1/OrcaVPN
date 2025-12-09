@@ -47,14 +47,14 @@ static void prepare_loop(struct event_listener *loop, sigset_t *sigmask)
 		err_panic(loop, "setting socket nonblock");
 		return;
 	}
-	log_mesg(LOG_INFO, "Running event loop...");
+	log_mesg(log_lvl_info, "Running event loop...");
 }
 
 static void terminate_loop(struct event_listener *loop, sigset_t *sigmask)
 {
 	UNUSED(loop);
 	restore_signal_events(sigmask);
-	log_mesg(LOG_INFO, "Exiting event loop...");
+	log_mesg(log_lvl_info, "Exiting event loop...");
 }
 
 void event_loop(struct event_listener *loop)
@@ -98,7 +98,7 @@ void init_event_listener(struct event_listener *loop)
 
 void err_panic(struct event_listener *loop, const char *mesg)
 {
-	log_mesg(LOG_EMERG, "Fatal error %s, process terminating", mesg);
+	log_mesg(log_lvl_fatal, "Fatal error %s, process terminating", mesg);
 	loop->status_flag = 1;
 	loop->exit_loop = 1;
 }

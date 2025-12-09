@@ -63,7 +63,7 @@ create_socket_af(int af, int type, const char *ip, unsigned short port)
 
 	addr = get_sockaddr(af, ip, port);
 	if (!addr) {
-		log_mesg(LOG_ERR, "get_sockaddr: invalid ip address");
+		log_mesg(log_lvl_err, "get_sockaddr: invalid ip address");
 		return -1;
 	}
 	res = socket(af, type, 0);
@@ -96,7 +96,7 @@ connect_socket_af(int af, int sockfd, const char *ip, unsigned short port)
 
 	addr = get_sockaddr(af, ip, port);
 	if (!addr) {
-		log_mesg(LOG_ERR, "get_sockaddr: invalid ip address");
+		log_mesg(log_lvl_err, "get_sockaddr: invalid ip address");
 		return -1;
 	}
 	res = connect(sockfd, addr, AF_SOCKLEN(af));
@@ -147,7 +147,7 @@ static ssize_t recv_udp_af(int af, int sockfd, void *buf, size_t len,
 		res = 0;
 	}
 	if (!res)
-		log_mesg(LOG_NOTICE, "recvfrom: received no data on socket");
+		log_mesg(log_lvl_normal, "recvfrom: received no data on sock");
 	return res;
 }
 
@@ -243,13 +243,13 @@ int set_max_sndbuf(int sockfd)
 
 	fp = fopen("/proc/sys/net/core/wmem_max", "r");
 	if (!fp) {
-		log_mesg(LOG_NOTICE, "wmem_max value not found");
+		log_mesg(log_lvl_normal, "wmem_max value not found");
 		return -1;
 	}
 	res = fscanf(fp, "%d", &snd_bufsize);
 	fclose(fp);
 	if (res < 1) {
-		log_mesg(LOG_NOTICE, "invalid wmem_max value");
+		log_mesg(log_lvl_normal, "invalid wmem_max value");
 		return -1;
 	}
 	res = setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, &snd_bufsize, optlen);
@@ -262,7 +262,7 @@ int set_max_sndbuf(int sockfd)
 		log_perror("getsockopt");
 		return -1;
 	}
-	log_mesg(LOG_DEBUG, "SO_SNDBUF = %d", snd_bufsize);
+	log_mesg(log_lvl_debug, "SO_SNDBUF = %d", snd_bufsize);
 	return 0;
 }
 
@@ -274,13 +274,13 @@ int set_max_rcvbuf(int sockfd)
 
 	fp = fopen("/proc/sys/net/core/rmem_max", "r");
 	if (!fp) {
-		log_mesg(LOG_NOTICE, "rmem_max value not found");
+		log_mesg(log_lvl_normal, "rmem_max value not found");
 		return -1;
 	}
 	res = fscanf(fp, "%d", &rcv_bufsize);
 	fclose(fp);
 	if (res < 1) {
-		log_mesg(LOG_NOTICE, "invalid rmem_max value");
+		log_mesg(log_lvl_normal, "invalid rmem_max value");
 		return -1;
 	}
 	res = setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, &rcv_bufsize, optlen);
@@ -293,7 +293,7 @@ int set_max_rcvbuf(int sockfd)
 		log_perror("getsockopt");
 		return -1;
 	}
-	log_mesg(LOG_DEBUG, "SO_RCVBUF = %d", rcv_bufsize);
+	log_mesg(log_lvl_debug, "SO_RCVBUF = %d", rcv_bufsize);
 	return 0;
 }
 
