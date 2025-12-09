@@ -6,7 +6,6 @@
 #include <syslog.h>
 #include <errno.h>
 #include <time.h>
-#include <sys/resource.h>
 
 #include "logger.h"
 
@@ -86,17 +85,6 @@ static void close_logfile(void)
 	logger.log_file = NULL;
 }
 
-static void limit_filesize(size_t max_size)
-{
-	struct rlimit rlim;
-	if (getrlimit(RLIMIT_FSIZE, &rlim) < 0)
-		return;
-	if (rlim.rlim_max == RLIM_INFINITY || rlim.rlim_max > max_size) {
-		rlim.rlim_cur = max_size;
-		setrlimit(RLIMIT_FSIZE, &rlim);
-	}
-}
-
 void init_logger(const char *service, const char *filename,
 	int syslog_on, int time_on)
 {
@@ -107,7 +95,6 @@ void init_logger(const char *service, const char *filename,
 	if (logger.log_file_path) {
 		open_logfile();
 		atexit(close_logfile);
-		limit_filesize(LOG_FILE_SIZE_LIMIT);
 	} else {
 		logger.log_file = stderr;
 	}

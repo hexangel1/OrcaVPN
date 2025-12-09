@@ -5,8 +5,6 @@
 #define LOG_UTC_DATETIME 1
 #define LOG_LOCAL_DATETIME 2
 
-#define LOG_FILE_SIZE_LIMIT 2147483648UL /* 2 GB */
-
 enum log_mesg_prio_level {
 	log_lvl_debug,
 	log_lvl_info,
