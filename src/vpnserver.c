@@ -14,7 +14,7 @@
 
 #define PEERS_LIMIT 256
 #define PEER_ADDR_EXPIRE 600
-#define HASH_SIZE_LIMIT 96000
+#define HASH_SIZE_LIMIT 150000
 #define GET_PEER_ID(ip) ((ip) & 0xff)
 
 struct vpn_peer {

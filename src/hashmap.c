@@ -5,6 +5,7 @@
 
 #define HASH_MULTIPLIER 0x9c406bb5UL
 #define HASH_XOR_OP 0x12fade34UL
+#define RESIZE_ALPHA 0.6
 
 static unsigned char DELETED;
 
@@ -170,7 +171,7 @@ void hashmap_insert(hashmap *hm, const hashmap_key *key, hashmap_val val)
 
 	hm->vals[idx] = val;
 
-	if ((float)hm->used / (float)hm->size > 0.75f)
+	if ((float)hm->used / (float)hm->size > RESIZE_ALPHA)
 		hashmap_evacuation(hm);
 }
 
