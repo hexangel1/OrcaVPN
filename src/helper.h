@@ -7,12 +7,12 @@
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
-#define IS_XDIGIT(c) (\
+#define IS_XDIGIT(c) ( \
 	((c) >= '0' && (c) <= '9') || \
 	((c) >= 'a' && (c) <= 'f') || \
 	((c) >= 'A' && (c) <= 'F'))
 
-#define XDIGIT(c) (\
+#define XDIGIT(c) ( \
 	((c) >= '0' && (c) <= '9') ? ((c) - '0') : \
 	((c) >= 'a' && (c) <= 'f') ? ((c) - 'a' + 10) : \
 	((c) >= 'A' && (c) <= 'F') ? ((c) - 'A' + 10) : (-1))

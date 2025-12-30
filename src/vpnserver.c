@@ -27,7 +27,7 @@ struct vpn_peer {
 };
 
 struct vpnserver {
-	struct event_listener loop;
+	struct event_selector loop;
 
 	unsigned short port;
 	char ip_addr[MAX_IPV4_ADDR_LEN];
@@ -438,7 +438,7 @@ static struct vpnserver *create_server(const char *file)
 	if (!ip)
 		ip = "0.0.0.0";
 	if (!port)
-		port = VPN_PORT;
+		port = ORCAVPN_PORT;
 	if (!tun_name)
 		tun_name = TUN_IF_NAME;
 	if (!tun_addr)
@@ -448,7 +448,7 @@ static struct vpnserver *create_server(const char *file)
 
 	serv = malloc(sizeof(struct vpnserver));
 	memset(serv, 0, sizeof(struct vpnserver));
-	init_event_listener(&serv->loop);
+	init_event_selector(&serv->loop);
 
 	strcpy(serv->ip_addr, ip);
 	strcpy(serv->tun_name, tun_name);
@@ -473,7 +473,7 @@ static struct vpnserver *create_server(const char *file)
 
 static void set_event_handlers(struct vpnserver *serv)
 {
-	struct event_listener *loop = &serv->loop;
+	struct event_selector *loop = &serv->loop;
 
 	loop->tundev_callback = tundev_handler;
 	loop->socket_callback = socket_handler;
@@ -482,7 +482,7 @@ static void set_event_handlers(struct vpnserver *serv)
 
 static int vpn_server_up(struct vpnserver *serv)
 {
-	struct event_listener *loop = &serv->loop;
+	struct event_selector *loop = &serv->loop;
 	int res;
 
 	res = create_tun_if(serv->tun_name);
@@ -497,7 +497,7 @@ static int vpn_server_up(struct vpnserver *serv)
 		log_mesg(log_lvl_fatal, "Setup tun if failed");
 		return -1;
 	}
-	res = create_udp_socket(serv->ip_addr, serv->port);
+	res = create_udp_sock(serv->ip_addr, serv->port);
 	if (res < 0) {
 		log_mesg(log_lvl_fatal, "Create socket failed");
 		return -1;

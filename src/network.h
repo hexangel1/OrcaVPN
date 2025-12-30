@@ -14,10 +14,7 @@
 #define MAX_IPV4_ADDR_LEN 16
 #define MAX_IPV4_CONN_LEN (MAX_IPV4_ADDR_LEN + sizeof(":65535") - 1)
 #define PING_DATA_LEN 24
-#define VPN_PORT 778
-
-#define AF_SOCKLEN(af) ((socklen_t)(af == AF_INET ? \
-	sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6)))
+#define ORCAVPN_PORT 778
 
 struct icmp_echo_param {
 	uint32_t src_ip;
@@ -28,19 +25,19 @@ struct icmp_echo_param {
 };
 
 /* Create udp socket & bind to local address [ipv4] */
-int create_udp_socket(const char *ip, unsigned short port);
+int create_udp_sock(const char *ip, unsigned short port);
 /* Create tcp socket & bind to local address [ipv4] */
-int create_tcp_socket(const char *ip, unsigned short port);
+int create_tcp_sock(const char *ip, unsigned short port);
 
 /* Create udp socket & bind to local address [ipv6] */
-int create_udp_socket6(const char *ip, unsigned short port);
+int create_udp_sock6(const char *ip, unsigned short port);
 /* Create tcp socket & bind to local address [ipv6] */
-int create_tcp_socket6(const char *ip, unsigned short port);
+int create_tcp_sock6(const char *ip, unsigned short port);
 
 /* Connect socket to address [ipv4] */
-int connect_socket(int sockfd, const char *ip, unsigned short port);
+int connect_sock(int sockfd, const char *ip, unsigned short port);
 /* Connect socket to address [ipv6] */
-int connect_socket6(int sockfd, const char *ip, unsigned short port);
+int connect_sock6(int sockfd, const char *ip, unsigned short port);
 
 /* Send udp datagram [ipv4] */
 ssize_t send_udp(int sockfd, const void *buf, size_t len,

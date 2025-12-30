@@ -18,8 +18,11 @@
 #include "network.h"
 #include "logger.h"
 
+#define AF_SOCKLEN(af) ((socklen_t)((af) == AF_INET ? \
+	sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6)))
+
 static struct sockaddr *
-get_sockaddr(int af, const char *ip, unsigned short port)
+get_sock_addr(int af, const char *ip, unsigned short port)
 {
 	static union ipv4_ipv6_sockaddr {
 		struct sockaddr  address;
@@ -56,14 +59,14 @@ get_sockaddr(int af, const char *ip, unsigned short port)
 }
 
 static int
-create_socket_af(int af, int type, const char *ip, unsigned short port)
+create_sock_af(int af, int type, const char *ip, unsigned short port)
 {
 	int sockfd, res, opt = 1;
 	struct sockaddr *addr;
 
-	addr = get_sockaddr(af, ip, port);
+	addr = get_sock_addr(af, ip, port);
 	if (!addr) {
-		log_mesg(log_lvl_err, "get_sockaddr: invalid ip address");
+		log_mesg(log_lvl_err, "get_sock_addr: invalid ip address");
 		return -1;
 	}
 	res = socket(af, type, 0);
@@ -89,14 +92,14 @@ create_socket_af(int af, int type, const char *ip, unsigned short port)
 }
 
 static int
-connect_socket_af(int af, int sockfd, const char *ip, unsigned short port)
+connect_sock_af(int af, int sockfd, const char *ip, unsigned short port)
 {
 	int res;
 	struct sockaddr *addr;
 
-	addr = get_sockaddr(af, ip, port);
+	addr = get_sock_addr(af, ip, port);
 	if (!addr) {
-		log_mesg(log_lvl_err, "get_sockaddr: invalid ip address");
+		log_mesg(log_lvl_err, "get_sock_addr: invalid ip address");
 		return -1;
 	}
 	res = connect(sockfd, addr, AF_SOCKLEN(af));
@@ -151,34 +154,34 @@ static ssize_t recv_udp_af(int af, int sockfd, void *buf, size_t len,
 	return res;
 }
 
-int create_udp_socket(const char *ip, unsigned short port)
+int create_udp_sock(const char *ip, unsigned short port)
 {
-	return create_socket_af(AF_INET, SOCK_DGRAM, ip, port);
+	return create_sock_af(AF_INET, SOCK_DGRAM, ip, port);
 }
 
-int create_tcp_socket(const char *ip, unsigned short port)
+int create_tcp_sock(const char *ip, unsigned short port)
 {
-	return create_socket_af(AF_INET, SOCK_STREAM, ip, port);
+	return create_sock_af(AF_INET, SOCK_STREAM, ip, port);
 }
 
-int create_udp_socket6(const char *ip, unsigned short port)
+int create_udp_sock6(const char *ip, unsigned short port)
 {
-	return create_socket_af(AF_INET6, SOCK_DGRAM, ip, port);
+	return create_sock_af(AF_INET6, SOCK_DGRAM, ip, port);
 }
 
-int create_tcp_socket6(const char *ip, unsigned short port)
+int create_tcp_sock6(const char *ip, unsigned short port)
 {
-	return create_socket_af(AF_INET6, SOCK_STREAM, ip, port);
+	return create_sock_af(AF_INET6, SOCK_STREAM, ip, port);
 }
 
-int connect_socket(int sockfd, const char *ip, unsigned short port)
+int connect_sock(int sockfd, const char *ip, unsigned short port)
 {
-	return connect_socket_af(AF_INET, sockfd, ip, port);
+	return connect_sock_af(AF_INET, sockfd, ip, port);
 }
 
-int connect_socket6(int sockfd, const char *ip, unsigned short port)
+int connect_sock6(int sockfd, const char *ip, unsigned short port)
 {
-	return connect_socket_af(AF_INET6, sockfd, ip, port);
+	return connect_sock_af(AF_INET6, sockfd, ip, port);
 }
 
 ssize_t send_udp(int sockfd, const void *buf, size_t len,

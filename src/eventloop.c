@@ -12,7 +12,7 @@
 #include "logger.h"
 #include "helper.h"
 
-static void process_signal(struct event_listener *loop)
+static void process_signal(struct event_selector *loop)
 {
 	switch (get_signal_event()) {
 	case sigevent_alarm:
@@ -30,7 +30,7 @@ static void process_signal(struct event_listener *loop)
 	}
 }
 
-static void prepare_loop(struct event_listener *loop, sigset_t *sigmask)
+static void prepare_loop(struct event_selector *loop, sigset_t *sigmask)
 {
 	int res = setup_signal_events(sigmask, loop->alarm_interval);
 	if (res < 0) {
@@ -50,14 +50,14 @@ static void prepare_loop(struct event_listener *loop, sigset_t *sigmask)
 	log_mesg(log_lvl_info, "Running event loop...");
 }
 
-static void terminate_loop(struct event_listener *loop, sigset_t *sigmask)
+static void terminate_loop(struct event_selector *loop, sigset_t *sigmask)
 {
 	UNUSED(loop);
 	restore_signal_events(sigmask);
 	log_mesg(log_lvl_info, "Exiting event loop...");
 }
 
-void event_loop(struct event_listener *loop)
+void event_loop(struct event_selector *loop)
 {
 	fd_set readfds;
 	sigset_t sigmask;
@@ -88,15 +88,15 @@ void event_loop(struct event_listener *loop)
 	terminate_loop(loop, &sigmask);
 }
 
-void init_event_listener(struct event_listener *loop)
+void init_event_selector(struct event_selector *loop)
 {
-	memset(loop, 0, sizeof(struct event_listener));
+	memset(loop, 0, sizeof(struct event_selector));
 	loop->tunfd = -1;
 	loop->sockfd = -1;
 	loop->alarm_interval = 0;
 }
 
-void err_panic(struct event_listener *loop, const char *mesg)
+void err_panic(struct event_selector *loop, const char *mesg)
 {
 	log_mesg(log_lvl_fatal, "Fatal error %s, process terminating", mesg);
 	loop->status_flag = 1;
