@@ -47,6 +47,8 @@ static int set_if_option(const char *ifname, struct ifreq *ifr, int opt)
 		return -1;
 	}
 	strncpy(ifr->ifr_name, ifname, IFNAMSIZ - 1);
+	ifr->ifr_name[IFNAMSIZ - 1] = '\0';
+
 	if (ioctl(sockfd, opt, (void *)ifr) < 0) {
 		log_perror("ioctl");
 		close(sockfd);
