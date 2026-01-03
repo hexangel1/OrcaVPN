@@ -11,7 +11,7 @@
 #include "logger.h"
 #include "helper.h"
 
-#define IDLE_TIMEOUT 30
+#define KEEPALIVE_INTERVAL 30
 #define GET_PEER_ID(ip) ((ip) & 0xff)
 
 struct vpnclient {
@@ -35,7 +35,7 @@ struct vpnclient {
 	unsigned short sequance_no;
 };
 
-static void ping_vpn_router(struct vpnclient *clnt)
+static void send_keepalive_ping(struct vpnclient *clnt)
 {
 	unsigned char buffer[PACKET_BUFFER_SIZE];
 	struct icmp_echo_param icmp_echo;
@@ -57,7 +57,7 @@ static void ping_vpn_router(struct vpnclient *clnt)
 
 static void alarm_handler(void *ctx)
 {
-	ping_vpn_router((struct vpnclient *)ctx);
+	send_keepalive_ping((struct vpnclient *)ctx);
 }
 
 static void socket_handler(void *ctx)
@@ -229,7 +229,7 @@ static void set_event_handlers(struct vpnclient *clnt)
 	loop->tundev_callback = tundev_handler;
 	loop->socket_callback = socket_handler;
 	loop->alarm_callback = alarm_handler;
-	loop->alarm_interval = IDLE_TIMEOUT * 1000;
+	loop->alarm_interval = KEEPALIVE_INTERVAL * 1000;
 	loop->ctx = clnt;
 }
 
@@ -266,6 +266,7 @@ static int vpn_client_up(struct vpnclient *clnt)
 	set_max_sndbuf(loop->sockfd);
 	set_max_rcvbuf(loop->sockfd);
 	set_event_handlers(clnt);
+	send_keepalive_ping(clnt);
 	return 0;
 }
 
