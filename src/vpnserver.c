@@ -71,7 +71,7 @@ static int throttle_packet(struct vpnserver *serv, struct sockaddr_in *addr)
 		log_mesg(log_lvl_normal, "received %lu packets from %s",
 			ip_counter, ipv4tos(ip, 0));
 	} else if (ip_counter == 1) {
-		log_mesg(log_lvl_info, "received packet from %s",
+		log_mesg(log_lvl_info, "Received packet from %s",
 			ipv4tos(ip, 0));
 	}
 
@@ -396,7 +396,7 @@ static int add_peers(struct vpnserver *serv, struct config_section *cfg)
 	do { \
 		free_server(serv); \
 		free_config(config); \
-		log_mesg(log_lvl_err, message); \
+		log_mesg(log_lvl_err, "config error: " message); \
 		return NULL; \
 	} while (0)
 
@@ -427,6 +427,8 @@ static struct vpnserver *create_server(const char *file)
 	config = read_config(file);
 	if (!config)
 		return NULL;
+	if (strcmp(config->scope, "server"))
+		CONFIG_ERROR("expected server section");
 
 	ip           = get_str_var(config, "ip", MAX_IPV4_ADDR_LEN);
 	port         = get_int_var(config, "port");

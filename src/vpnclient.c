@@ -128,7 +128,7 @@ static void tundev_handler(void *ctx)
 #define CONFIG_ERROR(message) \
 	do { \
 		free_config(config); \
-		log_mesg(log_lvl_err, message); \
+		log_mesg(log_lvl_err, "config error: " message); \
 		return NULL; \
 	} while (0)
 
@@ -148,6 +148,10 @@ static struct vpnclient *create_client(const char *file)
 	config = read_config(file);
 	if (!config)
 		return NULL;
+	if (strcmp(config->scope, "client"))
+		CONFIG_ERROR("expected client section");
+	if (config->next)
+		CONFIG_ERROR("only client section is needed");
 
 	ip          = get_str_var(config, "ip", MAX_IPV4_ADDR_LEN);
 	port        = get_int_var(config, "port");

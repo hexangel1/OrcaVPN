@@ -217,7 +217,7 @@ struct config_section *read_config(const char *file)
 
 	FILE *fp = fopen(file, "r");
 	if (!fp) {
-		log_mesg(log_lvl_err, "Config not opened: %s",
+		log_mesg(log_lvl_err, "config not opened: %s",
 			strerror(errno));
 		return NULL;
 	}
@@ -228,7 +228,7 @@ struct config_section *read_config(const char *file)
 	fclose(fp);
 
 	if (fsm_parser_check(&fsm)) {
-		log_mesg(log_lvl_err, "Read config failed: %s",
+		log_mesg(log_lvl_err, "read config failed: %s",
 			fsm_parser_error(&fsm));
 		fsm_parser_destroy(&fsm);
 		return NULL;
@@ -271,7 +271,7 @@ const char *get_str_var(struct config_section *cfg, const char *var, int max)
 	const char *value = get_var_value(cfg, var);
 	if (!value)
 		return NULL;
-	return max < 0 || strlen(value) < (unsigned int)max ? value : NULL;
+	return (max < 0 || strlen(value) < (size_t)max) ? value : NULL;
 }
 
 int get_int_var(struct config_section *cfg, const char *var)
