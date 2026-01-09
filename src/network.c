@@ -35,8 +35,7 @@ get_sock_addr(int af, const char *ip, unsigned short port)
 		addr.ipv4.sin_family = af;
 		addr.ipv4.sin_port = htons(port);
 		if (ip && *ip) {
-			int res = inet_pton(af, ip, &addr.ipv4.sin_addr);
-			if (res <= 0)
+			if (inet_pton(af, ip, &addr.ipv4.sin_addr) <= 0)
 				return NULL;
 		} else {
 			addr.ipv4.sin_addr.s_addr = INADDR_ANY;
@@ -45,8 +44,7 @@ get_sock_addr(int af, const char *ip, unsigned short port)
 		addr.ipv6.sin6_family = af;
 		addr.ipv6.sin6_port = htons(port);
 		if (ip && *ip) {
-			int res = inet_pton(af, ip, &addr.ipv6.sin6_addr);
-			if (res <= 0)
+			if (inet_pton(af, ip, &addr.ipv6.sin6_addr) <= 0)
 				return NULL;
 		} else {
 			memcpy(&addr.ipv6.sin6_addr, &in6addr_any,
@@ -111,7 +109,7 @@ connect_sock_af(int af, int sockfd, const char *ip, unsigned short port)
 }
 
 static ssize_t send_udp_af(int af, int sockfd, const void *buf, size_t len,
-	struct sockaddr *addr)
+	const struct sockaddr *addr)
 {
 	socklen_t addrlen = addr ? AF_SOCKLEN(af) : 0;
 	ssize_t res;
@@ -138,8 +136,8 @@ static ssize_t send_udp_af(int af, int sockfd, const void *buf, size_t len,
 static ssize_t recv_udp_af(int af, int sockfd, void *buf, size_t len,
 	struct sockaddr *addr)
 {
-	ssize_t res;
 	socklen_t addrlen = AF_SOCKLEN(af);
+	ssize_t res;
 
 	res = recvfrom(sockfd, buf, len, 0, addr, addr ? &addrlen : NULL);
 	if (res < 0) {
@@ -185,13 +183,13 @@ int connect_sock6(int sockfd, const char *ip, unsigned short port)
 }
 
 ssize_t send_udp(int sockfd, const void *buf, size_t len,
-	struct sockaddr_in *addr)
+	const struct sockaddr_in *addr)
 {
 	return send_udp_af(AF_INET, sockfd, buf, len, (struct sockaddr *)addr);
 }
 
 ssize_t send_udp6(int sockfd, const void *buf, size_t len,
-	struct sockaddr_in6 *addr)
+	const struct sockaddr_in6 *addr)
 {
 	return send_udp_af(AF_INET6, sockfd, buf, len, (struct sockaddr *)addr);
 }

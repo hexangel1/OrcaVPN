@@ -41,10 +41,10 @@ int connect_sock6(int sockfd, const char *ip, unsigned short port);
 
 /* Send udp datagram [ipv4] */
 ssize_t send_udp(int sockfd, const void *buf, size_t len,
-	struct sockaddr_in *addr);
+	const struct sockaddr_in *addr);
 /* Send udp datagram [ipv6] */
 ssize_t send_udp6(int sockfd, const void *buf, size_t len,
-	struct sockaddr_in6 *addr);
+	const struct sockaddr_in6 *addr);
 
 /* Receive udp datagram [ipv4] */
 ssize_t recv_udp(int sockfd, void *buf, size_t len,

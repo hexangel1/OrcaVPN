@@ -7,11 +7,11 @@
 
 #define ROL32(x, n) (((x) << (n)) | ((x) >> (32 - (n))))
 
-#define QUARTERROUND(a, b, c, d) do {  \
-	a += b;  d = ROL32(d ^ a, 16); \
-	c += d;  b = ROL32(b ^ c, 12); \
-	a += b;  d = ROL32(d ^ a,  8); \
-	c += d;  b = ROL32(b ^ c,  7); \
+#define QUARTERROUND(a, b, c, d) do { \
+	a += b;  d ^= a;  d = ROL32(d, 16); \
+	c += d;  b ^= c;  b = ROL32(b, 12); \
+	a += b;  d ^= a;  d = ROL32(d,  8); \
+	c += d;  b ^= c;  b = ROL32(b,  7); \
 } while (0)
 
 static void chacha20_rounds(u32 out[16], const u32 in[16])
@@ -55,8 +55,8 @@ static void crypto_chacha20_h(u8 out[32], const u8 key[32], const u8 in[16])
 
 	chacha20_rounds(block, block);
 
-	store32_le_buf(out   , block   , 4);
-	store32_le_buf(out+16, block+12, 4);
+	store32_le_buf(out     , block     , 4);
+	store32_le_buf(out + 16, block + 12, 4);
 	secure_memzero(block, sizeof(block));
 }
 
