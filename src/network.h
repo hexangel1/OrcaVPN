@@ -73,7 +73,7 @@ unsigned short ip_checksum(const unsigned short *addr, unsigned int count);
 /* Get IP protocol version */
 int get_ip_version(const void *buf, size_t len);
 /* Validate IPv4 header */
-int check_header_ipv4(const void *buf, size_t len, int skip_sum);
+int check_header_ipv4(const void *buf, size_t len);
 /* Write IPv4 icmp echo packet data to buffer */
 int write_icmp_echo(void *buf, const struct icmp_echo_param *param);
 

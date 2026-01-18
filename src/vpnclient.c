@@ -80,7 +80,7 @@ static void socket_handler(void *ctx)
 		log_mesg(log_lvl_normal, "decrypt packet failed");
 		return;
 	}
-	if (check_header_ipv4(buffer, length, 0)) {
+	if (check_header_ipv4(buffer, length)) {
 		log_mesg(log_lvl_normal, "udp packet with bad ip header");
 		return;
 	}
@@ -113,7 +113,7 @@ static void tundev_handler(void *ctx)
 		return;
 	if (get_source_ip(buffer) != clnt->private_ip)
 		return;
-	if (check_header_ipv4(buffer, length, 1)) {
+	if (check_header_ipv4(buffer, length)) {
 		log_mesg(log_lvl_normal, "tun packet with bad ip header");
 		return;
 	}

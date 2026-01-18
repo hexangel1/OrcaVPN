@@ -285,7 +285,7 @@ static void socket_handler(void *ctx)
 		block_ip(serv, &addr);
 		return;
 	}
-	if (check_header_ipv4(buffer, length, 0)) {
+	if (check_header_ipv4(buffer, length)) {
 		log_mesg(log_lvl_normal, "udp packet with bad ip header");
 		block_ip(serv, &addr);
 		return;
@@ -320,7 +320,7 @@ static void tundev_handler(void *ctx)
 	length = res;
 	if (get_ip_version(buffer, length) != 4)
 		return;
-	if (check_header_ipv4(buffer, length, 1)) {
+	if (check_header_ipv4(buffer, length)) {
 		log_mesg(log_lvl_normal, "tun packet with bad ip header");
 		return;
 	}

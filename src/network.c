@@ -347,22 +347,19 @@ int get_ip_version(const void *buf, size_t len)
 	return ip_header->version;
 }
 
-int check_header_ipv4(const void *buf, size_t len, int skip_sum)
+int check_header_ipv4(const void *buf, size_t len)
 {
 	const struct iphdr *ip_header = buf;
+	unsigned int ip_header_len;
 
 	if (len < sizeof(struct iphdr))
 		return 1;
 	if (ip_header->version != 4 || (size_t)ntohs(ip_header->tot_len) != len)
 		return 1;
-	if (!skip_sum) {
-		unsigned int ihl = ip_header->ihl;
-		if (ihl < 5 || ihl > 15)
-			return 1;
-		if (ip_checksum((unsigned short *)ip_header, ihl * 4))
-			return 1;
-	}
-	return 0;
+	ip_header_len = ip_header->ihl * 4;
+	if (ip_header_len < 20 || ip_header_len > 60 || ip_header_len > len)
+		return 1;
+	return ip_checksum((unsigned short *)ip_header, ip_header_len) != 0;
 }
 
 int write_icmp_echo(void *buf, const struct icmp_echo_param *param)
