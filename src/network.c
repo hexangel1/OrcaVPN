@@ -253,6 +253,7 @@ int set_max_sndbuf(int sockfd)
 		log_mesg(log_lvl_warn, "invalid wmem_max value");
 		return -1;
 	}
+
 	res = setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, &snd_bufsize, optlen);
 	if (res < 0) {
 		log_perror("setsockopt");
@@ -284,6 +285,7 @@ int set_max_rcvbuf(int sockfd)
 		log_mesg(log_lvl_warn, "invalid rmem_max value");
 		return -1;
 	}
+
 	res = setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, &rcv_bufsize, optlen);
 	if (res < 0) {
 		log_perror("setsockopt");
@@ -354,11 +356,14 @@ int check_header_ipv4(const void *buf, size_t len)
 
 	if (len < sizeof(struct iphdr))
 		return 1;
+
 	if (ip_header->version != 4 || (size_t)ntohs(ip_header->tot_len) != len)
 		return 1;
+
 	ip_header_len = ip_header->ihl * 4;
 	if (ip_header_len < 20 || ip_header_len > 60 || ip_header_len > len)
 		return 1;
+
 	return ip_checksum((unsigned short *)ip_header, ip_header_len) != 0;
 }
 

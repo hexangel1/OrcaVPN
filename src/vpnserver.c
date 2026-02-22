@@ -212,6 +212,19 @@ static void log_drop(const char *mesg, uint32_t src_ip, uint32_t dst_ip)
 		src_addr, dst_addr, mesg);
 }
 
+static void update_remote_addr(struct vpn_peer *peer,
+	const struct sockaddr_in *addr)
+{
+	char buf[MAX_IPV4_CONN_LEN];
+
+	if (!peer->last_update || memcmp(&peer->addr, addr, sizeof(*addr))) {
+		memcpy(&peer->addr, addr, sizeof(struct sockaddr_in));
+		log_mesg(log_lvl_info, "Connection from %s",
+			addr_to_str(addr, buf, sizeof(buf)));
+	}
+	peer->last_update = get_unix_time();
+}
+
 static void route_packet(struct vpnserver *serv, struct vpn_peer *src,
 	void *buffer, size_t length)
 {
@@ -295,8 +308,7 @@ static void socket_handler(void *ctx)
 		block_ip(serv, &addr);
 		return;
 	}
-	peer->last_update = get_unix_time();
-	memcpy(&peer->addr, &addr, sizeof(struct sockaddr_in));
+	update_remote_addr(peer, &addr);
 	route_packet(serv, peer, buffer, length);
 }
 
