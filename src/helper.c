@@ -40,13 +40,17 @@ static void do_fork(void)
 	/* child return */
 }
 
-void daemonize(const char *pidfile)
+static void close_fd_range(int min, int max)
 {
 	int fd;
-	for (fd = 0; fd < CLOSE_FD_GAP; fd++)
+	for (fd = min; fd < max; fd++)
 		close(fd);
-	fd = open("/dev/null", O_RDWR);
-	if (fd != 0)
+}
+
+void daemonize(const char *pidfile)
+{
+	close_fd_range(0, CLOSE_FD_GAP);
+	if (open("/dev/null", O_RDWR) != 0)
 		_exit(1);
 	dup2(0, 1);
 	dup2(0, 2);
