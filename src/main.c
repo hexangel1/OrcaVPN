@@ -13,7 +13,7 @@
 #define VPNSERVER_MODE 0
 #define VPNCLIENT_MODE 1
 
-static int daemon_state = 0;
+static int run_as_daemon = 0;
 static int working_mode = -1;
 static const char *config_file = NULL;
 static const char *pid_file = NULL;
@@ -21,22 +21,20 @@ static const char *log_file = NULL;
 
 static int get_command_line_options(int argc, char **argv)
 {
-	int opt, retval = 0;
+	int opt, result = 0;
 	extern int optopt;
 	extern char *optarg;
 
 	while ((opt = getopt(argc, argv, ":hdm:c:p:l:")) != -1) {
 		switch (opt) {
 		case 'd':
-			daemon_state = 1;
+			run_as_daemon = 1;
 			break;
 		case 'm':
 			if (!strcmp(optarg, "server"))
 				working_mode = VPNSERVER_MODE;
 			else if (!strcmp(optarg, "client"))
 				working_mode = VPNCLIENT_MODE;
-			else
-				working_mode = -1;
 			break;
 		case 'c':
 			config_file = optarg;
@@ -48,19 +46,19 @@ static int get_command_line_options(int argc, char **argv)
 			log_file = optarg;
 			break;
 		case 'h':
-			retval = -1;
+			result = -1;
 			break;
 		case ':':
 			fprintf(stderr, "Opt -%c require an operand\n", optopt);
-			retval = -1;
+			result = -1;
 			break;
 		case '?':
 			fprintf(stderr, "Unrecognized option: -%c\n", optopt);
-			retval = -1;
+			result = -1;
 			break;
 		}
 	}
-	return retval;
+	return result;
 }
 
 static const char usage[] = "Usage: %s "
@@ -79,9 +77,9 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Required root privileges\n");
 		exit(EXIT_FAILURE);
 	}
-	if (daemon_state)
+	if (run_as_daemon)
 		daemonize(pid_file);
-	init_logger("orcavpnd", log_file, daemon_state,
+	init_logger("orcavpnd", log_file, run_as_daemon,
 		log_file ? LOG_LOCAL_DATETIME : LOG_NO_DATETIME);
 	res = init_encryption();
 	if (res < 0) {

@@ -14,7 +14,7 @@
 #define KEEPALIVE_INTERVAL 30
 #define GET_PEER_ID(ip) ((ip) & 0xff)
 
-struct vpnclient {
+struct orcavpn_client {
 	struct event_selector loop;
 
 	unsigned short port;
@@ -35,12 +35,12 @@ struct vpnclient {
 	unsigned short sequance_no;
 };
 
-static void send_keepalive_ping(struct vpnclient *clnt)
+static void send_keepalive_ping(struct orcavpn_client *clnt)
 {
 	unsigned char buffer[PACKET_BUFFER_SIZE];
 	struct icmp_echo_param icmp_echo;
-	ssize_t res;
 	size_t length;
+	ssize_t res;
 
 	icmp_echo.src_ip = clnt->private_ip;
 	icmp_echo.dst_ip = clnt->router_ip;
@@ -57,15 +57,15 @@ static void send_keepalive_ping(struct vpnclient *clnt)
 
 static void alarm_handler(void *ctx)
 {
-	send_keepalive_ping((struct vpnclient *)ctx);
+	send_keepalive_ping((struct orcavpn_client *)ctx);
 }
 
 static void socket_handler(void *ctx)
 {
-	struct vpnclient *clnt = ctx;
 	unsigned char buffer[PACKET_BUFFER_SIZE];
-	ssize_t res;
+	struct orcavpn_client *clnt = ctx;
 	size_t length;
+	ssize_t res;
 
 	res = recv_udp(clnt->loop.sockfd, buffer, MAX_UDP_PAYLOAD, NULL);
 	if (res < 0) {
@@ -95,10 +95,10 @@ static void socket_handler(void *ctx)
 
 static void tundev_handler(void *ctx)
 {
-	struct vpnclient *clnt = ctx;
 	unsigned char buffer[PACKET_BUFFER_SIZE];
-	ssize_t res;
+	struct orcavpn_client *clnt = ctx;
 	size_t length;
+	ssize_t res;
 
 	res = recv_tun(clnt->loop.tunfd, buffer, TUN_IF_MTU);
 	if (res < 0) {
@@ -132,9 +132,9 @@ static void tundev_handler(void *ctx)
 		return NULL; \
 	} while (0)
 
-static struct vpnclient *create_client(const char *file)
+static struct orcavpn_client *create_client(const char *file)
 {
-	struct vpnclient *clnt;
+	struct orcavpn_client *clnt;
 	struct config_section *config;
 	unsigned char bin_key[64];
 	size_t keylen, hex_keylen;
@@ -200,8 +200,8 @@ static struct vpnclient *create_client(const char *file)
 	if (!encrypt_key)
 		CONFIG_ERROR("encrypt key create failed");
 
-	clnt = malloc(sizeof(struct vpnclient));
-	memset(clnt, 0, sizeof(struct vpnclient));
+	clnt = malloc(sizeof(struct orcavpn_client));
+	memset(clnt, 0, sizeof(struct orcavpn_client));
 	init_event_selector(&clnt->loop);
 
 	strcpy(clnt->ip_addr, ip);
@@ -222,7 +222,7 @@ static struct vpnclient *create_client(const char *file)
 	return clnt;
 }
 
-static void set_event_handlers(struct vpnclient *clnt)
+static void set_event_handlers(struct orcavpn_client *clnt)
 {
 	struct event_selector *loop = &clnt->loop;
 
@@ -233,7 +233,7 @@ static void set_event_handlers(struct vpnclient *clnt)
 	loop->ctx = clnt;
 }
 
-static int vpn_client_up(struct vpnclient *clnt)
+static int vpn_client_up(struct orcavpn_client *clnt)
 {
 	struct event_selector *loop = &clnt->loop;
 	int res;
@@ -270,7 +270,7 @@ static int vpn_client_up(struct vpnclient *clnt)
 	return 0;
 }
 
-static void vpn_client_down(struct vpnclient *clnt)
+static void vpn_client_down(struct orcavpn_client *clnt)
 {
 	close(clnt->loop.tunfd);
 	close(clnt->loop.sockfd);
@@ -280,7 +280,7 @@ static void vpn_client_down(struct vpnclient *clnt)
 
 int run_vpnclient(const char *config)
 {
-	struct vpnclient *clnt;
+	struct orcavpn_client *clnt;
 	int res, reload, status;
 
 reload_client:

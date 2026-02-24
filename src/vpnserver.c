@@ -26,7 +26,7 @@ struct vpn_peer {
 	struct sockaddr_in addr;
 };
 
-struct vpnserver {
+struct orcavpn_server {
 	struct event_selector loop;
 
 	unsigned short port;
@@ -57,7 +57,8 @@ static void clear_hash_if_large(hashmap *hash)
 	log_mesg(log_lvl_warn, "hash has grown too large and was cleared");
 }
 
-static int throttle_packet(struct vpnserver *serv, struct sockaddr_in *addr)
+static int throttle_packet(struct orcavpn_server *serv,
+	struct sockaddr_in *addr)
 {
 	uint32_t ip = addr->sin_addr.s_addr;
 	hashmap_key ip_key;
@@ -87,7 +88,7 @@ static int throttle_packet(struct vpnserver *serv, struct sockaddr_in *addr)
 	return 0;
 }
 
-static void block_ip(struct vpnserver *serv, struct sockaddr_in *addr)
+static void block_ip(struct orcavpn_server *serv, struct sockaddr_in *addr)
 {
 	uint32_t ip = addr->sin_addr.s_addr;
 	hashmap_key ip_key;
@@ -105,19 +106,19 @@ static void block_ip(struct vpnserver *serv, struct sockaddr_in *addr)
 }
 
 static struct vpn_peer *
-get_peer_by_id(struct vpnserver *serv, unsigned char peer_id)
+get_peer_by_id(struct orcavpn_server *serv, unsigned char peer_id)
 {
 	return serv->peers[serv->peer_id_map[peer_id]];
 }
 
 static struct vpn_peer *
-get_peer_by_addr(struct vpnserver *serv, uint32_t vpn_ip)
+get_peer_by_addr(struct orcavpn_server *serv, uint32_t vpn_ip)
 {
 	struct vpn_peer *peer = get_peer_by_id(serv, GET_PEER_ID(vpn_ip));
 	return peer && peer->private_ip == vpn_ip ? peer : NULL;
 }
 
-static int is_private_peer(struct vpnserver *serv, uint32_t ip)
+static int is_private_peer(struct orcavpn_server *serv, uint32_t ip)
 {
 	uint32_t private_net = serv->private_ip & serv->private_mask;
 	return ip != serv->private_ip && ip != private_net &&
@@ -170,7 +171,7 @@ static struct vpn_peer *alloc_peer(
 	return peer;
 }
 
-static int create_peer(struct vpnserver *serv, const char *name,
+static int create_peer(struct orcavpn_server *serv, const char *name,
 	const char *ip, const char *key, const char *cipher,
 	int inet, int lan)
 {
@@ -225,57 +226,56 @@ static void update_remote_addr(struct vpn_peer *peer,
 	peer->last_update = get_unix_time();
 }
 
-static void route_packet(struct vpnserver *serv, struct vpn_peer *src,
+static ssize_t route_packet(struct orcavpn_server *serv, struct vpn_peer *src,
 	void *buffer, size_t length)
 {
-	ssize_t res;
 	uint32_t src_ip = src->private_ip;
-	uint32_t dest_ip = get_destination_ip(buffer);
+	uint32_t dst_ip = get_destination_ip(buffer);
+	ssize_t res;
 
-	if (is_private_peer(serv, dest_ip)) {
-		struct vpn_peer *dest = get_peer_by_addr(serv, dest_ip);
-		if (!dest || !dest->last_update) {
-			log_drop("destination not found", src_ip, dest_ip);
-			return;
+	if (is_private_peer(serv, dst_ip)) {
+		struct vpn_peer *dst = get_peer_by_addr(serv, dst_ip);
+		if (!dst || !dst->last_update) {
+			log_drop("destination not found", src_ip, dst_ip);
+			return 0;
 		}
 		if (!src->lan_on) {
-			log_drop("source lan disabled", src_ip, dest_ip);
-			return;
+			log_drop("source lan disabled", src_ip, dst_ip);
+			return 0;
 		}
-		if (!dest->lan_on) {
-			log_drop("destination lan disabled", src_ip, dest_ip);
-			return;
+		if (!dst->lan_on) {
+			log_drop("destination lan disabled", src_ip, dst_ip);
+			return 0;
 		}
-		if (get_unix_time() > dest->last_update + PEER_ADDR_EXPIRE) {
-			log_drop("client address expired", src_ip, dest_ip);
-			return;
+		if (get_unix_time() > dst->last_update + PEER_ADDR_EXPIRE) {
+			log_drop("client address expired", src_ip, dst_ip);
+			return 0;
 		}
-		encrypt_message(buffer, &length, dest->encrypt_key);
-		res = send_udp(serv->loop.sockfd, buffer, length, &dest->addr);
+		encrypt_message(buffer, &length, dst->encrypt_key);
+		res = send_udp(serv->loop.sockfd, buffer, length, &dst->addr);
 	} else {
-		if (dest_ip == (serv->private_ip & serv->private_mask)) {
-			log_drop("destination not found", src_ip, dest_ip);
-			return;
+		if (dst_ip == (serv->private_ip & serv->private_mask)) {
+			log_drop("destination not found", src_ip, dst_ip);
+			return 0;
 		}
-		if (!src->inet_on && dest_ip != serv->private_ip) {
-			log_drop("source inet disabled", src_ip, dest_ip);
-			return;
+		if (!src->inet_on && dst_ip != serv->private_ip) {
+			log_drop("source inet disabled", src_ip, dst_ip);
+			return 0;
 		}
 		res = send_tun(serv->loop.tunfd, buffer, length);
 	}
-	if (res < 0)
-		log_mesg(log_lvl_err, "forwarding packet from client failed");
+	return res;
 }
 
 static void socket_handler(void *ctx)
 {
-	struct vpnserver *serv = ctx;
 	unsigned char buffer[PACKET_BUFFER_SIZE];
-	struct sockaddr_in addr;
+	struct orcavpn_server *serv = ctx;
 	struct vpn_peer *peer;
+	struct sockaddr_in addr;
 	unsigned char peer_id;
-	ssize_t res;
 	size_t length;
+	ssize_t res;
 
 	res = recv_udp(serv->loop.sockfd, buffer, MAX_UDP_PAYLOAD, &addr);
 	if (res < 0) {
@@ -309,17 +309,19 @@ static void socket_handler(void *ctx)
 		return;
 	}
 	update_remote_addr(peer, &addr);
-	route_packet(serv, peer, buffer, length);
+	res = route_packet(serv, peer, buffer, length);
+	if (res < 0)
+		log_mesg(log_lvl_err, "forwarding packet from client failed");
 }
 
 static void tundev_handler(void *ctx)
 {
-	struct vpnserver *serv = ctx;
 	unsigned char buffer[PACKET_BUFFER_SIZE];
+	struct orcavpn_server *serv = ctx;
 	struct vpn_peer *peer;
-	ssize_t res;
+	uint32_t src_ip, dst_ip;
 	size_t length;
-	uint32_t src_ip, dest_ip;
+	ssize_t res;
 
 	res = recv_tun(serv->loop.tunfd, buffer, TUN_IF_MTU);
 	if (res < 0) {
@@ -338,18 +340,18 @@ static void tundev_handler(void *ctx)
 	}
 
 	src_ip = get_source_ip(buffer);
-	dest_ip = get_destination_ip(buffer);
-	peer = get_peer_by_addr(serv, dest_ip);
+	dst_ip = get_destination_ip(buffer);
+	peer = get_peer_by_addr(serv, dst_ip);
 	if (!peer || !peer->last_update) {
-		log_drop("destination not found", src_ip, dest_ip);
+		log_drop("destination not found", src_ip, dst_ip);
 		return;
 	}
 	if (!peer->inet_on && src_ip != serv->private_ip) {
-		log_drop("destination inet disabled", src_ip, dest_ip);
+		log_drop("destination inet disabled", src_ip, dst_ip);
 		return;
 	}
 	if (get_unix_time() > peer->last_update + PEER_ADDR_EXPIRE) {
-		log_drop("client address expired", src_ip, dest_ip);
+		log_drop("client address expired", src_ip, dst_ip);
 		return;
 	}
 	encrypt_message(buffer, &length, peer->encrypt_key);
@@ -365,7 +367,7 @@ static void tundev_handler(void *ctx)
 		log_mesg(log_lvl_err, "[%s] " message, (peer)->scope); \
 	} while (0)
 
-static int add_peers(struct vpnserver *serv, struct config_section *cfg)
+static int add_peers(struct orcavpn_server *serv, struct config_section *cfg)
 {
 	struct config_section *peer;
 	const char *ip, *key, *cipher;
@@ -412,7 +414,7 @@ static int add_peers(struct vpnserver *serv, struct config_section *cfg)
 		return NULL; \
 	} while (0)
 
-static void free_server(struct vpnserver *serv)
+static void free_server(struct orcavpn_server *serv)
 {
 	int i;
 
@@ -429,9 +431,9 @@ static void free_server(struct vpnserver *serv)
 	free(serv);
 }
 
-static struct vpnserver *create_server(const char *file)
+static struct orcavpn_server *create_server(const char *file)
 {
-	struct vpnserver *serv = NULL;
+	struct orcavpn_server *serv = NULL;
 	struct config_section *config;
 	int port, block_ip_ttl, res;
 	const char *ip, *tun_name, *tun_addr, *tun_netmask;
@@ -460,8 +462,8 @@ static struct vpnserver *create_server(const char *file)
 	if (!tun_netmask)
 		tun_netmask = TUN_IF_MASK;
 
-	serv = malloc(sizeof(struct vpnserver));
-	memset(serv, 0, sizeof(struct vpnserver));
+	serv = malloc(sizeof(struct orcavpn_server));
+	memset(serv, 0, sizeof(struct orcavpn_server));
 	init_event_selector(&serv->loop);
 
 	strcpy(serv->ip_addr, ip);
@@ -485,7 +487,7 @@ static struct vpnserver *create_server(const char *file)
 	return serv;
 }
 
-static void set_event_handlers(struct vpnserver *serv)
+static void set_event_handlers(struct orcavpn_server *serv)
 {
 	struct event_selector *loop = &serv->loop;
 
@@ -494,7 +496,7 @@ static void set_event_handlers(struct vpnserver *serv)
 	loop->ctx = serv;
 }
 
-static int vpn_server_up(struct vpnserver *serv)
+static int vpn_server_up(struct orcavpn_server *serv)
 {
 	struct event_selector *loop = &serv->loop;
 	int res;
@@ -525,7 +527,7 @@ static int vpn_server_up(struct vpnserver *serv)
 	return 0;
 }
 
-static void vpn_server_down(struct vpnserver *serv)
+static void vpn_server_down(struct orcavpn_server *serv)
 {
 	close(serv->loop.tunfd);
 	close(serv->loop.sockfd);
@@ -534,7 +536,7 @@ static void vpn_server_down(struct vpnserver *serv)
 
 int run_vpnserver(const char *config)
 {
-	struct vpnserver *serv;
+	struct orcavpn_server *serv;
 	int res, reload, status;
 
 reload_server:
