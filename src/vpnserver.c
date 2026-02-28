@@ -10,11 +10,11 @@
 #include "configparser.h"
 #include "logger.h"
 #include "helper.h"
-#include "hashmap.h"
+#include "bytetrie.h"
 
 #define PEERS_LIMIT 256
 #define PEER_ADDR_EXPIRE 600
-#define HASH_SIZE_LIMIT 150000
+#define IP_MEMORY_LIMIT 1000000
 #define GET_PEER_ID(ip) ((ip) & 0xff)
 
 struct vpn_peer {
@@ -45,63 +45,70 @@ struct orcavpn_server {
 	unsigned char peer_id_map[PEERS_LIMIT];
 	struct vpn_peer *peers[PEERS_LIMIT];
 
-	hashmap *ip_hash;
-	hashmap *blocked_ip_hash;
+	struct byte_trie *ip_trie;
+	struct byte_trie *blocked_ip_trie;
+
+	unsigned long ip_counter;
+	unsigned long blocked_ip_counter;
 };
 
-static void clear_hash_if_large(hashmap *hash)
-{
-	if (hash->used <= HASH_SIZE_LIMIT)
-		return;
-	clear_map(hash);
-	log_mesg(log_lvl_warn, "hash has grown too large and was cleared");
-}
-
-static int throttle_packet(struct orcavpn_server *serv,
-	struct sockaddr_in *addr)
+static int check_ip(struct orcavpn_server *serv,
+	const struct sockaddr_in *addr)
 {
 	uint32_t ip = addr->sin_addr.s_addr;
-	hashmap_key ip_key;
-	hashmap_val ip_val, ip_counter;
+	unsigned char *ip_bytes = (unsigned char *)&ip;
+	trie_leaf_t *leaf;
 
-	clear_hash_if_large(serv->ip_hash);
+	if (serv->ip_counter > IP_MEMORY_LIMIT) {
+		serv->ip_counter = 0;
+		clear_trie(serv->ip_trie);
+		log_mesg(log_lvl_warn, "ip trie was cleared");
+	}
 
-	HASHMAP_KEY_INT(ip_key, ip);
-	ip_counter = hashmap_inc(serv->ip_hash, &ip_key, 1);
-	if (ip_counter % 100000 == 0) {
+	leaf = trie_set(serv->ip_trie, ip_bytes, sizeof(ip));
+	leaf->ival++;
+
+	if (leaf->ival % 100000 == 0) {
 		log_mesg(log_lvl_normal, "received %lu packets from %s",
-			ip_counter, ipv4tos(ip, 0));
-	} else if (ip_counter == 1) {
+			leaf->ival, ipv4tos(ip, 0));
+	} else if (leaf->ival == 1) {
+		serv->ip_counter++;
 		log_mesg(log_lvl_info, "Received packet from %s",
 			ipv4tos(ip, 0));
 	}
 
-	ip_val = hashmap_get(serv->blocked_ip_hash, &ip_key);
-	if (ip_val == HASHMAP_MISS)
+	leaf = trie_get(serv->blocked_ip_trie, ip_bytes, sizeof(ip));
+	if (!leaf)
 		return 0;
 
-	if ((time_t)ip_val > get_unix_time())
+	if ((time_t)leaf->ival > get_unix_time())
 		return 1;
 
-	hashmap_delete(serv->blocked_ip_hash, &ip_key);
+	serv->blocked_ip_counter--;
+	trie_del(serv->blocked_ip_trie, ip_bytes, sizeof(ip));
 	log_mesg(log_lvl_normal, "ip address %s is unblocked", ipv4tos(ip, 0));
 	return 0;
 }
 
-static void block_ip(struct orcavpn_server *serv, struct sockaddr_in *addr)
+static void block_ip(struct orcavpn_server *serv,
+	const struct sockaddr_in *addr)
 {
 	uint32_t ip = addr->sin_addr.s_addr;
-	hashmap_key ip_key;
-	hashmap_val ip_val;
+	unsigned char *ip_bytes = (unsigned char *)&ip;
+	trie_leaf_t *leaf;
 
 	if (!serv->block_ip_ttl)
 		return;
 
-	clear_hash_if_large(serv->blocked_ip_hash);
+	if (serv->blocked_ip_counter > IP_MEMORY_LIMIT) {
+		serv->blocked_ip_counter = 0;
+		clear_trie(serv->blocked_ip_trie);
+		log_mesg(log_lvl_warn, "blocked ip trie was cleared");
+	}
 
-	HASHMAP_KEY_INT(ip_key, ip);
-	ip_val = (hashmap_val)get_unix_time() + serv->block_ip_ttl;
-	hashmap_insert(serv->blocked_ip_hash, &ip_key, ip_val);
+	serv->blocked_ip_counter++;
+	leaf = trie_set(serv->blocked_ip_trie, ip_bytes, sizeof(ip));
+	leaf->ival = (trie_uint)get_unix_time() + serv->block_ip_ttl;
 	log_mesg(log_lvl_normal, "ip address %s is blocked", ipv4tos(ip, 0));
 }
 
@@ -282,7 +289,7 @@ static void socket_handler(void *ctx)
 		err_panic(&serv->loop, "reading udp socket");
 		return;
 	}
-	if (!res || throttle_packet(serv, &addr))
+	if (!res || check_ip(serv, &addr))
 		return;
 
 	length = res;
@@ -354,6 +361,7 @@ static void tundev_handler(void *ctx)
 		log_drop("client address expired", src_ip, dst_ip);
 		return;
 	}
+
 	encrypt_message(buffer, &length, peer->encrypt_key);
 	res = send_udp(serv->loop.sockfd, buffer, length, &peer->addr);
 	if (res < 0)
@@ -426,8 +434,8 @@ static void free_server(struct orcavpn_server *serv)
 		free(serv->peers[i]);
 	}
 
-	delete_map(serv->ip_hash);
-	delete_map(serv->blocked_ip_hash);
+	delete_trie(serv->ip_trie);
+	delete_trie(serv->blocked_ip_trie);
 	free(serv);
 }
 
@@ -476,8 +484,8 @@ static struct orcavpn_server *create_server(const char *file)
 	serv->port = port;
 	serv->block_ip_ttl = block_ip_ttl;
 
-	serv->ip_hash = make_map();
-	serv->blocked_ip_hash = make_map();
+	serv->ip_trie = make_trie();
+	serv->blocked_ip_trie = make_trie();
 
 	res = add_peers(serv, config->next);
 	if (res < 0)
