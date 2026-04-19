@@ -207,7 +207,7 @@ ssize_t recv_udp6(int sockfd, void *buf, size_t len,
 
 const char *get_local_addr(int sockfd)
 {
-	static char buffer[MAX_IPV4_CONN_LEN];
+	static char buffer[IPV4_CONN_LEN];
 	struct sockaddr_in addr;
 	socklen_t addrlen = sizeof(struct sockaddr_in);
 	int res;
@@ -222,7 +222,7 @@ const char *get_local_addr(int sockfd)
 
 const char *get_remote_addr(int sockfd)
 {
-	static char buffer[MAX_IPV4_CONN_LEN];
+	static char buffer[IPV4_CONN_LEN];
 	struct sockaddr_in addr;
 	socklen_t addrlen = sizeof(struct sockaddr_in);
 	int res;

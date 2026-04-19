@@ -20,12 +20,12 @@ struct orcavpn_client {
 
 	unsigned short port;
 	unsigned short server_port;
-	char ip_addr[MAX_IPV4_ADDR_LEN];
-	char server_ip[MAX_IPV4_ADDR_LEN];
+	char ip_addr[IPV4_ADDR_LEN];
+	char server_ip[IPV4_ADDR_LEN];
 
-	char tun_name[MAX_IF_NAME_LEN];
-	char tun_addr[MAX_IPV4_ADDR_LEN];
-	char tun_netmask[MAX_IPV4_ADDR_LEN];
+	char tun_name[TUN_IF_NAMSIZ];
+	char tun_addr[IPV4_ADDR_LEN];
+	char tun_netmask[IPV4_ADDR_LEN];
 
 	uint32_t private_ip;
 	uint32_t router_ip;
@@ -154,15 +154,15 @@ static struct orcavpn_client *create_client(const char *file)
 	if (config->next)
 		CONFIG_ERROR("only client section is needed");
 
-	ip          = get_str_var(config, "ip", MAX_IPV4_ADDR_LEN);
+	ip          = get_str_var(config, "ip", IPV4_ADDR_LEN);
 	port        = get_int_var(config, "port");
-	server_ip   = get_str_var(config, "server_ip", MAX_IPV4_ADDR_LEN);
+	server_ip   = get_str_var(config, "server_ip", IPV4_ADDR_LEN);
 	server_port = get_int_var(config, "server_port");
-	router_ip   = get_str_var(config, "router_ip", MAX_IPV4_ADDR_LEN);
+	router_ip   = get_str_var(config, "router_ip", IPV4_ADDR_LEN);
 
-	tun_addr    = get_str_var(config, "tun_addr", MAX_IPV4_ADDR_LEN);
-	tun_netmask = get_str_var(config, "tun_netmask", MAX_IPV4_ADDR_LEN);
-	tun_name    = get_str_var(config, "tun_name", MAX_IF_NAME_LEN);
+	tun_addr    = get_str_var(config, "tun_addr", IPV4_ADDR_LEN);
+	tun_netmask = get_str_var(config, "tun_netmask", IPV4_ADDR_LEN);
+	tun_name    = get_str_var(config, "tun_name", TUN_IF_NAMSIZ);
 
 	hex_key     = get_var_value(config, "key");
 	cipher_name = get_var_value(config, "cipher");

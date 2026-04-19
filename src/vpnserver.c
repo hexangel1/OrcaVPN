@@ -31,11 +31,11 @@ struct orcavpn_server {
 	struct event_selector loop;
 
 	unsigned short port;
-	char ip_addr[MAX_IPV4_ADDR_LEN];
+	char ip_addr[IPV4_ADDR_LEN];
 
-	char tun_name[MAX_IF_NAME_LEN];
-	char tun_addr[MAX_IPV4_ADDR_LEN];
-	char tun_netmask[MAX_IPV4_ADDR_LEN];
+	char tun_name[TUN_IF_NAMSIZ];
+	char tun_addr[IPV4_ADDR_LEN];
+	char tun_netmask[IPV4_ADDR_LEN];
 
 	unsigned int block_ip_ttl;
 
@@ -211,8 +211,8 @@ static int create_peer(struct orcavpn_server *serv, const char *name,
 
 static void log_drop(const char *mesg, uint32_t src_ip, uint32_t dst_ip)
 {
-	char src_addr[MAX_IPV4_ADDR_LEN];
-	char dst_addr[MAX_IPV4_ADDR_LEN];
+	char src_addr[IPV4_ADDR_LEN];
+	char dst_addr[IPV4_ADDR_LEN];
 
 	ipv4tosb(src_ip, 1, src_addr);
 	ipv4tosb(dst_ip, 1, dst_addr);
@@ -224,7 +224,7 @@ static void log_drop(const char *mesg, uint32_t src_ip, uint32_t dst_ip)
 static void update_remote_addr(struct vpn_peer *peer,
 	const struct sockaddr_in *addr)
 {
-	char buf[MAX_IPV4_CONN_LEN];
+	char buf[IPV4_CONN_LEN];
 
 	if (!peer->last_update || memcmp(&peer->addr, addr, sizeof(*addr))) {
 		memcpy(&peer->addr, addr, sizeof(struct sockaddr_in));
@@ -388,7 +388,7 @@ static int add_peers(struct orcavpn_server *serv, struct config_section *cfg)
 
 	for (peer = cfg; peer; peer = peer->next) {
 		int current_peer_ok = 1;
-		ip     = get_str_var(peer, "ip", MAX_IPV4_ADDR_LEN);
+		ip     = get_str_var(peer, "ip", IPV4_ADDR_LEN);
 		key    = get_var_value(peer, "key");
 		cipher = get_var_value(peer, "cipher");
 		inet   = get_bool_var(peer, "inet");
@@ -453,12 +453,12 @@ static struct orcavpn_server *create_server(const char *file)
 	if (strcmp(config->scope, "server"))
 		CONFIG_ERROR("expected server section");
 
-	ip           = get_str_var(config, "ip", MAX_IPV4_ADDR_LEN);
+	ip           = get_str_var(config, "ip", IPV4_ADDR_LEN);
 	port         = get_int_var(config, "port");
 	block_ip_ttl = get_int_var(config, "block_ip_ttl");
-	tun_name     = get_str_var(config, "tun_name", MAX_IF_NAME_LEN);
-	tun_addr     = get_str_var(config, "tun_addr", MAX_IPV4_ADDR_LEN);
-	tun_netmask  = get_str_var(config, "tun_netmask", MAX_IPV4_ADDR_LEN);
+	tun_name     = get_str_var(config, "tun_name", TUN_IF_NAMSIZ);
+	tun_addr     = get_str_var(config, "tun_addr", IPV4_ADDR_LEN);
+	tun_netmask  = get_str_var(config, "tun_netmask", IPV4_ADDR_LEN);
 
 	if (!ip)
 		ip = "0.0.0.0";

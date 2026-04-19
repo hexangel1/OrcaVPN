@@ -106,7 +106,7 @@ uint32_t get_source_ip(const void *buf)
 
 const char *ipv4tosb(uint32_t ip, int host_order, char *buf)
 {
-	static char ipv4_buffer[MAX_IPV4_ADDR_LEN];
+	static char ipv4_buffer[IPV4_ADDR_LEN];
 
 	if (!buf)
 		buf = ipv4_buffer;
@@ -125,7 +125,7 @@ const char *ipv4tos(uint32_t ip, int host_order)
 
 char *addr_to_str(const struct sockaddr_in *addr, char *buf, size_t len)
 {
-	char ipv4_buffer[MAX_IPV4_ADDR_LEN];
+	char ipv4_buffer[IPV4_ADDR_LEN];
 
 	ipv4tosb(addr->sin_addr.s_addr, 0, ipv4_buffer);
 	snprintf(buf, len, "%s:%u", ipv4_buffer, ntohs(addr->sin_port));

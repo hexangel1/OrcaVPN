@@ -7,8 +7,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#define MAX_IPV4_ADDR_LEN 16
-#define MAX_IPV4_CONN_LEN (MAX_IPV4_ADDR_LEN + sizeof(":65535") - 1)
+#define IPV4_ADDR_LEN 16
+#define IPV4_CONN_LEN (IPV4_ADDR_LEN + sizeof(":65535") - 1)
 #define PING_DATA_LEN 24
 
 struct icmp_echo_param {

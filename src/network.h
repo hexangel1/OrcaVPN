@@ -10,7 +10,6 @@
 #define ORCAVPN_PORT 778
 #define PACKET_BUFFER_SIZE 1536
 #define MAX_UDP_PAYLOAD 1472
-#define MAX_IF_NAME_LEN 16
 
 /* Create udp socket & bind to local address [ipv4] */
 int create_udp_sock(const char *ip, unsigned short port);

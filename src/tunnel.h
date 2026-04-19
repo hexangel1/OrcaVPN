@@ -9,6 +9,7 @@
 #define TUN_IF_MASK "255.255.255.0"
 #define TUN_IF_MTU  1420
 #define TUN_IF_QLEN 1000
+#define TUN_IF_NAMSIZ 16
 
 /* Create tun device */
 int create_tun_if(char *tun_name);
