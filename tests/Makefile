@@ -1,10 +1,10 @@
 BUILD_TESTS = test_aes test_sha1 test_hmac_sha1 test_xchacha20 \
-	test_aead_write test_hashmap test_bytetrie
+	test_aead_write test_bytetrie
 SOURCES_DIR = ../src/
 PROJECT = $(SOURCES_DIR)orcavpn
 LOCALLIBS = -lencrypt -L $(SOURCES_DIR)encrypt/
 INC_DIRS = -I $(SOURCES_DIR) -I $(SOURCES_DIR)encrypt/
-REQUIRED_MODULES = helper.c hashmap.c bytetrie.c
+REQUIRED_MODULES = helper.c bytetrie.c
 OBJECTS = $(addprefix $(SOURCES_DIR), $(REQUIRED_MODULES:.c=.o))
 CFLAGS = -Wall -Wextra -g
 CC = gcc
