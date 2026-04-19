@@ -9,9 +9,6 @@
 
 #include "helper.h"
 
-/* reserve descriptors range for polling with select */
-#define CLOSE_FD_GAP 16
-
 static int create_pidfile(const char *pidfile)
 {
 	char pid_str[16];
@@ -40,16 +37,9 @@ static void do_fork(void)
 	/* child return */
 }
 
-static void close_fd_range(int min, int max)
-{
-	int fd;
-	for (fd = min; fd < max; fd++)
-		close(fd);
-}
-
 void daemonize(const char *pidfile)
 {
-	close_fd_range(0, CLOSE_FD_GAP);
+	close(0);
 	if (open("/dev/null", O_RDWR) != 0)
 		_exit(1);
 	dup2(0, 1);
