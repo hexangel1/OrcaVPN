@@ -1,5 +1,9 @@
 #!/bin/sh
 
+set -a
+. /usr/local/etc/orcavpn.env
+set +a
+
 SERVER_IP=${SERVER_IP:-${1:-'198.51.100.49'}}
 SERVER_TUN_IP=${SERVER_TUN_IP:-${2:-'10.80.80.1'}}
 

@@ -1,8 +1,8 @@
 # OrcaVPN
 VPN client server encrypted tunnel over UDP for Linux
 
-* AES-CBC HMAC-SHA1 mode encryption
 * XChaCha20 Poly1305 mode encryption
+* AES-CBC HMAC-SHA1 mode encryption
 * UDP transport layer protocol
 * Multiple clients server-side support
 * Server protection by blocking IP
@@ -18,6 +18,7 @@ VPN client server encrypted tunnel over UDP for Linux
 * Run installation script with selected mode = `client` or `server`  
   `$ ./scripts/install.sh [mode]`
 * Setup configuration in `/usr/local/etc/orcavpn.conf`
+* Override env variables in `/usr/local/etc/orcavpn.env`
 * Start orcavpn service  
   `$ systemctl start orcavpn.service`
 * On client to route all traffic to the tunnel, run the command  

@@ -10,6 +10,7 @@ Environment=PIDFILE=/run/orcavpnd.pid
 Environment=LOGFILE=/var/log/orcavpn.log
 Environment=CONFIGFILE=/usr/local/etc/orcavpn.conf
 Environment=MODE=server
+EnvironmentFile=/usr/local/etc/orcavpn.env
 
 ExecStartPre=/usr/local/sbin/vpnserver-setup.sh
 ExecStart=/usr/local/sbin/orcavpn -d -m $MODE -c $CONFIGFILE -p $PIDFILE -l $LOGFILE

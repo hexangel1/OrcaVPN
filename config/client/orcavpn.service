@@ -11,6 +11,7 @@ Environment=PIDFILE=/run/orcavpnd.pid
 Environment=LOGFILE=/var/log/orcavpn.log
 Environment=CONFIGFILE=/usr/local/etc/orcavpn.conf
 Environment=MODE=client
+EnvironmentFile=/usr/local/etc/orcavpn.env
 
 ExecStart=/usr/local/sbin/orcavpn -d -m $MODE -c $CONFIGFILE -p $PIDFILE -l $LOGFILE
 ExecReload=/bin/kill -s SIGHUP $MAINPID
