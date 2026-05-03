@@ -22,5 +22,7 @@ void event_loop(struct event_selector *loop);
 void init_event_selector(struct event_selector *loop);
 /* Exit event loop with error */
 void err_panic(struct event_selector *loop, const char *mesg);
+/* Exit event loop with reload */
+void do_reload(struct event_selector *loop);
 
 #endif /* EVENTLOOP_H_SENTRY */

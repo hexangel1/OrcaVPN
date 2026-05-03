@@ -102,3 +102,9 @@ void err_panic(struct event_selector *loop, const char *mesg)
 	loop->status_flag = 1;
 	loop->exit_loop = 1;
 }
+
+void do_reload(struct event_selector *loop)
+{
+	loop->reload_flag = 1;
+	loop->exit_loop = 1;
+}

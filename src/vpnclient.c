@@ -12,7 +12,8 @@
 #include "logger.h"
 #include "helper.h"
 
-#define KEEPALIVE_INTERVAL 30
+#define KEEPALIVE_INTVL_DEFAULT 30 /* 30 seconds */
+#define KEEPALIVE_PROBES_DEFAULT 0 /* infinite probes */
 #define GET_PEER_ID(ip) ((ip) & 0xff)
 
 struct orcavpn_client {
@@ -34,6 +35,10 @@ struct orcavpn_client {
 	int junk_count;
 	int junk_min;
 	int junk_max;
+
+	int keepalive_intvl;
+	int keepalive_probes;
+	int no_responded_pings;
 
 	unsigned short sequance_id;
 	unsigned short sequance_no;
@@ -80,18 +85,30 @@ static void send_keepalive_ping(struct orcavpn_client *clnt)
 	icmp_echo.seq_id = clnt->sequance_id;
 	icmp_echo.seq_no = clnt->sequance_no++;
 	read_random(icmp_echo.data, PING_DATA_LEN);
+
 	length = write_icmp_echo(buffer, &icmp_echo);
 	encrypt_message(buffer, &length, clnt->encrypt_key);
 	buffer[length++] = GET_PEER_ID(clnt->private_ip);
 	buffer[length++] = get_magic_byte();
+
 	res = send_udp(clnt->loop.sockfd, buffer, length, NULL);
 	if (res < 0)
 		log_mesg(log_lvl_err, "sending ping packet failed");
+
+	clnt->no_responded_pings++;
 }
 
 static void alarm_handler(void *ctx)
 {
-	send_keepalive_ping((struct orcavpn_client *)ctx);
+	struct orcavpn_client *clnt = ctx;
+	int keepalive_probes = clnt->keepalive_probes;
+
+	if (!keepalive_probes || clnt->no_responded_pings < keepalive_probes) {
+		send_keepalive_ping(clnt);
+	} else {
+		log_mesg(log_lvl_err, "connection to server lost");
+		do_reload(&clnt->loop);
+	}
 }
 
 static void socket_handler(void *ctx)
@@ -122,6 +139,7 @@ static void socket_handler(void *ctx)
 		log_mesg(log_lvl_normal, "bad destination ip address");
 		return;
 	}
+	clnt->no_responded_pings = 0;
 	res = send_tun(clnt->loop.tunfd, buffer, length);
 	if (res < 0)
 		log_mesg(log_lvl_err, "sending packet to tun failed");
@@ -173,7 +191,9 @@ static struct orcavpn_client *create_client(const char *file)
 	struct config_section *config;
 	unsigned char bin_key[64];
 	size_t keylen, hex_keylen;
-	int port, server_port, junk_count, junk_min, junk_max;
+	unsigned short server_port, port;
+	int junk_count, junk_min, junk_max;
+	int keepalive_intvl, keepalive_probes;
 	const char *server_ip, *router_ip;
 	const char *tun_name, *tun_addr, *tun_mask;
 	const char *hex_key, *cipher_name;
@@ -204,6 +224,9 @@ static struct orcavpn_client *create_client(const char *file)
 	junk_min    = get_int_var(config, "junk_min");
 	junk_max    = get_int_var(config, "junk_max");
 
+	keepalive_intvl  = get_int_var(config, "keepalive_intvl");
+	keepalive_probes = get_int_var(config, "keepalive_probes");
+
 	if (!server_ip)
 		CONFIG_ERROR("server_ip param not set");
 	if (!server_port)
@@ -230,6 +253,11 @@ static struct orcavpn_client *create_client(const char *file)
 		if (junk_max < junk_min || junk_max > 1280)
 			CONFIG_ERROR("junk_max not in [junk_min, 1280]");
 	}
+
+	if (keepalive_intvl < 1)
+		keepalive_intvl = KEEPALIVE_INTVL_DEFAULT;
+	if (keepalive_probes < 1)
+		keepalive_probes = KEEPALIVE_PROBES_DEFAULT;
 
 	hex_keylen = strlen(hex_key);
 	keylen = hex_keylen / 2;
@@ -262,6 +290,9 @@ static struct orcavpn_client *create_client(const char *file)
 	clnt->junk_count = junk_count;
 	clnt->junk_min = junk_min;
 	clnt->junk_max = junk_max;
+	clnt->keepalive_intvl = keepalive_intvl;
+	clnt->keepalive_probes = keepalive_probes;
+	clnt->no_responded_pings = 0;
 	clnt->sequance_id = (0xffff & getpid());
 	clnt->sequance_no = 0;
 
@@ -276,7 +307,7 @@ static void set_event_handlers(struct orcavpn_client *clnt)
 	loop->tundev_callback = tundev_handler;
 	loop->socket_callback = socket_handler;
 	loop->alarm_callback = alarm_handler;
-	loop->alarm_interval = KEEPALIVE_INTERVAL * 1000;
+	loop->alarm_interval = clnt->keepalive_intvl * 1000;
 	loop->ctx = clnt;
 }
 
