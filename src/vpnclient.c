@@ -176,7 +176,7 @@ static struct orcavpn_client *create_client(const char *file)
 	if (!router_ip)
 		router_ip = TUN_IF_ADDR;
 	if (!tun_name)
-		tun_netmask = TUN_IF_NAME;
+		tun_name = TUN_IF_NAME;
 	if (!tun_addr)
 		CONFIG_ERROR("tun_addr param not set");
 	if (!tun_netmask)
