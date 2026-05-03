@@ -32,9 +32,41 @@ struct orcavpn_client {
 
 	crypto_key *encrypt_key;
 
+	int junk_count;
+	int junk_min;
+	int junk_max;
+
 	unsigned short sequance_id;
 	unsigned short sequance_no;
 };
+
+static unsigned char get_magic_byte(void)
+{
+	return get_rand_from(0x80, 0xff);
+}
+
+static int fill_junk_data(unsigned char *buf, int junk_min, int junk_max)
+{
+	int i, junk_len = get_rand_from(junk_min, junk_max);
+
+	for (i = 0; i < junk_len; i++)
+		buf[i] = get_rand_from('!', '~');
+
+	return junk_len;
+}
+
+static void send_junk_packets(struct orcavpn_client *clnt)
+{
+	unsigned char buffer[PACKET_BUFFER_SIZE];
+	int i, len, res;
+
+	for (i = 0; i < clnt->junk_count; i++) {
+		len = fill_junk_data(buffer, clnt->junk_min, clnt->junk_max);
+		res = send_udp(clnt->loop.sockfd, buffer, len, NULL);
+		if (res < 0)
+			log_mesg(log_lvl_err, "sending junk packet failed");
+	}
+}
 
 static void send_keepalive_ping(struct orcavpn_client *clnt)
 {
@@ -51,6 +83,7 @@ static void send_keepalive_ping(struct orcavpn_client *clnt)
 	length = write_icmp_echo(buffer, &icmp_echo);
 	encrypt_message(buffer, &length, clnt->encrypt_key);
 	buffer[length++] = GET_PEER_ID(clnt->private_ip);
+	buffer[length++] = get_magic_byte();
 	res = send_udp(clnt->loop.sockfd, buffer, length, NULL);
 	if (res < 0)
 		log_mesg(log_lvl_err, "sending ping packet failed");
@@ -121,6 +154,7 @@ static void tundev_handler(void *ctx)
 
 	encrypt_message(buffer, &length, clnt->encrypt_key);
 	buffer[length++] = GET_PEER_ID(clnt->private_ip);
+	buffer[length++] = get_magic_byte();
 	res = send_udp(clnt->loop.sockfd, buffer, length, NULL);
 	if (res < 0)
 		log_mesg(log_lvl_err, "sending packet to server failed");
@@ -139,7 +173,7 @@ static struct orcavpn_client *create_client(const char *file)
 	struct config_section *config;
 	unsigned char bin_key[64];
 	size_t keylen, hex_keylen;
-	int port, server_port;
+	int port, server_port, junk_count, junk_min, junk_max;
 	const char *ip, *server_ip, *router_ip;
 	const char *tun_name, *tun_addr, *tun_mask;
 	const char *hex_key, *cipher_name;
@@ -167,6 +201,10 @@ static struct orcavpn_client *create_client(const char *file)
 	hex_key     = get_var_value(config, "key");
 	cipher_name = get_var_value(config, "cipher");
 
+	junk_count  = get_int_var(config, "junk_count");
+	junk_min    = get_int_var(config, "junk_min");
+	junk_max    = get_int_var(config, "junk_max");
+
 	if (!ip)
 		ip = "0.0.0.0";
 	if (!server_ip)
@@ -186,6 +224,15 @@ static struct orcavpn_client *create_client(const char *file)
 		CONFIG_ERROR("key param not set");
 	if (!cipher_name)
 		CONFIG_ERROR("cipher param not set");
+
+	if (junk_count) {
+		if (junk_count < 0 || junk_count > 1000)
+			CONFIG_ERROR("junk_count not in [0, 1000]");
+		if (junk_min < 1 || junk_min > 128)
+			CONFIG_ERROR("junk_min not in [1, 128]");
+		if (junk_max < junk_min || junk_max > 1280)
+			CONFIG_ERROR("junk_max not in [junk_min, 1280]");
+	}
 
 	hex_keylen = strlen(hex_key);
 	keylen = hex_keylen / 2;
@@ -216,6 +263,9 @@ static struct orcavpn_client *create_client(const char *file)
 	clnt->router_ip = inet_network(router_ip);
 	clnt->private_ip = inet_network(tun_addr);
 	clnt->encrypt_key = encrypt_key;
+	clnt->junk_count = junk_count;
+	clnt->junk_min = junk_min;
+	clnt->junk_max = junk_max;
 	clnt->sequance_id = (0xffff & getpid());
 	clnt->sequance_no = 0;
 
@@ -267,6 +317,7 @@ static int vpn_client_up(struct orcavpn_client *clnt)
 	set_max_sndbuf(loop->sockfd);
 	set_max_rcvbuf(loop->sockfd);
 	set_event_handlers(clnt);
+	send_junk_packets(clnt);
 	send_keepalive_ping(clnt);
 	return 0;
 }

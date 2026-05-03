@@ -294,6 +294,9 @@ static void socket_handler(void *ctx)
 		return;
 
 	length = res;
+	if (length < 2 || !(buffer[--length] & 0x80))
+		return; /* drop junk packets (last byte is ascii code) */
+
 	peer_id = buffer[--length];
 	peer = get_peer_by_id(serv, peer_id);
 	if (!peer) {
