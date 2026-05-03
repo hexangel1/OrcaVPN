@@ -25,6 +25,9 @@ void daemonize(const char *pidfile);
 /* Get current unix time */
 time_t get_unix_time(void);
 
+/* Get random number from [min, max] */
+int get_rand_from(int min, int max);
+
 /* Hexlify binary data */
 char *hexlify(const void *data, size_t len, int upper, char *res);
 /* Binarize hex string */

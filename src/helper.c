@@ -59,6 +59,12 @@ time_t get_unix_time(void)
 	return ts.tv_sec;
 }
 
+int get_rand_from(int min, int max)
+{
+	double r = (double)rand() / (RAND_MAX + 1.0);
+	return min + (int)(r * (max - min + 1));
+}
+
 char *hexlify(const void *bin, size_t len, int upper, char *res)
 {
 	const char *xdigits = upper ? "0123456789ABCDEF" : "0123456789abcdef";
