@@ -1,11 +1,11 @@
 # OrcaVPN
 VPN client server encrypted tunnel over UDP for Linux
 
-* XChaCha20 Poly1305 mode encryption
-* AES-CBC HMAC-SHA1 mode encryption
+* XChaCha20 Poly1305 & AES-CBC HMAC-SHA1 ciphers
 * UDP transport layer protocol
 * Multiple clients server-side support
 * Server protection by blocking IP
+* Bypass DPI using junk packets
 * Easy setup configuration
 * Managed by systemd
 * Builds with Make
@@ -58,6 +58,9 @@ server_port = 778
 tun_name = orca-gate  
 tun_addr = 10.80.80.2  
 tun_mask = 255.255.255.0  
+junk_count = 3  
+junk_min = 64  
+junk_max = 256  
 key = 9f840f9cedc92e3968ef6c86cfc62f3400b1334a60e27799573d733b1038b28d  
 cipher = xchacha20-poly1305
 ```
