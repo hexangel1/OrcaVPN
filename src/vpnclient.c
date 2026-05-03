@@ -25,7 +25,7 @@ struct orcavpn_client {
 
 	char tun_name[TUN_IF_NAMSIZ];
 	char tun_addr[IPV4_ADDR_LEN];
-	char tun_netmask[IPV4_ADDR_LEN];
+	char tun_mask[IPV4_ADDR_LEN];
 
 	uint32_t private_ip;
 	uint32_t router_ip;
@@ -141,7 +141,7 @@ static struct orcavpn_client *create_client(const char *file)
 	size_t keylen, hex_keylen;
 	int port, server_port;
 	const char *ip, *server_ip, *router_ip;
-	const char *tun_addr, *tun_netmask, *tun_name;
+	const char *tun_name, *tun_addr, *tun_mask;
 	const char *hex_key, *cipher_name;
 	crypto_key_type cipher;
 	void *encrypt_key;
@@ -160,9 +160,9 @@ static struct orcavpn_client *create_client(const char *file)
 	server_port = get_int_var(config, "server_port");
 	router_ip   = get_str_var(config, "router_ip", IPV4_ADDR_LEN);
 
-	tun_addr    = get_str_var(config, "tun_addr", IPV4_ADDR_LEN);
-	tun_netmask = get_str_var(config, "tun_netmask", IPV4_ADDR_LEN);
 	tun_name    = get_str_var(config, "tun_name", TUN_IF_NAMSIZ);
+	tun_addr    = get_str_var(config, "tun_addr", IPV4_ADDR_LEN);
+	tun_mask    = get_str_var(config, "tun_mask", IPV4_ADDR_LEN);
 
 	hex_key     = get_var_value(config, "key");
 	cipher_name = get_var_value(config, "cipher");
@@ -179,8 +179,8 @@ static struct orcavpn_client *create_client(const char *file)
 		tun_name = TUN_IF_NAME;
 	if (!tun_addr)
 		CONFIG_ERROR("tun_addr param not set");
-	if (!tun_netmask)
-		tun_netmask = TUN_IF_MASK;
+	if (!tun_mask)
+		tun_mask = TUN_IF_MASK;
 
 	if (!hex_key)
 		CONFIG_ERROR("key param not set");
@@ -209,7 +209,7 @@ static struct orcavpn_client *create_client(const char *file)
 	strcpy(clnt->server_ip, server_ip);
 	strcpy(clnt->tun_name, tun_name);
 	strcpy(clnt->tun_addr, tun_addr);
-	strcpy(clnt->tun_netmask, tun_netmask);
+	strcpy(clnt->tun_mask, tun_mask);
 
 	clnt->port = port;
 	clnt->server_port = server_port;
@@ -246,7 +246,7 @@ static int vpn_client_up(struct orcavpn_client *clnt)
 	}
 	loop->tunfd = res;
 	log_mesg(log_lvl_info, "Created tun if %s", clnt->tun_name);
-	res = setup_tun_if(clnt->tun_name, clnt->tun_addr, clnt->tun_netmask);
+	res = setup_tun_if(clnt->tun_name, clnt->tun_addr, clnt->tun_mask);
 	if (res < 0) {
 		log_mesg(log_lvl_fatal, "Setup tun if failed");
 		return -1;

@@ -38,7 +38,7 @@ ip = 198.51.100.49
 port = 778  
 tun_name = orca-gate  
 tun_addr = 10.80.80.1  
-tun_netmask = 255.255.255.0  
+tun_mask = 255.255.255.0  
 block_ip_ttl = 60  
 [clientX]  
 ip = 10.80.80.2  
@@ -57,7 +57,7 @@ server_ip = 198.51.100.49
 server_port = 778  
 tun_name = orca-gate  
 tun_addr = 10.80.80.2  
-tun_netmask = 255.255.255.0  
+tun_mask = 255.255.255.0  
 key = 9f840f9cedc92e3968ef6c86cfc62f3400b1334a60e27799573d733b1038b28d  
 cipher = xchacha20-poly1305
 ```
