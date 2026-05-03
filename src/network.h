@@ -54,5 +54,7 @@ int set_max_rcvbuf(int sockfd);
 int set_nonblock_io(int fd);
 /* Block until write to fd is possible */
 void block_for_write(int fd);
+/* Sleep process for microseconds */
+void proc_delay_us(unsigned long us);
 
 #endif /* NETWORK_H_SENTRY */

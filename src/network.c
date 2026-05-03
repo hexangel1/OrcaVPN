@@ -318,3 +318,11 @@ void block_for_write(int fd)
 	FD_SET(fd, &writefds);
 	select(fd + 1, NULL, &writefds, NULL, NULL);
 }
+
+void proc_delay_us(unsigned long us)
+{
+	struct timeval tv;
+	tv.tv_sec = us / 1000000;
+	tv.tv_usec = us % 1000000;
+	select(0, NULL, NULL, NULL, &tv);
+}
