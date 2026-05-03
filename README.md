@@ -32,39 +32,76 @@ VPN client server encrypted tunnel over UDP for Linux
 * `make clean` - cleanup junk files
 
 ## Server config example
-```
-[server]  
-ip = 198.51.100.49  
-port = 778  
-tun_name = orca-gate  
-tun_addr = 10.80.80.1  
-tun_mask = 255.255.255.0  
-tun_persist = off  
-block_ip_ttl = 60  
-[clientX]  
-ip = 10.80.80.2  
-key = 9f840f9cedc92e3968ef6c86cfc62f3400b1334a60e27799573d733b1038b28d  
-cipher = xchacha20-poly1305  
-inet = on  
-lan = on  
-[clientY]  
-...
-```
+    # OrcaVPN server config
+    [server]
+    # listen ip, default 0.0.0.0
+    ip = 0.0.0.0
+    # listen port, default 778
+    port = 778
+
+    # tun interface name
+    tun_name = orca-gate
+    # tun interface address
+    tun_addr = 10.80.80.1
+    # tun interface netmask
+    tun_mask = 255.255.255.0
+    # tun interface persist mode
+    tun_persist = off
+
+    # block enemy ip for ttl seconds, default disabled
+    block_ip_ttl = 60
+
+    # client sections
+    [clientX]
+    # private ip
+    ip = 10.80.80.2
+    # encryption key
+    key = 9f840f9cedc92e3968ef6c86cfc62f3400b1334a60e27799573d733b1038b28d
+    # encryption algorithm: xchacha20-poly1305|aes-hmac-sha1
+    cipher = xchacha20-poly1305
+    # enable internet access, default off
+    inet = on
+    # enable local network access, default off
+    lan = on
+
+    [clientY]
+    ...
+
 
 ## Client config example
-```
-[client]  
-server_ip = 198.51.100.49  
-server_port = 778  
-tun_name = orca-gate  
-tun_addr = 10.80.80.2  
-tun_mask = 255.255.255.0  
-tun_persist = off  
-junk_count = 3  
-junk_min = 64  
-junk_max = 256  
-keepalive_intvl = 10  
-keepalive_probes = 6  
-key = 9f840f9cedc92e3968ef6c86cfc62f3400b1334a60e27799573d733b1038b28d  
-cipher = xchacha20-poly1305
-```
+    # OrcaVPN client config
+    [client]
+    # server ip
+    server_ip = 198.51.100.49
+    # server port, default 778
+    server_port = 778
+    # local bind port, default any
+    port = 0
+
+    # tun interface name
+    tun_name = orca-gate
+    # tun interface address
+    tun_addr = 10.80.80.2
+    # tun interface netmask
+    tun_mask = 255.255.255.0
+    # tun interface persist mode
+    tun_persist = off
+    # server tun interface address
+    router_ip = 10.80.80.1
+
+    # junk packets count to send in [0, 1000]
+    junk_count = 3
+    # min junk packet size in [0, 128]
+    junk_min = 64
+    # max junk packet size in [junk_min, 1280]
+    junk_max = 256
+
+    # keepalive ping interval in seconds, default 10
+    keepalive_intvl = 10
+    # keepalive probes before connection is dead, default infinite
+    keepalive_probes = 6
+
+    # encryption key
+    key = 9f840f9cedc92e3968ef6c86cfc62f3400b1334a60e27799573d733b1038b28d
+    # encryption algorithm: xchacha20-poly1305|aes-hmac-sha1
+    cipher = xchacha20-poly1305
