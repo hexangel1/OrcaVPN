@@ -18,10 +18,9 @@
 struct orcavpn_client {
 	struct event_selector loop;
 
-	unsigned short port;
-	unsigned short server_port;
-	char ip_addr[IPV4_ADDR_LEN];
 	char server_ip[IPV4_ADDR_LEN];
+	unsigned short server_port;
+	unsigned short port;
 
 	char tun_name[TUN_IF_NAMSIZ];
 	char tun_addr[IPV4_ADDR_LEN];
@@ -175,7 +174,7 @@ static struct orcavpn_client *create_client(const char *file)
 	unsigned char bin_key[64];
 	size_t keylen, hex_keylen;
 	int port, server_port, junk_count, junk_min, junk_max;
-	const char *ip, *server_ip, *router_ip;
+	const char *server_ip, *router_ip;
 	const char *tun_name, *tun_addr, *tun_mask;
 	const char *hex_key, *cipher_name;
 	crypto_key_type cipher;
@@ -189,10 +188,9 @@ static struct orcavpn_client *create_client(const char *file)
 	if (config->next)
 		CONFIG_ERROR("only client section is needed");
 
-	ip          = get_str_var(config, "ip", IPV4_ADDR_LEN);
-	port        = get_int_var(config, "port");
 	server_ip   = get_str_var(config, "server_ip", IPV4_ADDR_LEN);
 	server_port = get_int_var(config, "server_port");
+	port        = get_int_var(config, "port");
 	router_ip   = get_str_var(config, "router_ip", IPV4_ADDR_LEN);
 
 	tun_name    = get_str_var(config, "tun_name", TUN_IF_NAMSIZ);
@@ -206,8 +204,6 @@ static struct orcavpn_client *create_client(const char *file)
 	junk_min    = get_int_var(config, "junk_min");
 	junk_max    = get_int_var(config, "junk_max");
 
-	if (!ip)
-		ip = "0.0.0.0";
 	if (!server_ip)
 		CONFIG_ERROR("server_ip param not set");
 	if (!server_port)
@@ -253,7 +249,6 @@ static struct orcavpn_client *create_client(const char *file)
 	memset(clnt, 0, sizeof(struct orcavpn_client));
 	init_event_selector(&clnt->loop);
 
-	strcpy(clnt->ip_addr, ip);
 	strcpy(clnt->server_ip, server_ip);
 	strcpy(clnt->tun_name, tun_name);
 	strcpy(clnt->tun_addr, tun_addr);
@@ -302,7 +297,7 @@ static int vpn_client_up(struct orcavpn_client *clnt)
 		log_mesg(log_lvl_fatal, "Setup tun if failed");
 		return -1;
 	}
-	res = create_udp_sock(clnt->ip_addr, clnt->port);
+	res = create_udp_sock("0.0.0.0", clnt->port);
 	if (res < 0) {
 		log_mesg(log_lvl_fatal, "Create socket failed");
 		return -1;
