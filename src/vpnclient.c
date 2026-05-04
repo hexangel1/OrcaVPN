@@ -107,7 +107,7 @@ static void alarm_handler(void *ctx)
 	if (!keepalive_probes || clnt->no_responded_pings < keepalive_probes) {
 		send_keepalive_ping(clnt);
 	} else {
-		log_mesg(log_lvl_err, "connection to server lost");
+		log_mesg(log_lvl_fatal, "Connection to server lost");
 		do_reload(&clnt->loop);
 	}
 }
@@ -121,7 +121,7 @@ static void socket_handler(void *ctx)
 
 	res = recv_udp(clnt->loop.sockfd, buffer, MAX_UDP_PAYLOAD, NULL);
 	if (res < 0) {
-		err_panic(&clnt->loop, "reading udp socket");
+		err_panic(&clnt->loop, "reading udp socket io error");
 		return;
 	}
 	if (!res)
@@ -155,7 +155,7 @@ static void tundev_handler(void *ctx)
 
 	res = recv_tun(clnt->loop.tunfd, buffer, TUN_IF_MTU);
 	if (res < 0) {
-		err_panic(&clnt->loop, "reading tun device");
+		err_panic(&clnt->loop, "reading tun device io error");
 		return;
 	}
 	if (!res)

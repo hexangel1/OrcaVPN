@@ -288,7 +288,7 @@ static void socket_handler(void *ctx)
 
 	res = recv_udp(serv->loop.sockfd, buffer, MAX_UDP_PAYLOAD, &addr);
 	if (res < 0) {
-		err_panic(&serv->loop, "reading udp socket");
+		err_panic(&serv->loop, "reading udp socket io error");
 		return;
 	}
 	if (!res || check_ip(serv, &addr))
@@ -337,7 +337,7 @@ static void tundev_handler(void *ctx)
 
 	res = recv_tun(serv->loop.tunfd, buffer, TUN_IF_MTU);
 	if (res < 0) {
-		err_panic(&serv->loop, "reading tun device");
+		err_panic(&serv->loop, "reading tun device io error");
 		return;
 	}
 	if (!res)

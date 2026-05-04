@@ -34,17 +34,17 @@ static void prepare_loop(struct event_selector *loop, sigset_t *sigmask)
 {
 	int res = setup_signal_events(sigmask, loop->alarm_interval);
 	if (res < 0) {
-		err_panic(loop, "setting signal handlers");
+		err_panic(loop, "set signal handlers failed");
 		return;
 	}
 	res = set_nonblock_io(loop->tunfd);
 	if (res < 0) {
-		err_panic(loop, "setting tundev nonblock");
+		err_panic(loop, "set tun device nonblock failed");
 		return;
 	}
 	res = set_nonblock_io(loop->sockfd);
 	if (res < 0) {
-		err_panic(loop, "setting socket nonblock");
+		err_panic(loop, "set udp socket nonblock failed");
 		return;
 	}
 	log_mesg(log_lvl_info, "Running event loop...");
@@ -74,7 +74,7 @@ void event_loop(struct event_selector *loop)
 		if (res < 0) {
 			if (errno != EINTR) {
 				log_perror("pselect");
-				err_panic(loop, "polling fds");
+				err_panic(loop, "polling events failed");
 				break;
 			}
 			process_signal(loop);
@@ -98,7 +98,7 @@ void init_event_selector(struct event_selector *loop)
 
 void err_panic(struct event_selector *loop, const char *mesg)
 {
-	log_mesg(log_lvl_fatal, "Fatal error %s, process terminating", mesg);
+	log_mesg(log_lvl_fatal, "Panic: %s, process terminating", mesg);
 	loop->status_flag = 1;
 	loop->exit_loop = 1;
 }

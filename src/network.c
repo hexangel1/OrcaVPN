@@ -261,7 +261,7 @@ int set_max_sndbuf(int sockfd)
 		log_perror("getsockopt");
 		return -1;
 	}
-	log_mesg(log_lvl_debug, "SO_SNDBUF = %d", snd_bufsize);
+	log_mesg(log_lvl_debug, "socket send buffer size = %d", snd_bufsize);
 	return 0;
 }
 
@@ -293,7 +293,7 @@ int set_max_rcvbuf(int sockfd)
 		log_perror("getsockopt");
 		return -1;
 	}
-	log_mesg(log_lvl_debug, "SO_RCVBUF = %d", rcv_bufsize);
+	log_mesg(log_lvl_debug, "socket recv buffer size = %d", rcv_bufsize);
 	return 0;
 }
 
