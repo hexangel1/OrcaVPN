@@ -12,9 +12,9 @@
 #define TUN_IF_NAMSIZ 16
 
 /* Create tun device */
-int create_tun_if(char *tun_name);
+int create_tun_if(char *tun_name, int persist);
 /* Create tap device */
-int create_tap_if(char *tap_name);
+int create_tap_if(char *tap_name, int persist);
 
 /* Setup tun device address, mask, mtu, qlen */
 int setup_tun_if(const char *ifname, const char *addr, const char *mask);

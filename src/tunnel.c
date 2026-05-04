@@ -14,7 +14,7 @@
 #include "tunnel.h"
 #include "logger.h"
 
-static int tuntap_alloc(char *ifname, int flags)
+static int tuntap_alloc(char *ifname, int persist, int flags)
 {
 	const char *clonedev = "/dev/net/tun";
 	struct ifreq ifr;
@@ -35,6 +35,13 @@ static int tuntap_alloc(char *ifname, int flags)
 		close(fd);
 		return -1;
 	}
+
+	if (ioctl(fd, TUNSETPERSIST, persist) < 0) {
+		log_perror("ioctl TUNSETPERSIST");
+		close(fd);
+		return -1;
+	}
+
 	strcpy(ifname, ifr.ifr_name);
 	return fd;
 }
@@ -116,14 +123,14 @@ static int set_if_netmask(const char *ifname, const char *netmask)
 	return set_if_option(ifname, &ifr, SIOCSIFNETMASK);
 }
 
-int create_tun_if(char *tun_name)
+int create_tun_if(char *tun_name, int persist)
 {
-	return tuntap_alloc(tun_name, IFF_TUN | IFF_NO_PI);
+	return tuntap_alloc(tun_name, persist, IFF_TUN | IFF_NO_PI);
 }
 
-int create_tap_if(char *tap_name)
+int create_tap_if(char *tap_name, int persist)
 {
-	return tuntap_alloc(tap_name, IFF_TAP | IFF_NO_PI);
+	return tuntap_alloc(tap_name, persist, IFF_TAP | IFF_NO_PI);
 }
 
 int setup_tun_if(const char *ifname, const char *addr, const char *mask)

@@ -36,6 +36,7 @@ struct orcavpn_server {
 	char tun_name[TUN_IF_NAMSIZ];
 	char tun_addr[IPV4_ADDR_LEN];
 	char tun_mask[IPV4_ADDR_LEN];
+	int  tun_persist;
 
 	unsigned int block_ip_ttl;
 
@@ -483,6 +484,7 @@ static struct orcavpn_server *create_server(const char *file)
 	strcpy(serv->tun_addr, tun_addr);
 	strcpy(serv->tun_mask, tun_mask);
 
+	serv->tun_persist = (get_bool_var(config, "tun_persist") == 1);
 	serv->private_ip = inet_network(serv->tun_addr);
 	serv->private_mask = inet_network(serv->tun_mask);
 	serv->port = port;
@@ -513,7 +515,7 @@ static int vpn_server_up(struct orcavpn_server *serv)
 	struct event_selector *loop = &serv->loop;
 	int res;
 
-	res = create_tun_if(serv->tun_name);
+	res = create_tun_if(serv->tun_name, serv->tun_persist);
 	if (res < 0) {
 		log_mesg(log_lvl_fatal, "Create tun if failed");
 		return -1;
