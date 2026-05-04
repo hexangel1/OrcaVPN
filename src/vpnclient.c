@@ -12,7 +12,7 @@
 #include "logger.h"
 #include "helper.h"
 
-#define KEEPALIVE_INTVL_DEFAULT 30 /* 30 seconds */
+#define KEEPALIVE_INTVL_DEFAULT 10 /* 10 seconds */
 #define KEEPALIVE_PROBES_DEFAULT 0 /* infinite probes */
 #define GET_PEER_ID(ip) ((ip) & 0xff)
 
