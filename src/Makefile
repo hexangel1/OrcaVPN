@@ -1,3 +1,7 @@
+# ======================================================================= #
+# This is free and unencumbered software released into the public domain. #
+#                    Written by hexangel in 2024-2026.                    #
+# ======================================================================= #
 PROJECT = orcavpn
 SOURCES = main.c vpnserver.c vpnclient.c eventloop.c sigevent.c network.c \
 	ipproto.c tunnel.c logger.c helper.c configparser.c bytetrie.c

@@ -1,3 +1,7 @@
+# ======================================================================= #
+# This is free and unencumbered software released into the public domain. #
+#                    Written by hexangel in 2024-2026.                    #
+# ======================================================================= #
 PROJECT = orcavpn
 ARCHIEVE_FILES = Makefile README.md LICENSE scripts config \
 	src/*.[ch] src/encrypt/*.[ch] src/Makefile src/encrypt/Makefile \

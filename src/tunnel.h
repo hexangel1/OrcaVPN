@@ -1,3 +1,7 @@
+/* ======================================================================= */
+/* This is free and unencumbered software released into the public domain. */
+/*                    Written by hexangel in 2024-2026.                    */
+/* ======================================================================= */
 #ifndef TUNNEL_H_SENTRY
 #define TUNNEL_H_SENTRY
 

@@ -1,3 +1,7 @@
+/* ======================================================================= */
+/* This is free and unencumbered software released into the public domain. */
+/*                    Written by hexangel in 2024-2026.                    */
+/* ======================================================================= */
 #ifndef CONFIGPARSER_H_SENTRY
 #define CONFIGPARSER_H_SENTRY
 
