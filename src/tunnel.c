@@ -52,21 +52,20 @@ static int tuntap_alloc(char *ifname, int persist, int flags)
 
 static int set_if_option(const char *ifname, struct ifreq *ifr, int opt)
 {
-	int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+	int sockfd, res;
+
+	sockfd = socket(AF_INET, SOCK_DGRAM, 0);
 	if (sockfd < 0) {
-		log_perror("socket");
+		log_perror("set_if_option: socket");
 		return -1;
 	}
 	strncpy(ifr->ifr_name, ifname, IFNAMSIZ - 1);
 	ifr->ifr_name[IFNAMSIZ - 1] = '\0';
-
-	if (ioctl(sockfd, opt, (void *)ifr) < 0) {
-		log_perror("ioctl");
-		close(sockfd);
-		return -1;
-	}
+	res = ioctl(sockfd, opt, (void *)ifr);
+	if (res < 0)
+		log_perror("set_if_option: ioctl");
 	close(sockfd);
-	return 0;
+	return res;
 }
 
 static int set_if_up(const char *ifname, int flags)
@@ -104,7 +103,7 @@ static int set_if_address(const char *ifname, const char *address)
 	addr->sin_family = AF_INET;
 	res = inet_pton(AF_INET, address, &addr->sin_addr);
 	if (res <= 0) {
-		log_mesg(log_lvl_err, "inet_pton: Invalid IPv4 address");
+		log_mesg(log_lvl_err, "set_if_address: Invalid IPv4 address");
 		return -1;
 	}
 	return set_if_option(ifname, &ifr, SIOCSIFADDR);
@@ -121,7 +120,7 @@ static int set_if_netmask(const char *ifname, const char *netmask)
 	addr->sin_family = AF_INET;
 	res = inet_pton(AF_INET, netmask, &addr->sin_addr);
 	if (res <= 0) {
-		log_mesg(log_lvl_err, "inet_pton: Invalid IPv4 netmask");
+		log_mesg(log_lvl_err, "set_if_netmask: Invalid IPv4 address");
 		return -1;
 	}
 	return set_if_option(ifname, &ifr, SIOCSIFNETMASK);
