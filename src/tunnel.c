@@ -2,6 +2,7 @@
 /* This is free and unencumbered software released into the public domain. */
 /*                    Written by hexangel in 2024-2026.                    */
 /* ======================================================================= */
+#define _GNU_SOURCE
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -11,9 +12,28 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#ifndef BUILD_MUSL
 #include <linux/if.h>
 #include <linux/if_tun.h>
-#include <linux/if_ether.h>
+#else
+#include <net/if.h>
+/* definitions from <linux/if_tun.h> */
+#ifndef TUNSETIFF
+#define TUNSETIFF     _IOW('T', 202, int)
+#endif
+#ifndef TUNSETPERSIST
+#define TUNSETPERSIST _IOW('T', 203, int)
+#endif
+#ifndef IFF_TUN
+#define IFF_TUN 0x0001
+#endif
+#ifndef IFF_TAP
+#define IFF_TAP 0x0002
+#endif
+#ifndef IFF_NO_PI
+#define IFF_NO_PI 0x1000
+#endif
+#endif /* BUILD_MUSL */
 
 #include "tunnel.h"
 #include "logger.h"
