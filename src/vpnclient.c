@@ -317,6 +317,38 @@ static void set_event_handlers(struct orcavpn_client *clnt)
 	loop->ctx = clnt;
 }
 
+static int connect_server(struct orcavpn_client *clnt)
+{
+	struct event_selector *loop = &clnt->loop;
+	struct sockaddr_in addr;
+	socklen_t addrlen = sizeof(struct sockaddr_in);
+	int res;
+
+	res = connect_sock(loop->sockfd, clnt->server_ip, clnt->server_port);
+	if (res < 0)
+		return -1;
+
+	res = getsockname(loop->sockfd, (struct sockaddr *)&addr, &addrlen);
+	if (res < 0) {
+		log_perror("connect_server: getsockname");
+		return -1;
+	}
+	if (ntohl(addr.sin_addr.s_addr) == clnt->private_ip) {
+		log_mesg(log_lvl_err, "connect_server: routing loop detected");
+		return -1;
+	}
+
+	log_mesg(log_lvl_info, "Connected from %s to %s",
+		get_local_addr(loop->sockfd), get_remote_addr(loop->sockfd));
+
+	set_max_sndbuf(loop->sockfd);
+	set_max_rcvbuf(loop->sockfd);
+
+	send_junk_packets(clnt);
+	send_keepalive_ping(clnt);
+	return 0;
+}
+
 static int vpn_client_up(struct orcavpn_client *clnt)
 {
 	struct event_selector *loop = &clnt->loop;
@@ -340,18 +372,12 @@ static int vpn_client_up(struct orcavpn_client *clnt)
 		return -1;
 	}
 	loop->sockfd = res;
-	res = connect_sock(loop->sockfd, clnt->server_ip, clnt->server_port);
+	res = connect_server(clnt);
 	if (res < 0) {
 		log_mesg(log_lvl_fatal, "Connection to server failed");
 		return -1;
 	}
-	log_mesg(log_lvl_info, "Connected from %s to %s",
-		get_local_addr(loop->sockfd), get_remote_addr(loop->sockfd));
-	set_max_sndbuf(loop->sockfd);
-	set_max_rcvbuf(loop->sockfd);
 	set_event_handlers(clnt);
-	send_junk_packets(clnt);
-	send_keepalive_ping(clnt);
 	return 0;
 }
 
