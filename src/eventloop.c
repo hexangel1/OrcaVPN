@@ -77,7 +77,7 @@ void event_loop(struct event_selector *loop)
 		res = pselect(nfds, &readfds, NULL, NULL, NULL, &sigmask);
 		if (res < 0) {
 			if (errno != EINTR) {
-				log_perror("pselect");
+				log_perror("event_loop: pselect");
 				err_panic(loop, "polling events failed");
 				break;
 			}

@@ -165,12 +165,13 @@ decrypt_xchacha20_poly1305(void *mesg, size_t *len, const crypto_key *crkey)
 
 static int get_urandom_fd(void)
 {
+	const char *urandom_dev = "/dev/urandom";
 	static int urandom_fd = -1;
 
 	if (urandom_fd < 0) {
-		urandom_fd = open("/dev/urandom", O_RDONLY);
+		urandom_fd = open(urandom_dev, O_RDONLY);
 		if (urandom_fd < 0) {
-			perror("open urandom");
+			perror(urandom_dev);
 			return -1;
 		}
 	}

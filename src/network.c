@@ -58,32 +58,32 @@ get_sock_addr(int af, const char *ip, unsigned short port)
 }
 
 static int
-create_sock_af(int af, int type, const char *ip, unsigned short port)
+create_socket(int af, int type, const char *ip, unsigned short port)
 {
 	int sockfd, res, opt = 1;
 	struct sockaddr *addr;
 
 	addr = get_sock_addr(af, ip, port);
 	if (!addr) {
-		log_mesg(log_lvl_err, "get_sock_addr: invalid ip address");
+		log_mesg(log_lvl_err, "create_socket: Invalid IP address");
 		return -1;
 	}
 	res = socket(af, type, 0);
 	if (res < 0) {
-		log_perror("socket");
+		log_perror("create_socket: socket");
 		return -1;
 	}
 	sockfd = res;
 
 	res = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 	if (res < 0) {
-		log_perror("setsockopt");
+		log_perror("create_socket: setsockopt");
 		close(sockfd);
 		return -1;
 	}
 	res = bind(sockfd, addr, AF_SOCKLEN(af));
 	if (res < 0) {
-		log_perror("bind");
+		log_perror("create_socket: bind");
 		close(sockfd);
 		return -1;
 	}
@@ -91,19 +91,19 @@ create_sock_af(int af, int type, const char *ip, unsigned short port)
 }
 
 static int
-connect_sock_af(int af, int sockfd, const char *ip, unsigned short port)
+connect_socket(int af, int sockfd, const char *ip, unsigned short port)
 {
 	int res;
 	struct sockaddr *addr;
 
 	addr = get_sock_addr(af, ip, port);
 	if (!addr) {
-		log_mesg(log_lvl_err, "get_sock_addr: invalid ip address");
+		log_mesg(log_lvl_err, "connect_socket: Invalid IP address");
 		return -1;
 	}
 	res = connect(sockfd, addr, AF_SOCKLEN(af));
 	if (res < 0) {
-		log_perror("connect");
+		log_perror("connect_socket: connect");
 		return -1;
 	}
 	return 0;
@@ -155,32 +155,32 @@ static ssize_t recv_udp_af(int af, int sockfd, void *buf, size_t len,
 
 int create_udp_sock(const char *ip, unsigned short port)
 {
-	return create_sock_af(AF_INET, SOCK_DGRAM, ip, port);
+	return create_socket(AF_INET, SOCK_DGRAM, ip, port);
 }
 
 int create_tcp_sock(const char *ip, unsigned short port)
 {
-	return create_sock_af(AF_INET, SOCK_STREAM, ip, port);
+	return create_socket(AF_INET, SOCK_STREAM, ip, port);
 }
 
 int create_udp_sock6(const char *ip, unsigned short port)
 {
-	return create_sock_af(AF_INET6, SOCK_DGRAM, ip, port);
+	return create_socket(AF_INET6, SOCK_DGRAM, ip, port);
 }
 
 int create_tcp_sock6(const char *ip, unsigned short port)
 {
-	return create_sock_af(AF_INET6, SOCK_STREAM, ip, port);
+	return create_socket(AF_INET6, SOCK_STREAM, ip, port);
 }
 
 int connect_sock(int sockfd, const char *ip, unsigned short port)
 {
-	return connect_sock_af(AF_INET, sockfd, ip, port);
+	return connect_socket(AF_INET, sockfd, ip, port);
 }
 
 int connect_sock6(int sockfd, const char *ip, unsigned short port)
 {
-	return connect_sock_af(AF_INET6, sockfd, ip, port);
+	return connect_socket(AF_INET6, sockfd, ip, port);
 }
 
 ssize_t send_udp(int sockfd, const void *buf, size_t len,
@@ -216,7 +216,7 @@ const char *get_local_addr(int sockfd)
 
 	res = getsockname(sockfd, (struct sockaddr *)&addr, &addrlen);
 	if (res < 0) {
-		log_perror("getsockname");
+		log_perror("get_local_addr: getsockname");
 		return "";
 	}
 	return addr_to_str(&addr, buffer, sizeof(buffer));
@@ -231,7 +231,7 @@ const char *get_remote_addr(int sockfd)
 
 	res = getpeername(sockfd, (struct sockaddr *)&addr, &addrlen);
 	if (res < 0) {
-		log_perror("getpeername");
+		log_perror("get_remote_addr: getpeername");
 		return "";
 	}
 	return addr_to_str(&addr, buffer, sizeof(buffer));
@@ -257,12 +257,12 @@ int set_max_sndbuf(int sockfd)
 
 	res = setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, &snd_bufsize, optlen);
 	if (res < 0) {
-		log_perror("setsockopt");
+		log_perror("set_max_sndbuf: setsockopt");
 		return -1;
 	}
 	res = getsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, &snd_bufsize, &optlen);
 	if (res < 0) {
-		log_perror("getsockopt");
+		log_perror("set_max_sndbuf: getsockopt");
 		return -1;
 	}
 	log_mesg(log_lvl_debug, "socket send buffer size = %d", snd_bufsize);
@@ -289,12 +289,12 @@ int set_max_rcvbuf(int sockfd)
 
 	res = setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, &rcv_bufsize, optlen);
 	if (res < 0) {
-		log_perror("setsockopt");
+		log_perror("set_max_rcvbuf: setsockopt");
 		return -1;
 	}
 	res = getsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, &rcv_bufsize, &optlen);
 	if (res < 0) {
-		log_perror("getsockopt");
+		log_perror("set_max_rcvbuf: getsockopt");
 		return -1;
 	}
 	log_mesg(log_lvl_debug, "socket recv buffer size = %d", rcv_bufsize);
@@ -305,11 +305,11 @@ int set_nonblock_io(int fd)
 {
 	int flags = fcntl(fd, F_GETFL);
 	if (flags < 0) {
-		log_perror("fcntl F_GETFL");
+		log_perror("set_nonblock_io: fcntl F_GETFL");
 		return -1;
 	}
 	if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0) {
-		log_perror("fcntl F_SETFL");
+		log_perror("set_nonblock_io: fcntl F_SETFL");
 		return -1;
 	}
 	return 0;
