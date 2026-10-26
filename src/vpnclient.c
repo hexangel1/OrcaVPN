@@ -74,7 +74,7 @@ static void send_junk_packets(struct orcavpn_client *clnt)
 		res = send_udp(clnt->loop.sockfd, buffer, len, NULL);
 		if (res < 0)
 			log_mesg(log_lvl_err, "sending junk packet failed");
-		proc_delay_us(get_rand_from(500, 1500));
+		proc_delay_us(get_rand_from(1000, 5000));
 	}
 }
 
