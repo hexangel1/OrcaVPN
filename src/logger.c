@@ -20,15 +20,17 @@ static struct logger_config {
 	int enable_time;
 } logger;
 
-static const char *get_timestamp(int local)
+static const char *get_timestamp(char buffer[64], int local)
 {
-	static char buffer[64];
-	struct tm *now_tm;
+	struct tm now_tm, *res;
 	time_t now;
 
 	now = time(NULL);
-	now_tm = local ? localtime(&now) : gmtime(&now);
-	strftime(buffer, sizeof(buffer), "%d %b %H:%M:%S ", now_tm);
+	res = local ? localtime_r(&now, &now_tm) : gmtime_r(&now, &now_tm);
+	if (res)
+		strftime(buffer, 64, "%d %b %H:%M:%S ", &now_tm);
+	else
+		buffer[0] = '\0';
 	return buffer;
 }
 
@@ -72,6 +74,9 @@ static int prio_level_to_sys(enum log_mesg_prio_level level)
 
 static void open_logfile(void)
 {
+	if (!logger.log_file_path)
+		return;
+
 	logger.log_file = fopen(logger.log_file_path, "a");
 	if (!logger.log_file) {
 		perror(logger.log_file_path);
@@ -82,8 +87,9 @@ static void open_logfile(void)
 
 static void close_logfile(void)
 {
-	if (!logger.log_file)
+	if (!logger.log_file_path || !logger.log_file)
 		return;
+
 	fflush(logger.log_file);
 	fclose(logger.log_file);
 	logger.log_file = NULL;
@@ -109,14 +115,16 @@ void init_logger(const char *service, const char *filename,
 		openlog(service, LOG_PID | LOG_CONS | LOG_NDELAY, LOG_DAEMON);
 		atexit(closelog);
 	}
+	if (logger.enable_time == LOG_LOCAL_DATETIME)
+		tzset();
 }
 
 void log_mesg(int level, const char *mesg, ...)
 {
-	const char *prioname, *ts = "";
-	char buffer[1024];
-	int len;
+	char buffer[1024], tmst[64] = "";
+	const char *prioname;
 	va_list args;
+	int len;
 
 	va_start(args, mesg);
 	len = vsnprintf(buffer, sizeof(buffer), mesg, args);
@@ -125,9 +133,9 @@ void log_mesg(int level, const char *mesg, ...)
 		return;
 
 	if (logger.enable_time != LOG_NO_DATETIME)
-		ts = get_timestamp(logger.enable_time == LOG_LOCAL_DATETIME);
+		get_timestamp(tmst, logger.enable_time == LOG_LOCAL_DATETIME);
 	prioname = get_prio_level_name(level);
-	fprintf(logger.log_file, "%s[%s] %s\n", ts, prioname, buffer);
+	fprintf(logger.log_file, "%s[%s] %s\n", tmst, prioname, buffer);
 	if (logger.enable_syslog)
 		syslog(prio_level_to_sys(level), "%s", buffer);
 }
@@ -145,8 +153,6 @@ void log_perror(const char *mesg)
 
 void log_rotate(void)
 {
-	if (!logger.log_file_path)
-		return;
 	close_logfile();
 	open_logfile();
 }

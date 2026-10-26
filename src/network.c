@@ -22,49 +22,49 @@
 #define AF_SOCKLEN(af) ((socklen_t)((af) == AF_INET ? \
 	sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6)))
 
-static struct sockaddr *
-get_sock_addr(int af, const char *ip, unsigned short port)
-{
-	static union ipv4_ipv6_sockaddr {
-		struct sockaddr  address;
-		struct sockaddr_in  ipv4;
-		struct sockaddr_in6 ipv6;
-	} addr;
+typedef union sockaddr_buffer_un {
+	struct sockaddr     addr;
+	struct sockaddr_in  ipv4;
+	struct sockaddr_in6 ipv6;
+} sockaddr_buffer;
 
-	memset(&addr, 0, sizeof(addr));
+static int get_sock_addr(int af, const char *ip, unsigned short port,
+	sockaddr_buffer *sockbuf)
+{
+	memset(sockbuf, 0, sizeof(sockaddr_buffer));
 	if (af == AF_INET) {
-		addr.ipv4.sin_family = af;
-		addr.ipv4.sin_port = htons(port);
+		sockbuf->ipv4.sin_family = af;
+		sockbuf->ipv4.sin_port = htons(port);
 		if (ip && *ip) {
-			if (inet_pton(af, ip, &addr.ipv4.sin_addr) < 1)
-				return NULL;
+			if (inet_pton(af, ip, &sockbuf->ipv4.sin_addr) < 1)
+				return -1;
 		} else {
-			addr.ipv4.sin_addr.s_addr = INADDR_ANY;
+			sockbuf->ipv4.sin_addr.s_addr = INADDR_ANY;
 		}
 	} else if (af == AF_INET6) {
-		addr.ipv6.sin6_family = af;
-		addr.ipv6.sin6_port = htons(port);
+		sockbuf->ipv6.sin6_family = af;
+		sockbuf->ipv6.sin6_port = htons(port);
 		if (ip && *ip) {
-			if (inet_pton(af, ip, &addr.ipv6.sin6_addr) < 1)
-				return NULL;
+			if (inet_pton(af, ip, &sockbuf->ipv6.sin6_addr) < 1)
+				return -1;
 		} else {
-			memcpy(&addr.ipv6.sin6_addr, &in6addr_any,
+			memcpy(&sockbuf->ipv6.sin6_addr, &in6addr_any,
 				sizeof(in6addr_any));
 		}
 	} else {
-		return NULL;
+		return -1;
 	}
-	return &addr.address;
+	return 0;
 }
 
 static int
 create_socket(int af, int type, const char *ip, unsigned short port)
 {
 	int sockfd, res, opt = 1;
-	struct sockaddr *addr;
+	sockaddr_buffer sockbuf;
 
-	addr = get_sock_addr(af, ip, port);
-	if (!addr) {
+	res = get_sock_addr(af, ip, port, &sockbuf);
+	if (res < 0) {
 		log_mesg(log_lvl_err, "create_socket: Invalid IP address");
 		return -1;
 	}
@@ -81,7 +81,7 @@ create_socket(int af, int type, const char *ip, unsigned short port)
 		close(sockfd);
 		return -1;
 	}
-	res = bind(sockfd, addr, AF_SOCKLEN(af));
+	res = bind(sockfd, &sockbuf.addr, AF_SOCKLEN(af));
 	if (res < 0) {
 		log_perror("create_socket: bind");
 		close(sockfd);
@@ -94,14 +94,14 @@ static int
 connect_socket(int af, int sockfd, const char *ip, unsigned short port)
 {
 	int res;
-	struct sockaddr *addr;
+	sockaddr_buffer sockbuf;
 
-	addr = get_sock_addr(af, ip, port);
-	if (!addr) {
+	res = get_sock_addr(af, ip, port, &sockbuf);
+	if (res < 0) {
 		log_mesg(log_lvl_err, "connect_socket: Invalid IP address");
 		return -1;
 	}
-	res = connect(sockfd, addr, AF_SOCKLEN(af));
+	res = connect(sockfd, &sockbuf.addr, AF_SOCKLEN(af));
 	if (res < 0) {
 		log_perror("connect_socket: connect");
 		return -1;
